@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { ClinicalRecord, PatientField, ClinicalSectionData, GoogleUserProfile } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
@@ -23,6 +24,7 @@ const App: React.FC = () => {
         especialidad: '',
     });
     const importInputRef = useRef<HTMLInputElement>(null);
+    const scriptLoadRef = useRef(false); // Ref to prevent double script loading
 
     // Google Auth State
     const [isSignedIn, setIsSignedIn] = useState(false);
@@ -42,6 +44,12 @@ const App: React.FC = () => {
 
     // --- Script Loading and Initialization ---
     useEffect(() => {
+        // FIX: Prevent script from loading twice in React.StrictMode
+        if (scriptLoadRef.current) {
+            return;
+        }
+        scriptLoadRef.current = true;
+
         const scriptGapi = document.createElement('script');
         scriptGapi.src = 'https://apis.google.com/js/api.js';
         scriptGapi.async = true;
@@ -357,7 +365,7 @@ const App: React.FC = () => {
                             <button onClick={handleSignOut} className="btn" type="button">Salir</button>
                         </>
                     ) : (
-                        <button onClick={handleSignIn} className="btn" type="button" disabled={!isGisReady}>Iniciar Sesión</button>
+                        <button onClick={handleSignIn} className="btn" type="button" disabled={!tokenClient}>Iniciar Sesión</button>
                     )}
                     <button onClick={handleOpenConfigModal} className="btn px-2" type="button" title="Configurar API de Google">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -421,22 +429,28 @@ const App: React.FC = () => {
                     <div className="sec" id="sec-datos">
                         <div className="subtitle" contentEditable={isEditing} suppressContentEditableWarning>Información del Paciente</div>
                         <div id="patientGrid">
-                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px 12px' }}>
-                                {record.patientFields.filter(f => !f.isCustom).map((field, index) => (
-                                    <div key={field.id || index} className="patient-field-row">
-                                        <div className="lbl" contentEditable={isEditing} suppressContentEditableWarning onBlur={e => handlePatientLabelChange(index, e.currentTarget.innerText)}>{field.label}</div>
-                                        <input 
-                                            type={field.type} 
-                                            className="inp" 
-                                            id={field.id} 
-                                            value={field.value} 
-                                            onChange={e => handlePatientFieldChange(index, e.target.value)} 
-                                            placeholder={field.placeholder} 
-                                            readOnly={field.readonly} 
-                                            style={field.readonly ? {background: '#f9f9f9', cursor: 'default'} : {}}
-                                        />
-                                    </div>
-                                ))}
+                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px 12px', marginBottom: '8px' }}>
+                                {record.patientFields.filter(f => !f.isCustom && ['nombre', 'rut', 'fecnac', 'edad', 'fing', 'finf'].includes(f.id || '')).sort((a, b) => {
+                                    const order = ['nombre', 'rut', 'fecnac', 'edad', 'fing', 'finf'];
+                                    return order.indexOf(a.id || '') - order.indexOf(b.id || '');
+                                }).map((field, index) => {
+                                    const originalIndex = record.patientFields.findIndex(pf => pf === field);
+                                    return (
+                                        <div key={field.id || index} className="patient-field-row">
+                                            <div className="lbl" contentEditable={isEditing} suppressContentEditableWarning onBlur={e => handlePatientLabelChange(originalIndex, e.currentTarget.innerText)}>{field.label}</div>
+                                            <input 
+                                                type={field.type} 
+                                                className="inp" 
+                                                id={field.id} 
+                                                value={field.value} 
+                                                onChange={e => handlePatientFieldChange(originalIndex, e.target.value)} 
+                                                placeholder={field.placeholder} 
+                                                readOnly={field.readonly} 
+                                                style={field.readonly ? {background: '#f9f9f9', cursor: 'default'} : {}}
+                                            />
+                                        </div>
+                                    )
+                                })}
                             </div>
                             {record.patientFields.filter(f => f.isCustom).map((field, index) => {
                                 const originalIndex = record.patientFields.findIndex(pf => pf === field);
