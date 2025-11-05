@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -162,8 +159,15 @@ const App: React.FC = () => {
             handleSignIn();
             return;
         }
-        setFolderPath([{ id: 'root', name: 'Mi unidad' }]);
-        fetchDriveFolders('root');
+        const savedPath = localStorage.getItem('defaultDriveFolderPath');
+        if (savedPath) {
+            const path = JSON.parse(savedPath) as DriveFolder[];
+            setFolderPath(path);
+            fetchDriveFolders(path[path.length - 1].id);
+        } else {
+            setFolderPath([{ id: 'root', name: 'Mi unidad' }]);
+            fetchDriveFolders('root');
+        }
         setIsSaveModalOpen(true);
     };
 
@@ -207,35 +211,48 @@ const App: React.FC = () => {
         }
     };
     
+    const handleSetDefaultFolder = () => {
+        localStorage.setItem('defaultDriveFolderId', selectedFolderId);
+        localStorage.setItem('defaultDriveFolderPath', JSON.stringify(folderPath));
+        alert(`'${folderPath[folderPath.length - 1].name}' establecida como predeterminada.`);
+    };
+
     const generatePdfAsBlob = async (): Promise<Blob> => {
         const sheetElement = document.getElementById('sheet');
-        if (!sheetElement) throw new Error("Sheet element not found");
+        const bodyElement = document.body;
+        if (!sheetElement || !bodyElement) throw new Error("Required elements for PDF generation not found");
 
-        const canvas = await html2canvas(sheetElement, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
+        bodyElement.classList.add('pdf-generation-mode');
         
-        const pdf = new jsPDF({
-            orientation: 'p',
-            unit: 'mm',
-            format: 'a4',
-        });
+        try {
+            const canvas = await html2canvas(sheetElement, { scale: 2, useCORS: true });
+            const imgData = canvas.toDataURL('image/png');
+            
+            const pdf = new jsPDF({
+                orientation: 'p',
+                unit: 'mm',
+                format: 'a4',
+            });
 
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const canvasWidth = canvas.width;
-        const canvasHeight = canvas.height;
-        const ratio = canvasWidth / canvasHeight;
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasWidth / canvasHeight;
 
-        let width = pdfWidth;
-        let height = width / ratio;
-        
-        if (height > pdfHeight) {
-            height = pdfHeight;
-            width = height * ratio;
+            let width = pdfWidth;
+            let height = width / ratio;
+            
+            if (height > pdfHeight) {
+                height = pdfHeight;
+                width = height * ratio;
+            }
+
+            pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+            return pdf.output('blob');
+        } finally {
+            bodyElement.classList.remove('pdf-generation-mode');
         }
-
-        pdf.addImage(imgData, 'PNG', 0, 0, width, height);
-        return pdf.output('blob');
     };
 
     const handleFinalSave = async () => {
@@ -516,10 +533,15 @@ const App: React.FC = () => {
                         </div>
 
                         <div className="modal-footer">
-                            <button className="btn" onClick={closeSaveModal}>Cancelar</button>
-                            <button className="btn btn-primary" onClick={handleFinalSave} disabled={isSaving || isDriveLoading}>
-                                {isSaving ? 'Guardando...' : 'Guardar'}
-                            </button>
+                             <div>
+                                <button className="btn" onClick={handleSetDefaultFolder}>Establecer como predeterminada</button>
+                            </div>
+                            <div className="flex gap-2">
+                                <button className="btn" onClick={closeSaveModal}>Cancelar</button>
+                                <button className="btn btn-primary" onClick={handleFinalSave} disabled={isSaving || isDriveLoading}>
+                                    {isSaving ? 'Guardando...' : 'Guardar'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

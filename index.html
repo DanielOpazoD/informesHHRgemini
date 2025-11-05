@@ -297,8 +297,29 @@
         border-top: 1px solid #e5e7eb;
         padding-top: 12px;
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
         gap: 8px;
+        align-items: center;
+    }
+
+    .pdf-generation-mode .topbar,
+    .pdf-generation-mode .edit-panel { display: none !important; }
+
+    .pdf-generation-mode body { 
+      background: #fff !important;
+    }
+    .pdf-generation-mode .wrap { 
+      padding: 0 !important;
+    }
+    .pdf-generation-mode .sheet { 
+      border: none !important; 
+      box-shadow: none !important;
+      margin: 0 !important;
+      max-width: 100% !important;
+      padding: 12mm 15mm !important;
+    }
+    .pdf-generation-mode .txt {
+        overflow: hidden !important;
     }
 
     @media print {
