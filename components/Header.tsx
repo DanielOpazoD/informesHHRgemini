@@ -20,12 +20,14 @@ interface HeaderProps {
     onSignIn: () => void;
     onChangeUser: () => void;
     onOpenFromDrive: () => void;
+    onOpenSettings: () => void;
+    hasApiKey: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
     templateId, onTemplateChange, onPrint, isEditing, onToggleEdit,
     isSignedIn, isGisReady, isGapiReady, isPickerApiReady, tokenClient, userProfile, isSaving,
-    onSaveToDrive, onSignOut, onSignIn, onChangeUser, onOpenFromDrive
+    onSaveToDrive, onSignOut, onSignIn, onChangeUser, onOpenFromDrive, onOpenSettings, hasApiKey
 }) => {
     return (
         <div className="topbar">
@@ -37,6 +39,9 @@ const Header: React.FC<HeaderProps> = ({
             <div className="topbar-group">
                 <button onClick={onPrint} className="btn btn-primary" type="button">Imprimir PDF</button>
                 <button id="toggleEdit" onClick={onToggleEdit} className="btn" type="button">{isEditing ? 'Finalizar' : 'Editar'}</button>
+                <button onClick={onOpenSettings} className="btn" title="Configuración">
+                    ⚙️{hasApiKey && <span className="text-green-400 ml-1">✓</span>}
+                </button>
                 {isSignedIn ? (
                     <>
                         <span className="text-sm text-gray-300 hidden sm:inline">Hola, {userProfile?.name?.split(' ')[0]}</span>
@@ -49,7 +54,7 @@ const Header: React.FC<HeaderProps> = ({
                 ) : (
                     <button onClick={onSignIn} className="btn" type="button" disabled={!isGisReady || !isGapiReady || !tokenClient}>Iniciar Sesión</button>
                 )}
-                <button onClick={onOpenFromDrive} className="btn" type="button" disabled={!isSignedIn || !isPickerApiReady}>Abrir desde Drive</button>
+                <button onClick={onOpenFromDrive} className="btn" type="button" disabled={!isSignedIn}>Abrir desde Drive</button>
                 <button className="btn" onClick={() => document.getElementById('importJson')?.click()}>Importar</button>
             </div>
         </div>
