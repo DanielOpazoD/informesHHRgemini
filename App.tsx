@@ -10,16 +10,11 @@ import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
 import Footer from './components/Footer';
 
+// FIX: Removed the declaration of 'process' to resolve the "Cannot redeclare block-scoped variable" error.
+// The 'process' variable is already defined in the global scope by the build environment or type definitions.
 declare global {
     const gapi: any;
     const google: any;
-    interface Window {
-      process: {
-        env: {
-          API_KEY: string;
-        }
-      }
-    }
 }
 
 const App: React.FC = () => {
@@ -287,7 +282,7 @@ const App: React.FC = () => {
             alert('La API de Google Picker no está lista. Por favor, espere un momento e intente de nuevo.');
             return;
         }
-        const apiKey = window.process?.env?.API_KEY;
+        const apiKey = process.env.API_KEY;
         if (!apiKey) {
             console.error("API_KEY is missing for Google Picker");
             alert('Falta la clave de API para abrir archivos de Drive. Contacte al administrador.');
