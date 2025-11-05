@@ -34,12 +34,9 @@ const App: React.FC = () => {
     const [tokenClient, setTokenClient] = useState<any>(null);
     const [isSaving, setIsSaving] = useState(false);
 
-    const [apiKey, setApiKey] = useState('');
     const [clientId, setClientId] = useState('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
     const [isGapiReady, setIsGapiReady] = useState(false);
     const [isGisReady, setIsGisReady] = useState(false);
-    const [showConfigModal, setShowConfigModal] = useState(false);
-    const [modalApiKey, setModalApiKey] = useState('');
     
     const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
@@ -51,7 +48,17 @@ const App: React.FC = () => {
         scriptGapi.src = 'https://apis.google.com/js/api.js';
         scriptGapi.async = true;
         scriptGapi.defer = true;
-        scriptGapi.onload = () => gapi.load('client', () => setIsGapiReady(true));
+        scriptGapi.onload = () => {
+            gapi.load('client', async () => {
+                try {
+                    await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
+                    setIsGapiReady(true);
+                } catch (e) {
+                    console.error("Error loading gapi client for drive:", e);
+                    alert('Hubo un error al inicializar la API de Google Drive.');
+                }
+            });
+        };
         document.body.appendChild(scriptGapi);
 
         const scriptGis = document.createElement('script');
@@ -62,23 +69,6 @@ const App: React.FC = () => {
         document.body.appendChild(scriptGis);
     }, []);
 
-    useEffect(() => {
-        if (isGapiReady && apiKey) {
-            const initializeGapiClient = async () => {
-                try {
-                    await gapi.client.init({
-                        apiKey: apiKey,
-                        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-                    });
-                } catch (e) {
-                    console.error("Error initializing gapi client:", e);
-                    alert('Hubo un error al inicializar la API de Google Drive. Por favor, verifique su clave de API e intente de nuevo.');
-                }
-            };
-            initializeGapiClient();
-        }
-    }, [isGapiReady, apiKey]);
-    
     const fetchUserProfile = useCallback(async (accessToken: string) => {
         try {
             const response = await fetch('https://www.googleapis.com/oauth2/v1/userinfo?alt=json', {
@@ -116,25 +106,11 @@ const App: React.FC = () => {
         }
     }, [isGisReady, clientId, fetchUserProfile]);
 
-    const handleOpenConfigModal = () => {
-        setModalApiKey(apiKey);
-        setShowConfigModal(true);
-    };
-
-    const handleSaveConfig = () => {
-        setApiKey(modalApiKey);
-        setShowConfigModal(false);
-    };
-    
     const handleSignIn = () => {
-        if (!apiKey) {
-            handleOpenConfigModal();
-            return;
-        }
         if (tokenClient) {
             tokenClient.requestAccessToken({prompt: ''});
         } else {
-            alert('El cliente de Google no está listo. Por favor, asegúrese de que sus credenciales son correctas e inténtelo de nuevo.');
+            alert('El cliente de Google no está listo. Por favor, inténtelo de nuevo.');
         }
     };
     
@@ -344,30 +320,9 @@ const App: React.FC = () => {
                 onSaveToDrive={handleSaveToDrive}
                 onSignOut={handleSignOut}
                 onSignIn={handleSignIn}
-                onOpenConfigModal={handleOpenConfigModal}
                 onImportClick={handleImportClick}
             />
             <input ref={importInputRef} id="importJson" type="file" accept="application/json" style={{ display: 'none' }} onChange={handleImportFile} />
-
-            {showConfigModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-lg text-gray-800 w-full max-w-md mx-4">
-                        <h3 className="text-lg font-bold mb-2">Configurar API de Google</h3>
-                        <p className="text-sm text-gray-600 mb-4">
-                            Para guardar en Google Drive, necesita una Clave de API de la{' '}
-                            <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Consola de Google Cloud</a>.
-                        </p>
-                        <div className="mb-6">
-                            <label htmlFor="apiKeyInput" className="block text-sm font-medium text-gray-700">Clave de API</label>
-                            <input id="apiKeyInput" type="password" value={modalApiKey} onChange={(e) => setModalApiKey(e.target.value)} className="inp w-full mt-1" placeholder="Introduce tu Clave de API" />
-                        </div>
-                        <div className="flex justify-end gap-2">
-                            <button onClick={() => setShowConfigModal(false)} className="btn">Cancelar</button>
-                            <button onClick={handleSaveConfig} className="btn btn-primary">Guardar</button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             <div className="wrap">
                 <div id="sheet" className={`sheet ${isEditing ? 'edit-mode' : ''}`}>
