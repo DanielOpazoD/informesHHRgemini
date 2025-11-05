@@ -44,7 +44,8 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
                 className="txt"
                 value={section.content}
                 onChange={e => onSectionContentChange(index, e.target.value)}
-                style={{ overflowY: 'hidden', resize: 'none' }}
+                style={{ resize: 'none' }}
+                onInput={adjustHeight}
             ></textarea>
         </div>
     );

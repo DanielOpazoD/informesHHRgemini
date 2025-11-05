@@ -50,7 +50,7 @@ const Header: React.FC<HeaderProps> = ({
                     <button onClick={onSignIn} className="btn" type="button" disabled={!isGisReady || !isGapiReady || !tokenClient}>Iniciar Sesión</button>
                 )}
                 <button onClick={onOpenFromDrive} className="btn" type="button" disabled={!isSignedIn || !isPickerApiReady}>Abrir desde Drive</button>
-                <label className="btn" htmlFor="importJson">Importar</label>
+                <button className="btn" onClick={() => document.getElementById('importJson')?.click()}>Importar</button>
             </div>
         </div>
     );

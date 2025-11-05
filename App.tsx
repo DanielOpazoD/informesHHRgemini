@@ -13,6 +13,13 @@ import Footer from './components/Footer';
 declare global {
     const gapi: any;
     const google: any;
+    interface Window {
+      process: {
+        env: {
+          API_KEY: string;
+        }
+      }
+    }
 }
 
 const App: React.FC = () => {
@@ -225,10 +232,22 @@ const App: React.FC = () => {
         if (!sheetElement || !bodyElement) throw new Error("Required elements for PDF generation not found");
 
         bodyElement.classList.add('pdf-generation-mode');
+
+        const textareas = Array.from(sheetElement.getElementsByTagName('textarea'));
+        const originalStyles = textareas.map(ta => ({ height: ta.style.height, resize: ta.style.resize }));
+
+        // Temporarily resize textareas to show all content
+        textareas.forEach(ta => {
+            ta.style.resize = 'none';
+            ta.style.height = 'auto';
+            ta.style.height = `${ta.scrollHeight}px`;
+        });
         
+        await new Promise(resolve => setTimeout(resolve, 50)); // allow UI to reflow
+
         try {
             const canvas = await html2canvas(sheetElement, { scale: 2, useCORS: true });
-            const imgData = canvas.toDataURL('image/png');
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
             
             const pdf = new jsPDF({
                 orientation: 'p',
@@ -250,10 +269,15 @@ const App: React.FC = () => {
                 width = height * ratio;
             }
 
-            pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+            pdf.addImage(imgData, 'JPEG', 0, 0, width, height);
             return pdf.output('blob');
         } finally {
             bodyElement.classList.remove('pdf-generation-mode');
+            // Restore original textarea styles
+            textareas.forEach((ta, i) => {
+                ta.style.height = originalStyles[i].height;
+                ta.style.resize = originalStyles[i].resize;
+            });
         }
     };
     
@@ -267,6 +291,11 @@ const App: React.FC = () => {
             alert('La API de Google Picker no está lista. Por favor, espere un momento e intente de nuevo.');
             return;
         }
+        if (!process.env.API_KEY) {
+            console.error("API_KEY is missing for Google Picker");
+            alert('Falta la clave de API para abrir archivos de Drive. Contacte al administrador.');
+            return;
+        }
 
         const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
             .setMimeTypes('application/json');
@@ -274,7 +303,7 @@ const App: React.FC = () => {
         const picker = new google.picker.PickerBuilder()
             .addView(view)
             .setOAuthToken(accessToken)
-            .setDeveloperKey(null) 
+            .setDeveloperKey(process.env.API_KEY)
             .setCallback(async (data: any) => {
                 if (data.action === google.picker.Action.PICKED) {
                     const fileId = data.docs[0].id;
@@ -504,7 +533,9 @@ const App: React.FC = () => {
             }
         };
         reader.readAsText(file);
-        event.target.value = '';
+        if (event.target) {
+            event.target.value = '';
+        }
     };
     
     const handlePrint = () => {
