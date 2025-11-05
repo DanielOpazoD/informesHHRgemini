@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -10,11 +11,17 @@ import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
 import Footer from './components/Footer';
 
-// FIX: Removed the declaration of 'process' to resolve the "Cannot redeclare block-scoped variable" error.
-// The 'process' variable is already defined in the global scope by the build environment or type definitions.
+// FIX: Update global type declarations to correctly place gapi and google on the Window interface.
 declare global {
-    const gapi: any;
-    const google: any;
+    interface Window {
+        gapi: any;
+        google: any;
+        process: {
+            env: {
+                API_KEY: string;
+            }
+        }
+    }
 }
 
 const App: React.FC = () => {
@@ -227,19 +234,35 @@ const App: React.FC = () => {
         if (!sheetElement || !bodyElement) throw new Error("Required elements for PDF generation not found");
 
         bodyElement.classList.add('pdf-generation-mode');
-
+        
         const textareas = Array.from(sheetElement.getElementsByTagName('textarea'));
-        const originalStyles = textareas.map(ta => ({ height: ta.style.height }));
+        const replacements: { textarea: HTMLTextAreaElement; div: HTMLDivElement }[] = [];
 
         textareas.forEach(ta => {
-            ta.style.height = 'auto';
-            ta.style.height = `${ta.scrollHeight}px`;
+            const div = document.createElement('div');
+            const style = window.getComputedStyle(ta);
+            
+            // Copy relevant styles from textarea to the div
+            ['font', 'border', 'padding', 'lineHeight', 'width', 'minHeight'].forEach(prop => {
+                div.style[prop as any] = style[prop as any];
+            });
+            
+            // Ensure proper text wrapping in the div
+            div.style.whiteSpace = 'pre-wrap';
+            div.style.wordWrap = 'break-word';
+            div.style.boxSizing = 'border-box';
+            
+            div.innerText = ta.value; // Use innerText to preserve newline characters
+            
+            ta.style.display = 'none'; // Hide original textarea
+            ta.parentNode?.insertBefore(div, ta); // Insert the div
+            replacements.push({ textarea: ta, div });
         });
-        
-        await new Promise(resolve => setTimeout(resolve, 50));
+
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         try {
-            const canvas = await html2canvas(sheetElement, { scale: 2, useCORS: true });
+            const canvas = await html2canvas(sheetElement, { scale: 2, useCORS: true, logging: false });
             const imgData = canvas.toDataURL('image/jpeg', 0.95);
             
             const pdf = new jsPDF({
@@ -266,8 +289,10 @@ const App: React.FC = () => {
             return pdf.output('blob');
         } finally {
             bodyElement.classList.remove('pdf-generation-mode');
-            textareas.forEach((ta, i) => {
-                ta.style.height = originalStyles[i].height;
+            // Restore the original textareas and remove the temporary divs
+            replacements.forEach(({ textarea, div }) => {
+                textarea.style.display = '';
+                div.remove();
             });
         }
     };
@@ -276,15 +301,17 @@ const App: React.FC = () => {
         const accessToken = gapi.client.getToken()?.access_token;
         if (!accessToken) {
             alert('No ha iniciado sesión en Google. Por favor, inicie sesión para continuar.');
+            handleSignIn();
             return;
         }
-        if (!isPickerApiReady) {
+        if (!isPickerApiReady || !window.google?.picker) {
             alert('La API de Google Picker no está lista. Por favor, espere un momento e intente de nuevo.');
             return;
         }
-        const apiKey = process.env.API_KEY;
+        
+        const apiKey = window.process?.env?.API_KEY;
         if (!apiKey) {
-            console.error("API_KEY is missing for Google Picker");
+            console.error("API_KEY is not available from window.process.env.API_KEY");
             alert('Falta la clave de API para abrir archivos de Drive. Contacte al administrador.');
             return;
         }
