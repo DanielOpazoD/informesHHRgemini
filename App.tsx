@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -241,7 +242,7 @@ const App: React.FC = () => {
         setIsSaving(true);
         try {
             const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
-            let fileContent: string | Blob;
+            let fileContent: Blob;
             let fileName: string;
             let mimeType: string;
 
@@ -252,16 +253,40 @@ const App: React.FC = () => {
             } else {
                 fileName = suggestedFilename(record.templateId, patientName) + '.json';
                 mimeType = 'application/json';
-                fileContent = JSON.stringify(record, null, 2);
+                const jsonString = JSON.stringify(record, null, 2);
+                fileContent = new Blob([jsonString], { type: mimeType });
             }
             
-            const response = await gapi.client.drive.files.create({
-                resource: { name: fileName, parents: [selectedFolderId] },
-                media: { mimeType: mimeType, body: fileContent },
-                fields: 'id'
-            });
+            const metadata = {
+                name: fileName,
+                parents: [selectedFolderId]
+            };
 
-            if (response.result.id) {
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            form.append('file', fileContent);
+
+            const accessToken = gapi.client.getToken()?.access_token;
+            if (!accessToken) {
+                throw new Error("No hay token de acceso. Por favor, inicie sesión de nuevo.");
+            }
+
+            const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                body: form
+            });
+            
+            const result = await response.json();
+
+            if (!response.ok) {
+                const errorMessage = result?.error?.message || `Error del servidor: ${response.status}`;
+                throw new Error(errorMessage);
+            }
+
+            if (result.id) {
                 alert(`Archivo "${fileName}" guardado en Google Drive exitosamente.`);
                 closeSaveModal();
             } else {
@@ -270,11 +295,11 @@ const App: React.FC = () => {
 
         } catch (error: any) {
             console.error('Error saving to Drive:', error);
-            if (error?.result?.error?.code === 401) {
+            if (error.message.includes('401') || (error.result && error.result.error?.code === 401)) {
                 alert('Su sesión ha expirado. Por favor, inicie sesión de nuevo.');
                 handleSignOut();
             } else {
-                alert(`Error al guardar en Google Drive: ${error?.result?.error?.message || error.message || String(error)}`);
+                alert(`Error al guardar en Google Drive: ${error.message || String(error)}`);
             }
         } finally {
             setIsSaving(false);
