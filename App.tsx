@@ -37,9 +37,10 @@ const App: React.FC = () => {
     const [clientId, setClientId] = useState('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
     const [isGapiReady, setIsGapiReady] = useState(false);
     const [isGisReady, setIsGisReady] = useState(false);
+    const [isPickerApiReady, setIsPickerApiReady] = useState(false);
     
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-    const [saveFormat, setSaveFormat] = useState<'json' | 'pdf'>('json');
+    const [saveFormat, setSaveFormat] = useState<'json' | 'pdf' | 'both'>('json');
     const [driveFolders, setDriveFolders] = useState<DriveFolder[]>([]);
     const [folderPath, setFolderPath] = useState<DriveFolder[]>([{ id: 'root', name: 'Mi unidad' }]);
     const [selectedFolderId, setSelectedFolderId] = useState<string>('root');
@@ -57,10 +58,11 @@ const App: React.FC = () => {
         scriptGapi.async = true;
         scriptGapi.defer = true;
         scriptGapi.onload = () => {
-            gapi.load('client', async () => {
+            gapi.load('client:picker', async () => {
                 try {
                     await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
                     setIsGapiReady(true);
+                    setIsPickerApiReady(true);
                 } catch (e) {
                     console.error("Error loading gapi client for drive:", e);
                     alert('Hubo un error al inicializar la API de Google Drive.');
@@ -254,16 +256,61 @@ const App: React.FC = () => {
             bodyElement.classList.remove('pdf-generation-mode');
         }
     };
+    
+    const handleOpenFromDrive = () => {
+        const accessToken = gapi.client.getToken()?.access_token;
+        if (!accessToken) {
+            alert('No ha iniciado sesión en Google. Por favor, inicie sesión para continuar.');
+            return;
+        }
+        if (!isPickerApiReady) {
+            alert('La API de Google Picker no está lista. Por favor, espere un momento e intente de nuevo.');
+            return;
+        }
+
+        const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
+            .setMimeTypes('application/json');
+            
+        const picker = new google.picker.PickerBuilder()
+            .addView(view)
+            .setOAuthToken(accessToken)
+            .setDeveloperKey(null) 
+            .setCallback(async (data: any) => {
+                if (data.action === google.picker.Action.PICKED) {
+                    const fileId = data.docs[0].id;
+                    try {
+                        const response = await gapi.client.drive.files.get({
+                            fileId: fileId,
+                            alt: 'media',
+                        });
+                        
+                        const importedRecord = JSON.parse(response.body);
+                        if (importedRecord.version && importedRecord.patientFields && importedRecord.sections) {
+                            setRecord(importedRecord);
+                            alert('Archivo cargado exitosamente desde Google Drive.');
+                        } else {
+                            alert('El archivo JSON seleccionado de Drive no es válido.');
+                        }
+                    } catch (error) {
+                        console.error('Error al abrir el archivo desde Drive:', error);
+                        alert('Hubo un error al leer el archivo desde Google Drive.');
+                    }
+                }
+            })
+            .build();
+        picker.setVisible(true);
+    };
 
     const handleFinalSave = async () => {
         setIsSaving(true);
-        try {
+        
+        const saveFile = async (format: 'json' | 'pdf'): Promise<string> => {
             const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
             let fileContent: Blob;
             let fileName: string;
             let mimeType: string;
 
-            if (saveFormat === 'pdf') {
+            if (format === 'pdf') {
                 fileName = suggestedFilename(record.templateId, patientName) + '.pdf';
                 mimeType = 'application/pdf';
                 fileContent = await generatePdfAsBlob();
@@ -290,9 +337,7 @@ const App: React.FC = () => {
 
             const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`
-                },
+                headers: { 'Authorization': `Bearer ${accessToken}` },
                 body: form
             });
             
@@ -302,14 +347,21 @@ const App: React.FC = () => {
                 const errorMessage = result?.error?.message || `Error del servidor: ${response.status}`;
                 throw new Error(errorMessage);
             }
-
-            if (result.id) {
-                alert(`Archivo "${fileName}" guardado en Google Drive exitosamente.`);
-                closeSaveModal();
-            } else {
+            if (!result.id) {
                 throw new Error('La respuesta de la API de Drive no contenía un ID de archivo.');
             }
+            return fileName;
+        };
 
+        try {
+            if (saveFormat === 'json' || saveFormat === 'pdf') {
+                const fileName = await saveFile(saveFormat);
+                alert(`Archivo "${fileName}" guardado en Google Drive exitosamente.`);
+            } else { // 'both'
+                const [jsonFileName, pdfFileName] = await Promise.all([saveFile('json'), saveFile('pdf')]);
+                alert(`Archivos "${jsonFileName}" y "${pdfFileName}" guardados en Google Drive exitosamente.`);
+            }
+            closeSaveModal();
         } catch (error: any) {
             console.error('Error saving to Drive:', error);
             if (error.message.includes('401') || (error.result && error.result.error?.code === 401)) {
@@ -435,8 +487,6 @@ const App: React.FC = () => {
         }
     };
 
-    const handleImportClick = () => importInputRef.current?.click();
-
     const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
@@ -476,6 +526,7 @@ const App: React.FC = () => {
                 isSignedIn={isSignedIn}
                 isGisReady={isGisReady}
                 isGapiReady={isGapiReady}
+                isPickerApiReady={isPickerApiReady}
                 tokenClient={tokenClient}
                 userProfile={userProfile}
                 isSaving={isSaving}
@@ -483,7 +534,7 @@ const App: React.FC = () => {
                 onSignOut={handleSignOut}
                 onSignIn={handleSignIn}
                 onChangeUser={handleChangeUser}
-                onImportClick={handleImportClick}
+                onOpenFromDrive={handleOpenFromDrive}
             />
             
             {isSaveModalOpen && (
@@ -499,6 +550,7 @@ const App: React.FC = () => {
                             <div className="flex gap-4">
                                 <label><input type="radio" name="format" value="json" checked={saveFormat === 'json'} onChange={() => setSaveFormat('json')} /> JSON</label>
                                 <label><input type="radio" name="format" value="pdf" checked={saveFormat === 'pdf'} onChange={() => setSaveFormat('pdf')} /> PDF</label>
+                                <label><input type="radio" name="format" value="both" checked={saveFormat === 'both'} onChange={() => setSaveFormat('both')} /> JSON y PDF</label>
                             </div>
                         </div>
 

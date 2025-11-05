@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { GoogleUserProfile } from '../types';
 import { TEMPLATES } from '../constants';
@@ -12,6 +11,7 @@ interface HeaderProps {
     isSignedIn: boolean;
     isGisReady: boolean;
     isGapiReady: boolean;
+    isPickerApiReady: boolean;
     tokenClient: any;
     userProfile: GoogleUserProfile | null;
     isSaving: boolean;
@@ -19,13 +19,13 @@ interface HeaderProps {
     onSignOut: () => void;
     onSignIn: () => void;
     onChangeUser: () => void;
-    onImportClick: () => void;
+    onOpenFromDrive: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
     templateId, onTemplateChange, onPrint, isEditing, onToggleEdit,
-    isSignedIn, isGisReady, isGapiReady, tokenClient, userProfile, isSaving,
-    onSaveToDrive, onSignOut, onSignIn, onChangeUser, onImportClick
+    isSignedIn, isGisReady, isGapiReady, isPickerApiReady, tokenClient, userProfile, isSaving,
+    onSaveToDrive, onSignOut, onSignIn, onChangeUser, onOpenFromDrive
 }) => {
     return (
         <div className="topbar">
@@ -49,7 +49,8 @@ const Header: React.FC<HeaderProps> = ({
                 ) : (
                     <button onClick={onSignIn} className="btn" type="button" disabled={!isGisReady || !isGapiReady || !tokenClient}>Iniciar Sesión</button>
                 )}
-                <label className="btn" htmlFor="importJson" onClick={onImportClick}>Importar</label>
+                <button onClick={onOpenFromDrive} className="btn" type="button" disabled={!isSignedIn || !isPickerApiReady}>Abrir desde Drive</button>
+                <label className="btn" htmlFor="importJson">Importar</label>
             </div>
         </div>
     );
