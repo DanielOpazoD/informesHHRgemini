@@ -1,7 +1,9 @@
 
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { ClinicalRecord, PatientField, GoogleUserProfile } from './types';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
@@ -38,7 +40,15 @@ const App: React.FC = () => {
     const [isGapiReady, setIsGapiReady] = useState(false);
     const [isGisReady, setIsGisReady] = useState(false);
     
-    const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [saveFormat, setSaveFormat] = useState<'json' | 'pdf'>('json');
+    const [driveFolders, setDriveFolders] = useState<DriveFolder[]>([]);
+    const [folderPath, setFolderPath] = useState<DriveFolder[]>([{ id: 'root', name: 'Mi unidad' }]);
+    const [selectedFolderId, setSelectedFolderId] = useState<string>('root');
+    const [newFolderName, setNewFolderName] = useState('');
+    const [isDriveLoading, setIsDriveLoading] = useState(false);
+    
+    const SCOPES = 'https://www.googleapis.com/auth/drive';
 
     useEffect(() => {
         if (scriptLoadRef.current) return;
@@ -114,6 +124,12 @@ const App: React.FC = () => {
         }
     };
     
+    const handleChangeUser = () => {
+        if (tokenClient) {
+            tokenClient.requestAccessToken({ prompt: 'select_account' });
+        }
+    };
+    
     const handleSignOut = () => {
         setIsSignedIn(false);
         setUserProfile(null);
@@ -121,33 +137,137 @@ const App: React.FC = () => {
         if(google?.accounts?.id) google.accounts.id.revoke(userProfile?.email || '', () => {});
     };
 
-    const handleSaveToDrive = async () => {
-        if (!isSignedIn || !gapi.client?.getToken()) {
+    const fetchDriveFolders = useCallback(async (folderId: string) => {
+        setIsDriveLoading(true);
+        try {
+            const response = await gapi.client.drive.files.list({
+                q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+                fields: 'files(id, name)',
+                orderBy: 'name',
+            });
+            setDriveFolders(response.result.files || []);
+            setSelectedFolderId(folderId);
+        } catch (error) {
+            console.error("Error fetching folders:", error);
+            alert("No se pudieron cargar las carpetas de Drive.");
+        } finally {
+            setIsDriveLoading(false);
+        }
+    }, []);
+
+    const openSaveModal = () => {
+        if (!isSignedIn) {
             alert('Por favor, inicie sesión para guardar en Google Drive.');
             handleSignIn();
             return;
         }
+        setFolderPath([{ id: 'root', name: 'Mi unidad' }]);
+        fetchDriveFolders('root');
+        setIsSaveModalOpen(true);
+    };
+
+    const closeSaveModal = () => {
+        setIsSaveModalOpen(false);
+        setNewFolderName('');
+    };
+
+    const handleFolderClick = (folder: DriveFolder) => {
+        setFolderPath(currentPath => [...currentPath, folder]);
+        fetchDriveFolders(folder.id);
+    };
+
+    const handleBreadcrumbClick = (folderId: string, index: number) => {
+        setFolderPath(currentPath => currentPath.slice(0, index + 1));
+        fetchDriveFolders(folderId);
+    };
+
+    const handleCreateFolder = async () => {
+        if (!newFolderName.trim()) {
+            alert("Por favor, ingrese un nombre para la nueva carpeta.");
+            return;
+        }
+        setIsDriveLoading(true);
+        try {
+            const currentFolderId = folderPath[folderPath.length - 1].id;
+            await gapi.client.drive.files.create({
+                resource: {
+                    name: newFolderName.trim(),
+                    mimeType: 'application/vnd.google-apps.folder',
+                    parents: [currentFolderId]
+                }
+            });
+            setNewFolderName('');
+            fetchDriveFolders(currentFolderId); // Refresh folder list
+        } catch (error) {
+            console.error("Error creating folder:", error);
+            alert("No se pudo crear la carpeta.");
+        } finally {
+            setIsDriveLoading(false);
+        }
+    };
+    
+    const generatePdfAsBlob = async (): Promise<Blob> => {
+        const sheetElement = document.getElementById('sheet');
+        if (!sheetElement) throw new Error("Sheet element not found");
+
+        const canvas = await html2canvas(sheetElement, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
         
+        const pdf = new jsPDF({
+            orientation: 'p',
+            unit: 'mm',
+            format: 'a4',
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const ratio = canvasWidth / canvasHeight;
+
+        let width = pdfWidth;
+        let height = width / ratio;
+        
+        if (height > pdfHeight) {
+            height = pdfHeight;
+            width = height * ratio;
+        }
+
+        pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+        return pdf.output('blob');
+    };
+
+    const handleFinalSave = async () => {
         setIsSaving(true);
         try {
             const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
-            const fileName = suggestedFilename(record.templateId, patientName) + '.json';
-            const fileContent = JSON.stringify(record, null, 2);
-            
-            const fileMetadata = { name: fileName, mimeType: 'application/json' };
-            const media = { mimeType: 'application/json', body: fileContent };
+            let fileContent: string | Blob;
+            let fileName: string;
+            let mimeType: string;
 
+            if (saveFormat === 'pdf') {
+                fileName = suggestedFilename(record.templateId, patientName) + '.pdf';
+                mimeType = 'application/pdf';
+                fileContent = await generatePdfAsBlob();
+            } else {
+                fileName = suggestedFilename(record.templateId, patientName) + '.json';
+                mimeType = 'application/json';
+                fileContent = JSON.stringify(record, null, 2);
+            }
+            
             const response = await gapi.client.drive.files.create({
-                resource: fileMetadata,
-                media: media,
+                resource: { name: fileName, parents: [selectedFolderId] },
+                media: { mimeType: mimeType, body: fileContent },
                 fields: 'id'
             });
 
             if (response.result.id) {
                 alert(`Archivo "${fileName}" guardado en Google Drive exitosamente.`);
+                closeSaveModal();
             } else {
-                 throw new Error('La respuesta de la API de Drive no contenía un ID de archivo.');
+                throw new Error('La respuesta de la API de Drive no contenía un ID de archivo.');
             }
+
         } catch (error: any) {
             console.error('Error saving to Drive:', error);
             if (error?.result?.error?.code === 401) {
@@ -160,7 +280,7 @@ const App: React.FC = () => {
             setIsSaving(false);
         }
     };
-
+    
     const getReportDate = useCallback(() => {
         return record.patientFields.find(f => f.id === 'finf')?.value || '';
     }, [record.patientFields]);
@@ -317,11 +437,69 @@ const App: React.FC = () => {
                 tokenClient={tokenClient}
                 userProfile={userProfile}
                 isSaving={isSaving}
-                onSaveToDrive={handleSaveToDrive}
+                onSaveToDrive={openSaveModal}
                 onSignOut={handleSignOut}
                 onSignIn={handleSignIn}
+                onChangeUser={handleChangeUser}
                 onImportClick={handleImportClick}
             />
+            
+            {isSaveModalOpen && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <div className="modal-title">Guardar en Google Drive</div>
+                            <button onClick={closeSaveModal} className="modal-close">&times;</button>
+                        </div>
+                        
+                        <div>
+                            <div className="lbl">Formato de archivo</div>
+                            <div className="flex gap-4">
+                                <label><input type="radio" name="format" value="json" checked={saveFormat === 'json'} onChange={() => setSaveFormat('json')} /> JSON</label>
+                                <label><input type="radio" name="format" value="pdf" checked={saveFormat === 'pdf'} onChange={() => setSaveFormat('pdf')} /> PDF</label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="lbl">Ubicación</div>
+                            <div className="breadcrumb flex gap-1">
+                                {folderPath.map((folder, index) => (
+                                    <React.Fragment key={folder.id}>
+                                        <span className="breadcrumb-item" onClick={() => handleBreadcrumbClick(folder.id, index)}>{folder.name}</span>
+                                        {index < folderPath.length - 1 && <span>/</span>}
+                                    </React.Fragment>
+                                ))}
+                            </div>
+                            <div className="folder-list">
+                                {isDriveLoading ? <div className="p-4 text-center">Cargando...</div> : (
+                                    driveFolders.map(folder => (
+                                        <div key={folder.id} className="folder-item" onClick={() => handleFolderClick(folder)}>
+                                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a1.99 1.99 0 0 1 .54-1.31zM2.19 4a1 1 0 0 0-.996.886l-.637 7A1 1 0 0 0 1.558 13h10.617a1 1 0 0 0 .996-.886l-.637-7A1 1 0 0 0 11.826 4H2.19z"/></svg>
+                                          {folder.name}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="lbl">Crear nueva carpeta aquí</div>
+                            <div className="flex gap-2">
+                                <input type="text" className="inp flex-grow" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Nombre de la carpeta" />
+                                <button className="btn" onClick={handleCreateFolder} disabled={isDriveLoading || !newFolderName.trim()}>Crear</button>
+                            </div>
+                        </div>
+
+                        <div className="modal-footer">
+                            <button className="btn" onClick={closeSaveModal}>Cancelar</button>
+                            <button className="btn btn-primary" onClick={handleFinalSave} disabled={isSaving || isDriveLoading}>
+                                {isSaving ? 'Guardando...' : 'Guardar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
             <input ref={importInputRef} id="importJson" type="file" accept="application/json" style={{ display: 'none' }} onChange={handleImportFile} />
 
             <div className="wrap">

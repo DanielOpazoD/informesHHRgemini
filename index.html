@@ -228,8 +228,81 @@
       background: #eff6ff;
     }
 
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10001;
+    }
+    .modal-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 12px;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .folder-list {
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      height: 180px;
+      overflow-y: auto;
+    }
+    .folder-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .folder-item:last-child { border-bottom: none; }
+    .folder-item:hover, .folder-item.selected { background: #f0f9ff; }
+    .breadcrumb {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+    .breadcrumb-item { cursor: pointer; text-decoration: underline; }
+    .modal-footer {
+        border-top: 1px solid #e5e7eb;
+        padding-top: 12px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
     @media print {
-      .topbar, .edit-panel { display: none !important; }
+      .topbar, .edit-panel, .modal-overlay { display: none !important; }
       html, body { 
         height: auto !important; 
         overflow: visible !important; 
@@ -293,7 +366,9 @@
   "imports": {
     "react": "https://aistudiocdn.com/react@19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@19.2.0/",
-    "react/": "https://aistudiocdn.com/react@19.2.0/"
+    "react/": "https://aistudiocdn.com/react@19.2.0/",
+    "jspdf": "https://cdn.skypack.dev/jspdf",
+    "html2canvas": "https://cdn.skypack.dev/html2canvas"
   }
 }
 </script>

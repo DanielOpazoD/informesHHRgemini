@@ -57,3 +57,8 @@ export interface GoogleUserProfile {
     email: string;
     picture: string;
 }
+
+export interface DriveFolder {
+    id: string;
+    name: string;
+}

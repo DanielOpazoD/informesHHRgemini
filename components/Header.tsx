@@ -18,13 +18,14 @@ interface HeaderProps {
     onSaveToDrive: () => void;
     onSignOut: () => void;
     onSignIn: () => void;
+    onChangeUser: () => void;
     onImportClick: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
     templateId, onTemplateChange, onPrint, isEditing, onToggleEdit,
     isSignedIn, isGisReady, isGapiReady, tokenClient, userProfile, isSaving,
-    onSaveToDrive, onSignOut, onSignIn, onImportClick
+    onSaveToDrive, onSignOut, onSignIn, onChangeUser, onImportClick
 }) => {
     return (
         <div className="topbar">
@@ -42,6 +43,7 @@ const Header: React.FC<HeaderProps> = ({
                         <button onClick={onSaveToDrive} className="btn" type="button" disabled={isSaving}>
                             {isSaving ? 'Guardando...' : 'Guardar en Drive'}
                         </button>
+                        <button onClick={onChangeUser} className="btn" type="button">Cambiar Usuario</button>
                         <button onClick={onSignOut} className="btn" type="button">Salir</button>
                     </>
                 ) : (
