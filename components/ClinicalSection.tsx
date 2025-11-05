@@ -18,7 +18,7 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     const adjustHeight = useCallback(() => {
         const textarea = textareaRef.current;
         if (textarea) {
-            textarea.style.height = '60px'; // Reset to min-height from css
+            textarea.style.height = 'auto'; // Reset height before calculating scroll height
             textarea.style.height = `${textarea.scrollHeight}px`;
         }
     }, []);
@@ -44,7 +44,6 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
                 className="txt"
                 value={section.content}
                 onChange={e => onSectionContentChange(index, e.target.value)}
-                style={{ resize: 'none' }}
                 onInput={adjustHeight}
             ></textarea>
         </div>

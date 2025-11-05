@@ -234,16 +234,14 @@ const App: React.FC = () => {
         bodyElement.classList.add('pdf-generation-mode');
 
         const textareas = Array.from(sheetElement.getElementsByTagName('textarea'));
-        const originalStyles = textareas.map(ta => ({ height: ta.style.height, resize: ta.style.resize }));
+        const originalStyles = textareas.map(ta => ({ height: ta.style.height }));
 
-        // Temporarily resize textareas to show all content
         textareas.forEach(ta => {
-            ta.style.resize = 'none';
             ta.style.height = 'auto';
             ta.style.height = `${ta.scrollHeight}px`;
         });
         
-        await new Promise(resolve => setTimeout(resolve, 50)); // allow UI to reflow
+        await new Promise(resolve => setTimeout(resolve, 50));
 
         try {
             const canvas = await html2canvas(sheetElement, { scale: 2, useCORS: true });
@@ -256,27 +254,25 @@ const App: React.FC = () => {
             });
 
             const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-            const ratio = canvasWidth / canvasHeight;
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const imgHeight = canvas.height * pdfWidth / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
 
-            let width = pdfWidth;
-            let height = width / ratio;
-            
-            if (height > pdfHeight) {
-                height = pdfHeight;
-                width = height * ratio;
+            pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft > 0) {
+                position -= pageHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight);
+                heightLeft -= pageHeight;
             }
-
-            pdf.addImage(imgData, 'JPEG', 0, 0, width, height);
             return pdf.output('blob');
         } finally {
             bodyElement.classList.remove('pdf-generation-mode');
-            // Restore original textarea styles
             textareas.forEach((ta, i) => {
                 ta.style.height = originalStyles[i].height;
-                ta.style.resize = originalStyles[i].resize;
             });
         }
     };
@@ -291,7 +287,8 @@ const App: React.FC = () => {
             alert('La API de Google Picker no está lista. Por favor, espere un momento e intente de nuevo.');
             return;
         }
-        if (!process.env.API_KEY) {
+        const apiKey = window.process?.env?.API_KEY;
+        if (!apiKey) {
             console.error("API_KEY is missing for Google Picker");
             alert('Falta la clave de API para abrir archivos de Drive. Contacte al administrador.');
             return;
@@ -303,7 +300,7 @@ const App: React.FC = () => {
         const picker = new google.picker.PickerBuilder()
             .addView(view)
             .setOAuthToken(accessToken)
-            .setDeveloperKey(process.env.API_KEY)
+            .setDeveloperKey(apiKey)
             .setCallback(async (data: any) => {
                 if (data.action === google.picker.Action.PICKED) {
                     const fileId = data.docs[0].id;
