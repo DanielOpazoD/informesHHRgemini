@@ -84,10 +84,8 @@ const App: React.FC = () => {
         scriptGapi.async = true;
         scriptGapi.defer = true;
         scriptGapi.onload = () => {
-// FIX: Cannot find name 'gapi'.
             window.gapi.load('client:picker', async () => {
                 try {
-// FIX: Cannot find name 'gapi'.
                     await window.gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
                     setIsGapiReady(true);
                     setIsPickerApiReady(true);
@@ -122,7 +120,6 @@ const App: React.FC = () => {
     useEffect(() => {
         if (isGisReady && clientId) {
              try {
-// FIX: Cannot find name 'google'.
                 const client = window.google.accounts.oauth2.initTokenClient({
                     client_id: clientId,
                     scope: SCOPES,
@@ -132,7 +129,6 @@ const App: React.FC = () => {
                             return;
                         }
                         if (tokenResponse.access_token) {
-// FIX: Cannot find name 'gapi'.
                             window.gapi.client.setToken({ access_token: tokenResponse.access_token });
                             setIsSignedIn(true);
                             fetchUserProfile(tokenResponse.access_token);
@@ -164,9 +160,7 @@ const App: React.FC = () => {
     const handleSignOut = () => {
         setIsSignedIn(false);
         setUserProfile(null);
-// FIX: Cannot find name 'gapi'.
         if (window.gapi?.client) window.gapi.client.setToken(null);
-// FIX: Cannot find name 'google'.
         if(window.google?.accounts?.id) window.google.accounts.id.revoke(userProfile?.email || '', () => {});
     };
 
@@ -218,7 +212,6 @@ const App: React.FC = () => {
     const fetchDriveFolders = useCallback(async (folderId: string) => {
         setIsDriveLoading(true);
         try {
-// FIX: Cannot find name 'gapi'.
             const response = await window.gapi.client.drive.files.list({
                 q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
                 fields: 'files(id, name)',
@@ -237,13 +230,11 @@ const App: React.FC = () => {
     const fetchFolderContents = useCallback(async (folderId: string) => {
         setIsDriveLoading(true);
         try {
-// FIX: Cannot find name 'gapi'.
             const foldersPromise = window.gapi.client.drive.files.list({
                 q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
                 fields: 'files(id, name)',
                 orderBy: 'name',
             });
-// FIX: Cannot find name 'gapi'.
             const filesPromise = window.gapi.client.drive.files.list({
                 q: `'${folderId}' in parents and mimeType='application/json' and trashed=false`,
                 fields: 'files(id, name)',
@@ -299,7 +290,6 @@ const App: React.FC = () => {
         setIsDriveLoading(true);
         try {
             const currentFolderId = folderPath[folderPath.length - 1].id;
-// FIX: Cannot find name 'gapi'.
             await window.gapi.client.drive.files.create({
                 resource: {
                     name: newFolderName.trim(),
@@ -337,7 +327,6 @@ const App: React.FC = () => {
     const handleFileOpen = async (fileId: string) => {
         setIsDriveLoading(true);
         try {
-// FIX: Cannot find name 'gapi'.
             const response = await window.gapi.client.drive.files.get({
                 fileId: fileId,
                 alt: 'media',
@@ -363,58 +352,79 @@ const App: React.FC = () => {
         const sheetElement = document.getElementById('sheet');
         const bodyElement = document.body;
         if (!sheetElement || !bodyElement) throw new Error("Required elements for PDF generation not found");
-
+    
         bodyElement.classList.add('pdf-generation-mode');
         
+        const inputs = Array.from(sheetElement.getElementsByTagName('input'));
         const textareas = Array.from(sheetElement.getElementsByTagName('textarea'));
-        const replacements: { textarea: HTMLTextAreaElement; div: HTMLDivElement }[] = [];
-
-        textareas.forEach(ta => {
+        const elementsToReplace = [...inputs, ...textareas];
+        const replacements: { element: HTMLElement; div: HTMLDivElement }[] = [];
+    
+        elementsToReplace.forEach(el => {
+            const isTextarea = el.tagName === 'TEXTAREA';
+            const input = el as HTMLInputElement | HTMLTextAreaElement;
+            
             const div = document.createElement('div');
-            const style = window.getComputedStyle(ta);
-            ['font', 'border', 'padding', 'lineHeight', 'width', 'minHeight'].forEach(prop => {
+            const style = window.getComputedStyle(input);
+            
+            // Copy relevant styles
+            ['font', 'border', 'padding', 'lineHeight', 'width', 'boxSizing', 'textAlign'].forEach(prop => {
                 div.style[prop as any] = style[prop as any];
             });
-            div.style.whiteSpace = 'pre-wrap';
-            div.style.wordWrap = 'break-word';
-            div.style.boxSizing = 'border-box';
-            div.innerText = ta.value;
-            ta.style.display = 'none';
-            ta.parentNode?.insertBefore(div, ta);
-            replacements.push({ textarea: ta, div });
+    
+            if (isTextarea) {
+                div.style.minHeight = style.minHeight;
+                div.style.whiteSpace = 'pre-wrap';
+                div.style.wordWrap = 'break-word';
+            } else {
+                 div.style.height = style.height; // Ensure single line inputs have correct height
+                 div.style.display = 'flex';
+                 div.style.alignItems = 'center';
+            }
+            
+            div.innerText = input.value;
+    
+            // Hide original and insert replacement
+            input.style.display = 'none';
+            input.parentNode?.insertBefore(div, input);
+            replacements.push({ element: input, div });
         });
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-
+    
+        await new Promise(resolve => setTimeout(resolve, 100)); // Wait for styles to apply
+    
         try {
             const canvas = await html2canvas(sheetElement, { scale: 2, useCORS: true, logging: false });
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            const imgData = canvas.toDataURL('image/png'); // Use PNG for better quality and compatibility
             const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+            
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pageHeight = pdf.internal.pageSize.getHeight();
             const imgHeight = canvas.height * pdfWidth / canvas.width;
+            
             let heightLeft = imgHeight;
             let position = 0;
-            pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight);
+            
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
             heightLeft -= pageHeight;
+            
             while (heightLeft > 0) {
                 position -= pageHeight;
                 pdf.addPage();
-                pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight);
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
                 heightLeft -= pageHeight;
             }
             return pdf.output('blob');
         } finally {
             bodyElement.classList.remove('pdf-generation-mode');
-            replacements.forEach(({ textarea, div }) => {
-                textarea.style.display = '';
+            // Clean up replacements
+            replacements.forEach(({ element, div }) => {
+                element.style.display = '';
                 div.remove();
             });
         }
     };
 
     const handlePickerCallback = async (data: any) => {
-// FIX: Cannot find name 'google'.
         if (data.action === window.google.picker.Action.PICKED) {
             const fileId = data.docs[0].id;
             handleFileOpen(fileId);
@@ -422,7 +432,6 @@ const App: React.FC = () => {
     };
     
     const handleOpenFromDrive = () => {
-// FIX: Cannot find name 'gapi'.
         const accessToken = window.gapi.client.getToken()?.access_token;
         if (!accessToken) {
             alert('Por favor, inicie sesión para continuar.');
@@ -450,9 +459,7 @@ const App: React.FC = () => {
         }
         
         try {
-// FIX: Cannot find name 'google'.
             const view = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS).setMimeTypes('application/json');
-// FIX: Cannot find name 'google'.
             const picker = new window.google.picker.PickerBuilder()
                 .addView(view)
                 .setOAuthToken(accessToken)
@@ -488,7 +495,6 @@ const App: React.FC = () => {
             form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
             form.append('file', fileContent);
 
-// FIX: Cannot find name 'gapi'.
             const accessToken = window.gapi.client.getToken()?.access_token;
             if (!accessToken) throw new Error("No hay token de acceso. Por favor, inicie sesión de nuevo.");
 
