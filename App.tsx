@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { ClinicalRecord, PatientField, GoogleUserProfile } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
@@ -63,14 +64,18 @@ const App: React.FC = () => {
 
     useEffect(() => {
         if (isGapiReady && apiKey) {
-            try {
-                gapi.client.init({
-                    apiKey: apiKey,
-                    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-                });
-            } catch (e) {
-                console.error("Error initializing gapi client:", e);
-            }
+            const initializeGapiClient = async () => {
+                try {
+                    await gapi.client.init({
+                        apiKey: apiKey,
+                        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+                    });
+                } catch (e) {
+                    console.error("Error initializing gapi client:", e);
+                    alert('Hubo un error al inicializar la API de Google Drive. Por favor, verifique su clave de API e intente de nuevo.');
+                }
+            };
+            initializeGapiClient();
         }
     }, [isGapiReady, apiKey]);
     
