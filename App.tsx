@@ -1,11 +1,13 @@
 
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { ClinicalRecord, PatientField, ClinicalSectionData, GoogleUserProfile } from './types';
+import type { ClinicalRecord, PatientField, GoogleUserProfile } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
+import Header from './components/Header';
+import PatientInfo from './components/PatientInfo';
+import ClinicalSection from './components/ClinicalSection';
+import Footer from './components/Footer';
 
 declare global {
     const gapi: any;
@@ -18,23 +20,21 @@ const App: React.FC = () => {
         version: 'v14',
         templateId: '2',
         title: '',
-        patientFields: DEFAULT_PATIENT_FIELDS,
-        sections: DEFAULT_SECTIONS,
+        patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS)),
+        sections: JSON.parse(JSON.stringify(DEFAULT_SECTIONS)),
         medico: '',
         especialidad: '',
     });
     const importInputRef = useRef<HTMLInputElement>(null);
-    const scriptLoadRef = useRef(false); // Ref to prevent double script loading
+    const scriptLoadRef = useRef(false);
 
-    // Google Auth State
     const [isSignedIn, setIsSignedIn] = useState(false);
     const [userProfile, setUserProfile] = useState<GoogleUserProfile | null>(null);
     const [tokenClient, setTokenClient] = useState<any>(null);
     const [isSaving, setIsSaving] = useState(false);
 
-    // New state for handling API keys and config
-    const [apiKey, setApiKey] = useState(process.env.REACT_APP_GOOGLE_API_KEY || '');
-    const [clientId, setClientId] = useState(process.env.REACT_APP_GOOGLE_CLIENT_ID || '962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
+    const [apiKey, setApiKey] = useState('');
+    const [clientId, setClientId] = useState('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
     const [isGapiReady, setIsGapiReady] = useState(false);
     const [isGisReady, setIsGisReady] = useState(false);
     const [showConfigModal, setShowConfigModal] = useState(false);
@@ -42,12 +42,8 @@ const App: React.FC = () => {
     
     const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
-    // --- Script Loading and Initialization ---
     useEffect(() => {
-        // FIX: Prevent script from loading twice in React.StrictMode
-        if (scriptLoadRef.current) {
-            return;
-        }
+        if (scriptLoadRef.current) return;
         scriptLoadRef.current = true;
 
         const scriptGapi = document.createElement('script');
@@ -63,22 +59,18 @@ const App: React.FC = () => {
         scriptGis.defer = true;
         scriptGis.onload = () => setIsGisReady(true);
         document.body.appendChild(scriptGis);
-
-        return () => {
-            // Clean up scripts when component unmounts
-            const existingGapi = document.querySelector('script[src="https://apis.google.com/js/api.js"]');
-            if (existingGapi) document.body.removeChild(existingGapi);
-            const existingGis = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-            if (existingGis) document.body.removeChild(existingGis);
-        };
     }, []);
 
     useEffect(() => {
         if (isGapiReady && apiKey) {
-            gapi.client.init({
-                apiKey: apiKey,
-                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-            });
+            try {
+                gapi.client.init({
+                    apiKey: apiKey,
+                    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+                });
+            } catch (e) {
+                console.error("Error initializing gapi client:", e);
+            }
         }
     }, [isGapiReady, apiKey]);
     
@@ -96,18 +88,26 @@ const App: React.FC = () => {
 
     useEffect(() => {
         if (isGisReady && clientId) {
-            const client = google.accounts.oauth2.initTokenClient({
-                client_id: clientId,
-                scope: SCOPES,
-                callback: (tokenResponse: any) => {
-                    if (tokenResponse.access_token) {
-                        gapi.client.setToken({ access_token: tokenResponse.access_token });
-                        setIsSignedIn(true);
-                        fetchUserProfile(tokenResponse.access_token);
-                    }
-                },
-            });
-            setTokenClient(client);
+             try {
+                const client = google.accounts.oauth2.initTokenClient({
+                    client_id: clientId,
+                    scope: SCOPES,
+                    callback: (tokenResponse: any) => {
+                        if (tokenResponse.error) {
+                            console.error("Token response error:", tokenResponse.error);
+                            return;
+                        }
+                        if (tokenResponse.access_token) {
+                            gapi.client.setToken({ access_token: tokenResponse.access_token });
+                            setIsSignedIn(true);
+                            fetchUserProfile(tokenResponse.access_token);
+                        }
+                    },
+                });
+                setTokenClient(client);
+             } catch(e) {
+                 console.error("Error initializing token client:", e);
+             }
         }
     }, [isGisReady, clientId, fetchUserProfile]);
 
@@ -127,7 +127,7 @@ const App: React.FC = () => {
             return;
         }
         if (tokenClient) {
-            tokenClient.requestAccessToken();
+            tokenClient.requestAccessToken({prompt: ''});
         } else {
             alert('El cliente de Google no está listo. Por favor, asegúrese de que sus credenciales son correctas e inténtelo de nuevo.');
         }
@@ -136,13 +136,12 @@ const App: React.FC = () => {
     const handleSignOut = () => {
         setIsSignedIn(false);
         setUserProfile(null);
-        if (gapi?.client) {
-             gapi.client.setToken(null);
-        }
+        if (gapi?.client) gapi.client.setToken(null);
+        if(google?.accounts?.id) google.accounts.id.revoke(userProfile?.email || '', () => {});
     };
 
     const handleSaveToDrive = async () => {
-        if (!isSignedIn || !gapi.client.getToken()) {
+        if (!isSignedIn || !gapi.client?.getToken()) {
             alert('Por favor, inicie sesión para guardar en Google Drive.');
             handleSignIn();
             return;
@@ -154,40 +153,32 @@ const App: React.FC = () => {
             const fileName = suggestedFilename(record.templateId, patientName) + '.json';
             const fileContent = JSON.stringify(record, null, 2);
             
-            const metadata = { name: fileName, mimeType: 'application/json' };
+            const fileMetadata = { name: fileName, mimeType: 'application/json' };
+            const media = { mimeType: 'application/json', body: fileContent };
 
-            const form = new FormData();
-            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-            form.append('file', new Blob([fileContent], { type: 'application/json' }));
-
-            const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-                method: 'POST',
-                headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
-                body: form
+            const response = await gapi.client.drive.files.create({
+                resource: fileMetadata,
+                media: media,
+                fields: 'id'
             });
 
-            if (res.ok) {
+            if (response.result.id) {
                 alert(`Archivo "${fileName}" guardado en Google Drive exitosamente.`);
             } else {
-                const error = await res.json();
-                console.error('Google Drive API Error:', error);
-                // If token expired, try to re-authenticate
-                if (error.error?.status === 'UNAUTHENTICATED') {
-                     alert('Su sesión ha expirado. Por favor, inicie sesión de nuevo.');
-                     handleSignOut();
-                     handleSignIn();
-                } else {
-                    throw new Error(error.error.message || 'Error al guardar en Google Drive');
-                }
+                 throw new Error('La respuesta de la API de Drive no contenía un ID de archivo.');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error saving to Drive:', error);
-            alert(`Error: ${error instanceof Error ? error.message : String(error)}`);
+            if (error?.result?.error?.code === 401) {
+                alert('Su sesión ha expirado. Por favor, inicie sesión de nuevo.');
+                handleSignOut();
+            } else {
+                alert(`Error al guardar en Google Drive: ${error?.result?.error?.message || error.message || String(error)}`);
+            }
         } finally {
             setIsSaving(false);
         }
     };
-
 
     const getReportDate = useCallback(() => {
         return record.patientFields.find(f => f.id === 'finf')?.value || '';
@@ -198,7 +189,7 @@ const App: React.FC = () => {
         if (!template) return;
 
         let newTitle = template.title;
-        if (template.id === '2') { // Evolución médica
+        if (template.id === '2') {
             newTitle = `Evolución médica (${formatDateDMY(getReportDate())}) - Hospital Hanga Roa`;
         }
         setRecord(r => ({ ...r, title: newTitle }));
@@ -210,36 +201,29 @@ const App: React.FC = () => {
                 const editPanel = document.getElementById('editPanel');
                 const toggleButton = document.getElementById('toggleEdit');
                 
-                // Close if clicking outside the edit panel and not on the toggle button itself
                 if (editPanel && !editPanel.contains(event.target as Node) &&
                     toggleButton && !toggleButton.contains(event.target as Node)) {
-                     // Check if it's not another button in the topbar to avoid closing accidentally
-                    if ((event.target as HTMLElement).closest('.topbar-group')) return;
+                    if ((event.target as HTMLElement).closest('.topbar')) return;
                     setIsEditing(false);
                 }
             }
         };
 
         document.addEventListener('mousedown', handleOutsideClick);
-        return () => {
-            document.removeEventListener('mousedown', handleOutsideClick);
-        };
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
     }, [isEditing]);
 
     const handlePatientFieldChange = (index: number, value: string) => {
         const newFields = [...record.patientFields];
         newFields[index] = { ...newFields[index], value };
 
-        // Age calculation
-        const birthDate = newFields.find(f => f.id === 'fecnac')?.value;
-        const reportDate = newFields.find(f => f.id === 'finf')?.value;
-        if (newFields.some(f => f.id ==='fecnac') && (newFields[index].id === 'fecnac' || newFields[index].id === 'finf')) {
-             if (birthDate) {
-                const age = calcEdadY(birthDate, reportDate);
-                const ageIndex = newFields.findIndex(f => f.id === 'edad');
-                if (ageIndex !== -1) {
-                    newFields[ageIndex] = { ...newFields[ageIndex], value: age };
-                }
+        const birthDateField = newFields.find(f => f.id === 'fecnac');
+        if (birthDateField && (newFields[index].id === 'fecnac' || newFields[index].id === 'finf')) {
+            const reportDateField = newFields.find(f => f.id === 'finf');
+            const age = calcEdadY(birthDateField.value, reportDateField?.value);
+            const ageIndex = newFields.findIndex(f => f.id === 'edad');
+            if (ageIndex !== -1) {
+                newFields[ageIndex] = { ...newFields[ageIndex], value: age };
             }
         }
         setRecord(r => ({ ...r, patientFields: newFields }));
@@ -264,12 +248,9 @@ const App: React.FC = () => {
     }
 
     const handleTemplateChange = (id: string) => {
-        setRecord(r => ({...r, templateId: id}));
-        if(id === '2' || id === '6') {
-            setRecord(r => ({...r, sections: DEFAULT_SECTIONS}));
-        } else if (id === '5') { // Personalizado
-             setRecord(r => ({...r, title: 'Informe Personalizado'}));
-        }
+        const template = TEMPLATES[id];
+        const newSections = (id === '2' || id === '6') ? JSON.parse(JSON.stringify(DEFAULT_SECTIONS)) : record.sections;
+        setRecord(r => ({...r, templateId: id, sections: newSections, title: template.title}));
     };
     
     const handleAddSection = () => {
@@ -298,19 +279,20 @@ const App: React.FC = () => {
     };
     
     const restoreAll = () => {
-        setRecord(r => ({
-            ...r,
-            templateId: '2',
-            patientFields: DEFAULT_PATIENT_FIELDS,
-            sections: DEFAULT_SECTIONS,
-            medico: '',
-            especialidad: ''
-        }));
+        if (window.confirm('¿Está seguro de que desea restaurar todo el formulario? Se perderán los datos no guardados.')) {
+            setRecord({
+                version: 'v14',
+                templateId: '2',
+                title: TEMPLATES['2'].title,
+                patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS)),
+                sections: JSON.parse(JSON.stringify(DEFAULT_SECTIONS)),
+                medico: '',
+                especialidad: ''
+            });
+        }
     };
 
-    const handleImportClick = () => {
-        importInputRef.current?.click();
-    };
+    const handleImportClick = () => importInputRef.current?.click();
 
     const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -318,21 +300,18 @@ const App: React.FC = () => {
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
-                const result = e.target?.result;
-                if (typeof result === 'string') {
-                    const importedRecord = JSON.parse(result);
-                    if (importedRecord.version && importedRecord.patientFields && importedRecord.sections) {
-                        setRecord(importedRecord);
-                    } else {
-                        alert('Archivo JSON inválido.');
-                    }
+                const importedRecord = JSON.parse(e.target?.result as string);
+                if (importedRecord.version && importedRecord.patientFields && importedRecord.sections) {
+                    setRecord(importedRecord);
+                } else {
+                    alert('Archivo JSON inválido.');
                 }
             } catch (error) {
                 alert('Error al leer el archivo JSON.');
             }
         };
         reader.readAsText(file);
-        event.target.value = ''; // Reset for same file import
+        event.target.value = '';
     };
     
     const handlePrint = () => {
@@ -340,40 +319,30 @@ const App: React.FC = () => {
         const originalTitle = document.title;
         document.title = suggestedFilename(record.templateId, patientName);
         window.print();
-        setTimeout(() => {
-            document.title = originalTitle;
-        }, 1000);
+        setTimeout(() => { document.title = originalTitle; }, 1000);
     };
 
     return (
         <>
-            <div className="topbar">
-                <div className="topbar-group">
-                    <select style={{ flex: '0 1 300px' }} value={record.templateId} onChange={e => handleTemplateChange(e.target.value)}>
-                        {Object.values(TEMPLATES).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                </div>
-                <div className="topbar-group">
-                    <button onClick={handlePrint} className="btn btn-primary" type="button">Imprimir PDF</button>
-                    <button id="toggleEdit" onClick={() => setIsEditing(!isEditing)} className="btn" type="button">{isEditing ? 'Finalizar' : 'Editar'}</button>
-                    {isSignedIn ? (
-                        <>
-                            <span className="text-sm text-gray-300 hidden sm:inline">Hola, {userProfile?.name?.split(' ')[0]}</span>
-                            <button onClick={handleSaveToDrive} className="btn" type="button" disabled={isSaving}>
-                                {isSaving ? 'Guardando...' : 'Guardar en Drive'}
-                            </button>
-                            <button onClick={handleSignOut} className="btn" type="button">Salir</button>
-                        </>
-                    ) : (
-                        <button onClick={handleSignIn} className="btn" type="button" disabled={!tokenClient}>Iniciar Sesión</button>
-                    )}
-                    <button onClick={handleOpenConfigModal} className="btn px-2" type="button" title="Configurar API de Google">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    </button>
-                    <label className="btn" htmlFor="importJson" onClick={handleImportClick}>Importar</label>
-                    <input ref={importInputRef} id="importJson" type="file" accept="application/json" style={{ display: 'none' }} onChange={handleImportFile} />
-                </div>
-            </div>
+            <Header
+                templateId={record.templateId}
+                onTemplateChange={handleTemplateChange}
+                onPrint={handlePrint}
+                isEditing={isEditing}
+                onToggleEdit={() => setIsEditing(!isEditing)}
+                isSignedIn={isSignedIn}
+                isGisReady={isGisReady}
+                isGapiReady={isGapiReady}
+                tokenClient={tokenClient}
+                userProfile={userProfile}
+                isSaving={isSaving}
+                onSaveToDrive={handleSaveToDrive}
+                onSignOut={handleSignOut}
+                onSignIn={handleSignIn}
+                onOpenConfigModal={handleOpenConfigModal}
+                onImportClick={handleImportClick}
+            />
+            <input ref={importInputRef} id="importJson" type="file" accept="application/json" style={{ display: 'none' }} onChange={handleImportFile} />
 
             {showConfigModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -383,14 +352,9 @@ const App: React.FC = () => {
                             Para guardar en Google Drive, necesita una Clave de API de la{' '}
                             <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Consola de Google Cloud</a>.
                         </p>
-                        
                         <div className="mb-6">
                             <label htmlFor="apiKeyInput" className="block text-sm font-medium text-gray-700">Clave de API</label>
-                            <input
-                                id="apiKeyInput" type="password" value={modalApiKey}
-                                onChange={(e) => setModalApiKey(e.target.value)}
-                                className="inp w-full mt-1" placeholder="Introduce tu Clave de API"
-                            />
+                            <input id="apiKeyInput" type="password" value={modalApiKey} onChange={(e) => setModalApiKey(e.target.value)} className="inp w-full mt-1" placeholder="Introduce tu Clave de API" />
                         </div>
                         <div className="flex justify-end gap-2">
                             <button onClick={() => setShowConfigModal(false)} className="btn">Cancelar</button>
@@ -408,84 +372,28 @@ const App: React.FC = () => {
                     <div id="editPanel" className={`edit-panel ${isEditing ? 'visible' : 'hidden'}`}>
                         <div>Edición</div>
                         <button onClick={handleAddSection} className="btn" type="button">Agregar sección</button>
-                        <button onClick={() => handleRemoveSection()} className="btn" type="button">Eliminar sección</button>
+                        <button onClick={() => handleRemoveSection()} className="btn" type="button">Eliminar última sección</button>
                         <hr />
                         <div className="text-xs">Campos del paciente</div>
                         <button onClick={handleAddPatientField} className="btn" type="button">Agregar campo</button>
-                        <button onClick={() => setRecord(r => ({...r, patientFields: DEFAULT_PATIENT_FIELDS}))} className="btn" type="button">Restaurar campos</button>
+                        <button onClick={() => setRecord(r => ({...r, patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS))}))} className="btn" type="button">Restaurar campos</button>
                         <hr />
                         <button onClick={restoreAll} className="btn" type="button">Restaurar todo</button>
                     </div>
 
-                    <div 
-                        className="title"
-                        contentEditable={isEditing || record.templateId === '5'}
-                        suppressContentEditableWarning
-                        onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}
-                    >
+                    <div className="title" contentEditable={isEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>
                         {record.title}
                     </div>
 
-                    <div className="sec" id="sec-datos">
-                        <div className="subtitle" contentEditable={isEditing} suppressContentEditableWarning>Información del Paciente</div>
-                        <div id="patientGrid">
-                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px 12px', marginBottom: '8px' }}>
-                                {record.patientFields.filter(f => !f.isCustom && ['nombre', 'rut', 'fecnac', 'edad', 'fing', 'finf'].includes(f.id || '')).sort((a, b) => {
-                                    const order = ['nombre', 'rut', 'fecnac', 'edad', 'fing', 'finf'];
-                                    return order.indexOf(a.id || '') - order.indexOf(b.id || '');
-                                }).map((field, index) => {
-                                    const originalIndex = record.patientFields.findIndex(pf => pf === field);
-                                    return (
-                                        <div key={field.id || index} className="patient-field-row">
-                                            <div className="lbl" contentEditable={isEditing} suppressContentEditableWarning onBlur={e => handlePatientLabelChange(originalIndex, e.currentTarget.innerText)}>{field.label}</div>
-                                            <input 
-                                                type={field.type} 
-                                                className="inp" 
-                                                id={field.id} 
-                                                value={field.value} 
-                                                onChange={e => handlePatientFieldChange(originalIndex, e.target.value)} 
-                                                placeholder={field.placeholder} 
-                                                readOnly={field.readonly} 
-                                                style={field.readonly ? {background: '#f9f9f9', cursor: 'default'} : {}}
-                                            />
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                            {record.patientFields.filter(f => f.isCustom).map((field, index) => {
-                                const originalIndex = record.patientFields.findIndex(pf => pf === field);
-                                return (
-                                <div className="row patient-field-row mt-2" key={`custom-${originalIndex}`}>
-                                    <div className="lbl" contentEditable={isEditing} suppressContentEditableWarning onBlur={e => handlePatientLabelChange(originalIndex, e.currentTarget.innerText)}>{field.label}</div>
-                                    <input className="inp" type={field.type} value={field.value} onChange={e => handlePatientFieldChange(originalIndex, e.target.value)} />
-                                    <button className="row-del" onClick={() => handleRemovePatientField(originalIndex)}>×</button>
-                                </div>
-                             )})}
-                        </div>
-                    </div>
+                    <PatientInfo isEditing={isEditing} patientFields={record.patientFields} onPatientFieldChange={handlePatientFieldChange} onPatientLabelChange={handlePatientLabelChange} onRemovePatientField={handleRemovePatientField} />
                     
                     <div id="sectionsContainer">
                         {record.sections.map((section, index) => (
-                             <div className="sec" data-section key={index}>
-                                <button className="sec-del" onClick={() => handleRemoveSection(index)}>×</button>
-                                <div className="subtitle" contentEditable={isEditing} suppressContentEditableWarning onBlur={e => handleSectionTitleChange(index, e.currentTarget.innerText)}>{section.title}</div>
-                                <textarea className="txt" value={section.content} onChange={e => handleSectionContentChange(index, e.target.value)}></textarea>
-                            </div>
+                             <ClinicalSection key={index} section={section} index={index} isEditing={isEditing} onSectionContentChange={handleSectionContentChange} onSectionTitleChange={handleSectionTitleChange} onRemoveSection={handleRemoveSection} />
                         ))}
                     </div>
 
-                    <div className="sec" style={{ marginTop: '4px' }}>
-                        <div className="grid-2">
-                            <div className="row">
-                                <div className="lbl">Médico</div>
-                                <input className="inp" id="medico" value={record.medico} onChange={e => setRecord({...record, medico: e.target.value})} />
-                            </div>
-                            <div className="row">
-                                <div className="lbl">Especialidad</div>
-                                <input className="inp" id="esp" value={record.especialidad} onChange={e => setRecord({...record, especialidad: e.target.value})}/>
-                            </div>
-                        </div>
-                    </div>
+                    <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
                 </div>
             </div>
         </>
