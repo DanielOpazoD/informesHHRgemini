@@ -62,3 +62,9 @@ export interface DriveFolder {
     id: string;
     name: string;
 }
+
+export type HeaderNavigationTarget =
+    | { kind: 'top' }
+    | { kind: 'patient' }
+    | { kind: 'section'; index: number }
+    | { kind: 'footer' };

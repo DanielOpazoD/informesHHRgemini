@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import type { GoogleUserProfile } from '../types';
+import type { ClinicalSectionData, GoogleUserProfile, HeaderNavigationTarget } from '../types';
 import { TEMPLATES } from '../constants';
 
 interface HeaderProps {
@@ -23,6 +23,9 @@ interface HeaderProps {
     onOpenSettings: () => void;
     onDownloadJson: () => void;
     hasApiKey: boolean;
+    sections: ClinicalSectionData[];
+    onNavigate: (target: HeaderNavigationTarget) => void;
+    onOpenIntegrations: () => void;
 }
 
 const PrintIcon = () => (
@@ -45,6 +48,27 @@ const SettingsIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+    </svg>
+);
+
+const CompassIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M16 8 14 14 8 16 10 10Z" />
+    </svg>
+);
+
+const MagnifierIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" />
+    </svg>
+);
+
+const LinkIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l1.92-1.92a5 5 0 0 0-7.07-7.07l-1.15 1.15" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-1.92 1.92a5 5 0 0 0 7.07 7.07l1.15-1.15" />
     </svg>
 );
 
@@ -125,22 +149,36 @@ const Header: React.FC<HeaderProps> = ({
     onOpenFromDrive,
     onOpenSettings,
     onDownloadJson,
-    hasApiKey
+    hasApiKey,
+    sections,
+    onNavigate,
+    onOpenIntegrations
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isNavigatorOpen, setIsNavigatorOpen] = useState(false);
+    const [navigatorQuery, setNavigatorQuery] = useState('');
     const menuRef = useRef<HTMLDivElement>(null);
+    const navigatorRef = useRef<HTMLDivElement>(null);
+    const navigatorSearchRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if (!isMenuOpen) return;
+        if (!isMenuOpen && !isNavigatorOpen) return;
         const handleClickOutside = (event: MouseEvent) => {
-            if (!menuRef.current) return;
-            if (!menuRef.current.contains(event.target as Node)) {
+            if (isMenuOpen && menuRef.current && !menuRef.current.contains(event.target as Node)) {
                 setIsMenuOpen(false);
+            }
+            if (isNavigatorOpen && navigatorRef.current && !navigatorRef.current.contains(event.target as Node)) {
+                setIsNavigatorOpen(false);
+                setNavigatorQuery('');
             }
         };
         const handleEscape = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
-                setIsMenuOpen(false);
+                if (isMenuOpen) setIsMenuOpen(false);
+                if (isNavigatorOpen) {
+                    setIsNavigatorOpen(false);
+                    setNavigatorQuery('');
+                }
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -149,7 +187,7 @@ const Header: React.FC<HeaderProps> = ({
             document.removeEventListener('mousedown', handleClickOutside);
             document.removeEventListener('keydown', handleEscape);
         };
-    }, [isMenuOpen]);
+    }, [isMenuOpen, isNavigatorOpen]);
 
     useEffect(() => {
         if (!isSignedIn) {
@@ -166,7 +204,28 @@ const Header: React.FC<HeaderProps> = ({
         return userProfile?.email?.[0]?.toUpperCase() ?? 'U';
     }, [userProfile]);
 
+    useEffect(() => {
+        if (!isNavigatorOpen) return;
+        const timer = window.setTimeout(() => {
+            navigatorSearchRef.current?.focus();
+        }, 10);
+        return () => window.clearTimeout(timer);
+    }, [isNavigatorOpen]);
+
+    useEffect(() => {
+        const handleShortcut = (event: KeyboardEvent) => {
+            const isModifier = event.ctrlKey || event.metaKey;
+            if (isModifier && event.key.toLowerCase() === 'k') {
+                event.preventDefault();
+                setIsNavigatorOpen(true);
+            }
+        };
+        document.addEventListener('keydown', handleShortcut);
+        return () => document.removeEventListener('keydown', handleShortcut);
+    }, []);
+
     const toggleMenu = () => setIsMenuOpen(current => !current);
+    const toggleNavigator = () => setIsNavigatorOpen(current => !current);
 
     const handleMenuAction = (action: () => void) => {
         action();
@@ -175,38 +234,134 @@ const Header: React.FC<HeaderProps> = ({
 
     const driveOptionDisabled = hasApiKey && !isPickerApiReady;
 
+    const navigationItems = useMemo(() => {
+        const baseItems: { label: string; target: HeaderNavigationTarget }[] = [
+            { label: 'Inicio del documento', target: { kind: 'top' } },
+            { label: 'Información del paciente', target: { kind: 'patient' } },
+        ];
+        const sectionItems = sections.map((section, index) => ({
+            label: section.title?.trim() || `Sección ${index + 1}`,
+            target: { kind: 'section', index },
+        }));
+        const footerItem = { label: 'Profesional responsable', target: { kind: 'footer' } as HeaderNavigationTarget };
+        return [...baseItems, ...sectionItems, footerItem];
+    }, [sections]);
+
+    const filteredNavigationItems = useMemo(() => {
+        const query = navigatorQuery.trim().toLowerCase();
+        if (!query) return navigationItems;
+        return navigationItems.filter(item => item.label.toLowerCase().includes(query));
+    }, [navigationItems, navigatorQuery]);
+
+    const handleNavigateItem = (item: { label: string; target: HeaderNavigationTarget }) => {
+        onNavigate(item.target);
+        setIsNavigatorOpen(false);
+        setNavigatorQuery('');
+    };
+
+    const handleNavigatorSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (filteredNavigationItems.length === 0) return;
+        handleNavigateItem(filteredNavigationItems[0]);
+    };
+
+    const connectionLabel = isSignedIn ? 'Conectado a Google' : 'Sin conexión con Google';
+
     return (
         <div className="topbar">
-            <div className="topbar-group">
-                <select style={{ flex: '0 1 300px' }} value={templateId} onChange={e => onTemplateChange(e.target.value)}>
-                    {Object.values(TEMPLATES).map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                </select>
-            </div>
-            <div className="topbar-group">
-                <button onClick={onPrint} className="action-btn primary" type="button">
-                    <PrintIcon />
-                    <span>Imprimir PDF</span>
-                </button>
-                <button id="toggleEdit" onClick={onToggleEdit} className="action-btn" type="button">
-                    <EditIcon />
-                    <span>{isEditing ? 'Finalizar' : 'Editar'}</span>
-                </button>
-                <button onClick={onOpenSettings} className="action-btn" type="button" title="Configuración de Google API">
-                    <SettingsIcon />
-                    <span>Google API</span>
-                    {hasApiKey && <span className="api-badge">✓</span>}
-                </button>
-                <button className="action-btn" type="button" onClick={() => document.getElementById('importJson')?.click()}>
-                    <UploadIcon />
-                    <span>Importar</span>
-                </button>
-                {isSignedIn ? (
-                    <div className="user-menu" ref={menuRef}>
+            <div className="topbar-column">
+                <div className="topbar-brand">
+                    <span className="topbar-brand-title">Registro Clínico</span>
+                    <span className={`connection-pill ${isSignedIn ? 'online' : 'offline'}`} title={connectionLabel}>
+                        {isSignedIn ? 'Google Drive listo' : 'Drive desconectado'}
+                    </span>
+                </div>
+                <div className="topbar-controls">
+                    <label className="visually-hidden" htmlFor="templateSelector">Seleccionar plantilla</label>
+                    <select
+                        id="templateSelector"
+                        className="topbar-select"
+                        value={templateId}
+                        onChange={e => onTemplateChange(e.target.value)}
+                    >
+                        {Object.values(TEMPLATES).map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                    </select>
+                    <div className="navigator" ref={navigatorRef}>
                         <button
                             type="button"
-                            className={`user-menu-button ${isMenuOpen ? 'open' : ''}`}
+                            className={`action-btn ghost navigator-toggle ${isNavigatorOpen ? 'open' : ''}`}
+                            onClick={toggleNavigator}
+                            aria-expanded={isNavigatorOpen}
+                            aria-haspopup="true"
+                        >
+                            <CompassIcon />
+                            <span>Navegar</span>
+                        </button>
+                        {isNavigatorOpen && (
+                            <div className="navigator-dropdown" role="menu">
+                                <form onSubmit={handleNavigatorSubmit} className="navigator-search">
+                                    <MagnifierIcon />
+                                    <input
+                                        ref={navigatorSearchRef}
+                                        type="search"
+                                        value={navigatorQuery}
+                                        onChange={event => setNavigatorQuery(event.target.value)}
+                                        placeholder="Buscar sección o paciente"
+                                        aria-label="Buscar destinos dentro del documento"
+                                    />
+                                    <span className="navigator-hint">⌘/Ctrl + K</span>
+                                </form>
+                                <div className="navigator-items">
+                                    {filteredNavigationItems.length === 0 ? (
+                                        <div className="navigator-empty">Sin coincidencias</div>
+                                    ) : (
+                                        filteredNavigationItems.map(item => (
+                                            <button
+                                                key={item.label}
+                                                type="button"
+                                                className="navigator-item"
+                                                onClick={() => handleNavigateItem(item)}
+                                            >
+                                                {item.label}
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+            <div className="topbar-column">
+                <div className="topbar-actions">
+                    <button onClick={onPrint} className="action-btn primary" type="button">
+                        <PrintIcon />
+                        <span>Imprimir PDF</span>
+                    </button>
+                    <button id="toggleEdit" onClick={onToggleEdit} className="action-btn" type="button">
+                        <EditIcon />
+                        <span>{isEditing ? 'Finalizar' : 'Editar'}</span>
+                    </button>
+                    <button onClick={onOpenSettings} className="action-btn" type="button" title="Configuración de Google API">
+                        <SettingsIcon />
+                        <span>Google API</span>
+                        {hasApiKey && <span className="api-badge">✓</span>}
+                    </button>
+                    <button className="action-btn ghost" type="button" onClick={onOpenIntegrations} title="Integraciones disponibles">
+                        <LinkIcon />
+                        <span>Integraciones</span>
+                    </button>
+                    <button className="action-btn" type="button" onClick={() => document.getElementById('importJson')?.click()}>
+                        <UploadIcon />
+                        <span>Importar</span>
+                    </button>
+                    {isSignedIn ? (
+                        <div className="user-menu" ref={menuRef}>
+                            <button
+                                type="button"
+                                className={`user-menu-button ${isMenuOpen ? 'open' : ''}`}
                             onClick={toggleMenu}
                             aria-haspopup="true"
                             aria-expanded={isMenuOpen}
@@ -290,7 +445,8 @@ const Header: React.FC<HeaderProps> = ({
                         <LoginIcon />
                         <span>Iniciar sesión</span>
                     </button>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );

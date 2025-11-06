@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import jsPDF from 'jspdf';
-import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder } from './types';
+import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder, HeaderNavigationTarget } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
@@ -49,6 +49,7 @@ const App: React.FC = () => {
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [isIntegrationsModalOpen, setIsIntegrationsModalOpen] = useState(false);
 
     // Settings Modal Temp State
     const [tempApiKey, setTempApiKey] = useState('');
@@ -63,6 +64,7 @@ const App: React.FC = () => {
     const [selectedFolderId, setSelectedFolderId] = useState<string>('root');
     const [newFolderName, setNewFolderName] = useState('');
     const [isDriveLoading, setIsDriveLoading] = useState(false);
+    const [customFileName, setCustomFileName] = useState('');
     
     const SCOPES = 'https://www.googleapis.com/auth/drive';
     
@@ -259,6 +261,9 @@ const App: React.FC = () => {
             handleSignIn();
             return;
         }
+        const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
+        const defaultName = suggestedFilename(record.templateId, patientName);
+        setCustomFileName(defaultName);
         const savedPath = localStorage.getItem('defaultDriveFolderPath');
         if (savedPath) {
             const path = JSON.parse(savedPath) as DriveFolder[];
@@ -271,7 +276,10 @@ const App: React.FC = () => {
         setIsSaveModalOpen(true);
     };
 
-    const closeSaveModal = () => setIsSaveModalOpen(false);
+    const closeSaveModal = () => {
+        setIsSaveModalOpen(false);
+        setCustomFileName('');
+    };
     const handleSaveFolderClick = (folder: DriveFolder) => {
         setFolderPath(currentPath => [...currentPath, folder]);
         fetchDriveFolders(folder.id);
@@ -533,35 +541,44 @@ const App: React.FC = () => {
     };
 
     const handleFinalSave = async () => {
+        const sanitizedInput = customFileName.trim().replace(/[\\/:*?"<>|]/g, '');
+        const normalizedBaseName = sanitizedInput.replace(/\.(json|pdf)$/gi, '').trim();
+        if (!normalizedBaseName) {
+            alert('Por favor, ingrese un nombre válido para el archivo antes de guardar.');
+            return;
+        }
+        if (normalizedBaseName !== customFileName) {
+            setCustomFileName(normalizedBaseName);
+        }
+
         setIsSaving(true);
         const saveFile = async (format: 'json' | 'pdf'): Promise<string> => {
-            const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
-            let fileContent: Blob, fileName: string, mimeType: string;
+            let fileContent: Blob;
+            let mimeType: string;
+            const fileName = `${normalizedBaseName}${format === 'pdf' ? '.pdf' : '.json'}`;
 
             if (format === 'pdf') {
-                fileName = suggestedFilename(record.templateId, patientName) + '.pdf';
                 mimeType = 'application/pdf';
                 fileContent = await generatePdfAsBlob();
             } else {
-                fileName = suggestedFilename(record.templateId, patientName) + '.json';
                 mimeType = 'application/json';
                 fileContent = new Blob([JSON.stringify(record, null, 2)], { type: mimeType });
             }
-            
+
             const metadata = { name: fileName, parents: [selectedFolderId] };
             const form = new FormData();
             form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
             form.append('file', fileContent);
 
             const accessToken = window.gapi.client.getToken()?.access_token;
-            if (!accessToken) throw new Error("No hay token de acceso. Por favor, inicie sesión de nuevo.");
+            if (!accessToken) throw new Error('No hay token de acceso. Por favor, inicie sesión de nuevo.');
 
             const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${accessToken}` },
                 body: form
             });
-            
+
             const result = await response.json();
             if (!response.ok) throw new Error(result?.error?.message || `Error del servidor: ${response.status}`);
             return fileName;
@@ -584,6 +601,31 @@ const App: React.FC = () => {
         }
     };
     
+    const handleNavigate = useCallback((target: HeaderNavigationTarget) => {
+        if (target.kind === 'top') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+        if (target.kind === 'patient') {
+            document.getElementById('patient-info')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+        }
+        if (target.kind === 'section') {
+            document.getElementById(`section-${target.index}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+        }
+        if (target.kind === 'footer') {
+            document.getElementById('professional-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, []);
+
+    const openIntegrationsModal = () => setIsIntegrationsModalOpen(true);
+    const closeIntegrationsModal = () => setIsIntegrationsModalOpen(false);
+
+    const handleIntegrationLink = useCallback((url: string) => {
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }, []);
+
     // --- App State & Form Handlers ---
     const getReportDate = useCallback(() => {
         return record.patientFields.find(f => f.id === 'finf')?.value || '';
@@ -732,6 +774,9 @@ const App: React.FC = () => {
                 onOpenSettings={openSettingsModal}
                 onDownloadJson={handleDownloadJson}
                 hasApiKey={!!apiKey}
+                sections={record.sections}
+                onNavigate={handleNavigate}
+                onOpenIntegrations={openIntegrationsModal}
             />
             
             {/* --- Modals --- */}
@@ -818,6 +863,18 @@ const App: React.FC = () => {
                             <button onClick={closeSaveModal} className="modal-close">&times;</button>
                         </div>
                         <div>
+                            <div className="lbl">Nombre del archivo</div>
+                            <input
+                                type="text"
+                                className="inp"
+                                value={customFileName}
+                                onChange={event => setCustomFileName(event.target.value.replace(/[\\/:*?"<>|]/g, ''))}
+                                placeholder="Nombre personalizado"
+                                maxLength={120}
+                            />
+                            <small className="text-xs">Las extensiones .json y/o .pdf se añadirán automáticamente según el formato elegido.</small>
+                        </div>
+                        <div>
                             <div className="lbl">Formato</div>
                             <div className="flex gap-4"><label><input type="radio" name="format" value="json" checked={saveFormat === 'json'} onChange={() => setSaveFormat('json')} /> JSON</label><label><input type="radio" name="format" value="pdf" checked={saveFormat === 'pdf'} onChange={() => setSaveFormat('pdf')} /> PDF</label><label><input type="radio" name="format" value="both" checked={saveFormat === 'both'} onChange={() => setSaveFormat('both')} /> Ambos</label></div>
                         </div>
@@ -836,7 +893,49 @@ const App: React.FC = () => {
                             <div className="lbl">Crear nueva carpeta aquí</div>
                             <div className="flex gap-2"><input type="text" className="inp flex-grow" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Nombre de la carpeta" /><button className="btn" onClick={handleCreateFolder} disabled={isDriveLoading || !newFolderName.trim()}>Crear</button></div>
                         </div>
-                        <div className="modal-footer"><div><button className="btn" onClick={handleSetDefaultFolder}>Establecer como predeterminada</button></div><div className="flex gap-2"><button className="btn" onClick={closeSaveModal}>Cancelar</button><button className="btn btn-primary" onClick={handleFinalSave} disabled={isSaving || isDriveLoading}>{isSaving ? 'Guardando...' : 'Guardar'}</button></div></div>
+                        <div className="modal-footer"><div><button className="btn" onClick={handleSetDefaultFolder}>Establecer como predeterminada</button></div><div className="flex gap-2"><button className="btn" onClick={closeSaveModal}>Cancelar</button><button className="btn btn-primary" onClick={handleFinalSave} disabled={isSaving || isDriveLoading || !customFileName.trim()}>{isSaving ? 'Guardando...' : 'Guardar'}</button></div></div>
+                    </div>
+                </div>
+            )}
+
+            {isIntegrationsModalOpen && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <div className="modal-title">Integraciones sugeridas</div>
+                            <button onClick={closeIntegrationsModal} className="modal-close">&times;</button>
+                        </div>
+                        <p style={{ margin: 0 }}>Amplía el flujo de trabajo conectando el registro clínico con otras herramientas de la institución.</p>
+                        <div className="integration-grid">
+                            <div className="integration-card">
+                                <div className="integration-icon">📊</div>
+                                <div className="integration-body">
+                                    <div className="integration-title">Google Sheets</div>
+                                    <p className="integration-description">Exporta reportes tabulares para seguimiento estadístico y dashboards en Data Studio.</p>
+                                    <button type="button" onClick={() => handleIntegrationLink('https://workspace.google.com/marketplace/app/google_sheets/907132886558')}>Abrir Marketplace</button>
+                                </div>
+                            </div>
+                            <div className="integration-card">
+                                <div className="integration-icon">🩺</div>
+                                <div className="integration-body">
+                                    <div className="integration-title">FHIR / HL7</div>
+                                    <p className="integration-description">Prepara la interoperabilidad con sistemas HIS mediante paquetes FHIR y mensajería HL7.</p>
+                                    <button type="button" onClick={() => handleIntegrationLink('https://www.hl7.org/fhir/overview.html')}>Ver guía técnica</button>
+                                </div>
+                            </div>
+                            <div className="integration-card">
+                                <div className="integration-icon">🗓️</div>
+                                <div className="integration-body">
+                                    <div className="integration-title">Google Calendar</div>
+                                    <p className="integration-description">Genera recordatorios para controles o seguimientos posteriores vinculados al paciente.</p>
+                                    <button type="button" onClick={() => handleIntegrationLink('https://workspace.google.com/marketplace/app/google_calendar/565127276637')}>Gestionar agenda</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <div></div>
+                            <button className="btn" onClick={closeIntegrationsModal}>Cerrar</button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -857,9 +956,28 @@ const App: React.FC = () => {
                         <hr /><button onClick={restoreAll} className="btn" type="button">Restaurar todo</button>
                     </div>
                     <div className="title" contentEditable={isEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>{record.title}</div>
-                    <PatientInfo isEditing={isEditing} patientFields={record.patientFields} onPatientFieldChange={handlePatientFieldChange} onPatientLabelChange={handlePatientLabelChange} onRemovePatientField={handleRemovePatientField} />
-                    <div id="sectionsContainer">{record.sections.map((section, index) => (<ClinicalSection key={index} section={section} index={index} isEditing={isEditing} onSectionContentChange={handleSectionContentChange} onSectionTitleChange={handleSectionTitleChange} onRemoveSection={handleRemoveSection} />))}</div>
-                    <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
+                    <div id="patient-info">
+                        <PatientInfo isEditing={isEditing} patientFields={record.patientFields} onPatientFieldChange={handlePatientFieldChange} onPatientLabelChange={handlePatientLabelChange} onRemovePatientField={handleRemovePatientField} />
+                    </div>
+                    <div id="sectionsContainer">{record.sections.map((section, index) => (
+                        <ClinicalSection
+                            key={index}
+                            section={section}
+                            index={index}
+                            isEditing={isEditing}
+                            onSectionContentChange={handleSectionContentChange}
+                            onSectionTitleChange={handleSectionTitleChange}
+                            onRemoveSection={handleRemoveSection}
+                            domId={`section-${index}`}
+                        />
+                    ))}</div>
+                    <Footer
+                        medico={record.medico}
+                        especialidad={record.especialidad}
+                        onMedicoChange={value => setRecord({...record, medico: value})}
+                        onEspecialidadChange={value => setRecord({...record, especialidad: value})}
+                        sectionId="professional-section"
+                    />
                 </div>
             </div>
         </>
