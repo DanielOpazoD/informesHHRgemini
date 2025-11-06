@@ -1,5 +1,5 @@
 import React from 'react';
-import type { GoogleUserProfile } from '../types';
+import type { GoogleUserProfile, ThemeOption } from '../types';
 import { TEMPLATES } from '../constants';
 
 interface HeaderProps {
@@ -22,18 +22,38 @@ interface HeaderProps {
     onOpenFromDrive: () => void;
     onOpenSettings: () => void;
     hasApiKey: boolean;
+    theme: ThemeOption;
+    onThemeChange: (theme: ThemeOption) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
     templateId, onTemplateChange, onPrint, isEditing, onToggleEdit,
     isSignedIn, isGisReady, isGapiReady, isPickerApiReady, tokenClient, userProfile, isSaving,
-    onSaveToDrive, onSignOut, onSignIn, onChangeUser, onOpenFromDrive, onOpenSettings, hasApiKey
+    onSaveToDrive, onSignOut, onSignIn, onChangeUser, onOpenFromDrive, onOpenSettings, hasApiKey,
+    theme, onThemeChange
 }) => {
     return (
-        <div className="topbar">
+        <div className="topbar" role="banner">
             <div className="topbar-group">
-                <select style={{ flex: '0 1 300px' }} value={templateId} onChange={e => onTemplateChange(e.target.value)}>
-                    {Object.values(TEMPLATES).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                <select
+                    aria-label="Seleccionar plantilla"
+                    style={{ flex: '0 1 220px' }}
+                    value={templateId}
+                    onChange={event => onTemplateChange(event.target.value)}
+                >
+                    {Object.values(TEMPLATES).map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                </select>
+                <select
+                    aria-label="Cambiar tema de la interfaz"
+                    className="topbar-theme-select"
+                    value={theme}
+                    onChange={event => onThemeChange(event.target.value as ThemeOption)}
+                >
+                    <option value="light">Claro</option>
+                    <option value="dark">Oscuro</option>
+                    <option value="axia">Axia</option>
                 </select>
             </div>
             <div className="topbar-group">

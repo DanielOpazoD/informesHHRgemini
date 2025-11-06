@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder } from './types';
+import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder, ThemeOption } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
@@ -64,16 +64,35 @@ const App: React.FC = () => {
     const [selectedFolderId, setSelectedFolderId] = useState<string>('root');
     const [newFolderName, setNewFolderName] = useState('');
     const [isDriveLoading, setIsDriveLoading] = useState(false);
+    const [theme, setTheme] = useState<ThemeOption>('light');
     
     const SCOPES = 'https://www.googleapis.com/auth/drive';
     
     // Load settings from localStorage on initial render
     useEffect(() => {
+        if (typeof window === 'undefined') return;
         const savedApiKey = localStorage.getItem('googleApiKey');
         const savedClientId = localStorage.getItem('googleClientId');
+        const savedTheme = localStorage.getItem('appTheme') as ThemeOption | null;
         if (savedApiKey) setApiKey(savedApiKey);
         if (savedClientId) setClientId(savedClientId);
+        if (savedTheme === 'dark' || savedTheme === 'axia' || savedTheme === 'light') {
+            setTheme(savedTheme);
+        }
     }, []);
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        const root = document.documentElement;
+        if (theme === 'light') {
+            root.removeAttribute('data-theme');
+        } else {
+            root.setAttribute('data-theme', theme);
+        }
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('appTheme', theme);
+        }
+    }, [theme]);
 
     useEffect(() => {
         if (scriptLoadRef.current) return;
@@ -659,6 +678,8 @@ const App: React.FC = () => {
                 onOpenFromDrive={handleOpenFromDrive}
                 onOpenSettings={openSettingsModal}
                 hasApiKey={!!apiKey}
+                theme={theme}
+                onThemeChange={(value) => setTheme(value)}
             />
             
             {/* --- Modals --- */}
@@ -669,7 +690,7 @@ const App: React.FC = () => {
                             <div className="modal-title">⚙️ Configuración de Google API</div>
                             <button onClick={closeSettingsModal} className="modal-close">&times;</button>
                         </div>
-                        <div style={{background: '#eff6ff', padding: '8px', borderRadius: '4px', fontSize: '12px'}}>
+                        <div className="banner">
                             <strong>💡 Opcional:</strong> Configure su propia API Key para usar el selector visual de Drive. Sin API Key, se usará un selector simple.
                         </div>
                         <div>
@@ -684,7 +705,7 @@ const App: React.FC = () => {
                             <div className="lbl">Client ID (opcional)</div>
                             <input type="text" className="inp" value={tempClientId} onChange={e => setTempClientId(e.target.value)} placeholder="123-abc.apps.googleusercontent.com"/>
                         </div>
-                        <div style={{background: '#fef3c7', padding: '8px', borderRadius: '4px', fontSize: '12px'}}>
+                        <div className="banner banner-warning">
                             <strong>⚠️ Privacidad:</strong> Las credenciales se guardan solo en su navegador. Nunca se envían a ningún servidor externo.
                         </div>
                         <div className="modal-footer">
