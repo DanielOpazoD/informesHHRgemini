@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
@@ -349,79 +348,172 @@ const App: React.FC = () => {
 
     // --- PDF & File Operations ---
     const generatePdfAsBlob = async (): Promise<Blob> => {
-        const sheetElement = document.getElementById('sheet');
-        const bodyElement = document.body;
-        if (!sheetElement || !bodyElement) throw new Error("Required elements for PDF generation not found");
-    
-        bodyElement.classList.add('pdf-generation-mode');
-        
-        const inputs = Array.from(sheetElement.getElementsByTagName('input'));
-        const textareas = Array.from(sheetElement.getElementsByTagName('textarea'));
-        const elementsToReplace = [...inputs, ...textareas];
-        const replacements: { element: HTMLElement; div: HTMLDivElement }[] = [];
-    
-        elementsToReplace.forEach(el => {
-            const isTextarea = el.tagName === 'TEXTAREA';
-            const input = el as HTMLInputElement | HTMLTextAreaElement;
-            
-            const div = document.createElement('div');
-            const style = window.getComputedStyle(input);
-            
-            // Copy relevant styles
-            ['font', 'border', 'padding', 'lineHeight', 'width', 'boxSizing', 'textAlign'].forEach(prop => {
-                div.style[prop as any] = style[prop as any];
-            });
-    
-            if (isTextarea) {
-                div.style.minHeight = style.minHeight;
-                div.style.whiteSpace = 'pre-wrap';
-                div.style.wordWrap = 'break-word';
-            } else {
-                 div.style.height = style.height; // Ensure single line inputs have correct height
-                 div.style.display = 'flex';
-                 div.style.alignItems = 'center';
-            }
-            
-            div.innerText = input.value;
-    
-            // Hide original and insert replacement
-            input.style.display = 'none';
-            input.parentNode?.insertBefore(div, input);
-            replacements.push({ element: input, div });
-        });
-    
-        await new Promise(resolve => setTimeout(resolve, 100)); // Wait for styles to apply
-    
-        try {
-            const canvas = await html2canvas(sheetElement, { scale: 2, useCORS: true, logging: false });
-            const imgData = canvas.toDataURL('image/png'); // Use PNG for better quality and compatibility
-            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-            
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            const imgHeight = canvas.height * pdfWidth / canvas.width;
-            
-            let heightLeft = imgHeight;
-            let position = 0;
-            
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-            heightLeft -= pageHeight;
-            
-            while (heightLeft > 0) {
-                position -= pageHeight;
+        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'letter' });
+
+        const margins = { top: 20, bottom: 18, left: 18, right: 18 };
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const contentWidth = pageWidth - margins.left - margins.right;
+        let cursorY = margins.top;
+
+        const ensureSpace = (requiredHeight: number) => {
+            if (cursorY + requiredHeight > pageHeight - margins.bottom) {
                 pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-                heightLeft -= pageHeight;
+                cursorY = margins.top;
             }
-            return pdf.output('blob');
-        } finally {
-            bodyElement.classList.remove('pdf-generation-mode');
-            // Clean up replacements
-            replacements.forEach(({ element, div }) => {
-                element.style.display = '';
-                div.remove();
+        };
+
+        const drawHorizontalRule = () => {
+            pdf.setDrawColor(210);
+            pdf.setLineWidth(0.2);
+            pdf.line(margins.left, cursorY, pageWidth - margins.right, cursorY);
+        };
+
+        const formatFieldValue = (field: PatientField) => {
+            if (!field.value) return '';
+            if (field.type === 'date') {
+                return formatDateDMY(field.value);
+            }
+            return field.value;
+        };
+
+        const drawFieldBlock = (label: string, value: string, x: number, width: number) => {
+            const safeValue = value?.trim() ? value : '—';
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(8.5);
+            pdf.text(label, x, cursorY);
+
+            const textTop = cursorY + 3.8;
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(10);
+            const lines = pdf.splitTextToSize(safeValue, width);
+            lines.forEach((line, idx) => {
+                pdf.text(line, x, textTop + idx * 4.3);
+            });
+
+            const blockHeight = 3.8 + lines.length * 4.3 + 2;
+            pdf.setDrawColor(220);
+            pdf.line(x, textTop + lines.length * 4.3 + 0.8, x + width, textTop + lines.length * 4.3 + 0.8);
+
+            return blockHeight;
+        };
+
+        const drawSectionParagraph = (title: string, content: string) => {
+            const sanitizedContent = (content ?? '').replace(/\r\n/g, '\n');
+            const paragraphs = sanitizedContent.split('\n');
+            const lines: string[] = [];
+            paragraphs.forEach((paragraph, idx) => {
+                const trimmed = paragraph.trim();
+                if (!trimmed) {
+                    lines.push(' ');
+                } else {
+                    const wrapped = pdf.splitTextToSize(trimmed, contentWidth);
+                    lines.push(...wrapped);
+                }
+                if (idx < paragraphs.length - 1) {
+                    lines.push(' ');
+                }
+            });
+
+            if (!lines.length) {
+                lines.push(' ');
+            }
+
+            const heightNeeded = (title ? 5 : 0) + lines.length * 5 + 4;
+            ensureSpace(heightNeeded);
+            if (title) {
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(11);
+                pdf.text(title, margins.left, cursorY);
+                cursorY += 5;
+            }
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(10);
+            lines.forEach((line, idx) => {
+                pdf.text(line, margins.left, cursorY + idx * 5);
+            });
+            cursorY += lines.length * 5 + 4;
+        };
+
+        const resolvedTitle = (record.title?.trim()) || TEMPLATES[record.templateId]?.title || 'Informe médico';
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(15);
+        pdf.text(resolvedTitle, pageWidth / 2, cursorY, { align: 'center' });
+        cursorY += 6;
+        drawHorizontalRule();
+        cursorY += 6;
+
+        const baseFields = record.patientFields.filter(field => !field.isCustom);
+        const customFields = record.patientFields.filter(field => field.isCustom);
+        const colGap = 8;
+        const colWidth = (contentWidth - colGap) / 2;
+
+        for (let index = 0; index < baseFields.length; index += 2) {
+            const rowFields = baseFields.slice(index, index + 2);
+            const heights = rowFields.map(field => {
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(10);
+                const text = formatFieldValue(field) || '—';
+                const lines = pdf.splitTextToSize(text, colWidth);
+                return 3.8 + lines.length * 4.3 + 2;
+            });
+            const rowHeight = Math.max(...heights, 12);
+            ensureSpace(rowHeight);
+            rowFields.forEach((field, colIndex) => {
+                const x = margins.left + colIndex * (colWidth + colGap);
+                drawFieldBlock(field.label || '', formatFieldValue(field), x, colWidth);
+            });
+            cursorY += rowHeight;
+        }
+
+        if (customFields.length) {
+            ensureSpace(4);
+            cursorY += 2;
+            customFields.forEach(field => {
+                const text = formatFieldValue(field);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(10);
+                const lines = pdf.splitTextToSize(text || '—', contentWidth);
+                const blockHeight = 3.8 + lines.length * 4.3 + 2;
+                ensureSpace(blockHeight);
+                const drawnHeight = drawFieldBlock(field.label || '', text || '', margins.left, contentWidth);
+                cursorY += drawnHeight;
             });
         }
+
+        record.sections.forEach((section, idx) => {
+            const rawTitle = section.title ?? '';
+            const rawContent = section.content ?? '';
+            if (!rawTitle.trim() && !rawContent.trim()) return;
+            const sectionTitle = rawTitle.trim() || `Sección ${idx + 1}`;
+            ensureSpace(4);
+            cursorY += 4;
+            drawSectionParagraph(sectionTitle, rawContent);
+        });
+
+        const footerEntries = [
+            { label: 'Médico', value: record.medico },
+            { label: 'Especialidad', value: record.especialidad },
+        ];
+        if (footerEntries.some(entry => entry.value?.trim())) {
+            const heights = footerEntries.map(entry => {
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(10);
+                const lines = pdf.splitTextToSize(entry.value || '—', colWidth);
+                return 3.8 + lines.length * 4.3 + 2;
+            });
+            const needed = Math.max(...heights, 12);
+            ensureSpace(needed);
+            footerEntries.forEach((entry, colIndex) => {
+                const x = margins.left + colIndex * (colWidth + colGap);
+                drawFieldBlock(entry.label, entry.value || '', x, colWidth);
+            });
+            cursorY += needed;
+        }
+
+        pdf.setProperties({ title: resolvedTitle });
+
+        return pdf.output('blob');
     };
 
     const handlePickerCallback = async (data: any) => {
@@ -609,6 +701,10 @@ const App: React.FC = () => {
         }
     };
 
+    const triggerLocalImport = () => {
+        importInputRef.current?.click();
+    };
+
     const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
@@ -628,6 +724,20 @@ const App: React.FC = () => {
         reader.readAsText(file);
         if (event.target) event.target.value = '';
     };
+
+    const handleSaveLocalJson = useCallback(() => {
+        const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
+        const fileName = suggestedFilename(record.templateId, patientName) + '.json';
+        const fileContent = new Blob([JSON.stringify(record, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(fileContent);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }, [record]);
     
     const handlePrint = () => {
         const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
@@ -643,6 +753,7 @@ const App: React.FC = () => {
                 templateId={record.templateId}
                 onTemplateChange={handleTemplateChange}
                 onPrint={handlePrint}
+                onSaveLocal={handleSaveLocalJson}
                 isEditing={isEditing}
                 onToggleEdit={() => setIsEditing(!isEditing)}
                 isSignedIn={isSignedIn}
@@ -653,14 +764,15 @@ const App: React.FC = () => {
                 userProfile={userProfile}
                 isSaving={isSaving}
                 onSaveToDrive={openSaveModal}
+                onImportLocal={triggerLocalImport}
+                onImportFromDrive={handleOpenFromDrive}
                 onSignOut={handleSignOut}
                 onSignIn={handleSignIn}
                 onChangeUser={handleChangeUser}
-                onOpenFromDrive={handleOpenFromDrive}
                 onOpenSettings={openSettingsModal}
                 hasApiKey={!!apiKey}
             />
-            
+
             {/* --- Modals --- */}
             {isSettingsModalOpen && (
                 <div className="modal-overlay">
