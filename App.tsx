@@ -363,27 +363,44 @@ const App: React.FC = () => {
         elementsToReplace.forEach(el => {
             const isTextarea = el.tagName === 'TEXTAREA';
             const input = el as HTMLInputElement | HTMLTextAreaElement;
-            
+
             const div = document.createElement('div');
+            div.className = input.className;
             const style = window.getComputedStyle(input);
-            
-            // Copy relevant styles
-            ['font', 'border', 'padding', 'lineHeight', 'width', 'boxSizing', 'textAlign'].forEach(prop => {
-                div.style[prop as any] = style[prop as any];
+
+            const propertiesToCopy = [
+                'font', 'fontSize', 'fontFamily', 'fontWeight', 'color', 'backgroundColor',
+                'border', 'borderRadius', 'padding', 'lineHeight', 'width', 'boxSizing',
+                'textAlign', 'letterSpacing', 'margin', 'minHeight'
+            ] as const;
+            propertiesToCopy.forEach(prop => {
+                const camelValue = (style as any)[prop];
+                if (camelValue) {
+                    (div.style as any)[prop] = camelValue;
+                    return;
+                }
+                const cssProp = prop.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
+                const computedValue = style.getPropertyValue(cssProp);
+                if (computedValue) {
+                    (div.style as any)[prop] = computedValue;
+                }
             });
-    
+
             if (isTextarea) {
-                div.style.minHeight = style.minHeight;
                 div.style.whiteSpace = 'pre-wrap';
                 div.style.wordWrap = 'break-word';
+                div.style.minHeight = style.height;
             } else {
-                 div.style.height = style.height; // Ensure single line inputs have correct height
-                 div.style.display = 'flex';
-                 div.style.alignItems = 'center';
+                div.style.height = style.height;
+                div.style.display = 'flex';
+                div.style.alignItems = 'center';
+                const textAlign = style.textAlign;
+                div.style.justifyContent = textAlign === 'right' ? 'flex-end' : textAlign === 'center' ? 'center' : 'flex-start';
             }
-            
-            div.innerText = input.value;
-    
+
+            const value = input.value ?? '';
+            div.textContent = value.length === 0 ? '\u00a0' : value;
+
             // Hide original and insert replacement
             input.style.display = 'none';
             input.parentNode?.insertBefore(div, input);
@@ -609,6 +626,10 @@ const App: React.FC = () => {
         }
     };
 
+    const triggerLocalImport = () => {
+        importInputRef.current?.click();
+    };
+
     const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
@@ -628,6 +649,20 @@ const App: React.FC = () => {
         reader.readAsText(file);
         if (event.target) event.target.value = '';
     };
+
+    const handleSaveLocalJson = useCallback(() => {
+        const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
+        const fileName = suggestedFilename(record.templateId, patientName) + '.json';
+        const fileContent = new Blob([JSON.stringify(record, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(fileContent);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }, [record]);
     
     const handlePrint = () => {
         const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
@@ -643,6 +678,7 @@ const App: React.FC = () => {
                 templateId={record.templateId}
                 onTemplateChange={handleTemplateChange}
                 onPrint={handlePrint}
+                onSaveLocal={handleSaveLocalJson}
                 isEditing={isEditing}
                 onToggleEdit={() => setIsEditing(!isEditing)}
                 isSignedIn={isSignedIn}
@@ -653,14 +689,15 @@ const App: React.FC = () => {
                 userProfile={userProfile}
                 isSaving={isSaving}
                 onSaveToDrive={openSaveModal}
+                onImportLocal={triggerLocalImport}
+                onImportFromDrive={handleOpenFromDrive}
                 onSignOut={handleSignOut}
                 onSignIn={handleSignIn}
                 onChangeUser={handleChangeUser}
-                onOpenFromDrive={handleOpenFromDrive}
                 onOpenSettings={openSettingsModal}
                 hasApiKey={!!apiKey}
             />
-            
+
             {/* --- Modals --- */}
             {isSettingsModalOpen && (
                 <div className="modal-overlay">

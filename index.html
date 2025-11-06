@@ -73,6 +73,70 @@
 
     .btn-primary:hover { background: #1b3796; }
 
+    .dropdown {
+      position: relative;
+    }
+
+    .dropdown.open > .btn {
+      background: #1e40af;
+      border-color: #1e40af;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 200px;
+      background: #1f2937;
+      border: 1px solid #4b5563;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      display: flex;
+      flex-direction: column;
+      padding: 4px 0;
+      z-index: 11000;
+    }
+
+    .dropdown-menu button {
+      background: transparent;
+      border: none;
+      color: #fff;
+      text-align: left;
+      padding: 8px 12px;
+      font-size: var(--fs);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .dropdown-menu button:hover {
+      background: rgba(37, 99, 235, 0.35);
+    }
+
+    .dropdown-menu button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .dropdown-menu button:disabled:hover {
+      background: transparent;
+    }
+
+    .email-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(59, 130, 246, 0.25);
+      border: 1px solid rgba(59, 130, 246, 0.45);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: calc(var(--fs) - 1px);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
     .wrap { padding: 8px 12px; }
 
     .sheet {
@@ -303,25 +367,28 @@
         align-items: center;
     }
 
-    .pdf-generation-mode .topbar,
-    .pdf-generation-mode .edit-panel { display: none !important; }
+    body.pdf-generation-mode .topbar,
+    body.pdf-generation-mode .edit-panel { display: none !important; }
 
-    .pdf-generation-mode body { 
+    body.pdf-generation-mode {
       background: #fff !important;
-    }
-    .pdf-generation-mode .wrap { 
       padding: 0 !important;
     }
-    .pdf-generation-mode .sheet { 
-      border: none !important; 
+    body.pdf-generation-mode .wrap {
+      padding: 0 !important;
+      width: 100% !important;
+    }
+    body.pdf-generation-mode .sheet {
+      border: none !important;
       box-shadow: none !important;
       margin: 0 !important;
       padding: 12mm 15mm !important;
-      width: 900px !important;
-      max-width: 900px !important;
+      width: 100% !important;
+      max-width: 100% !important;
       border-radius: 0 !important;
+      overflow: visible !important;
     }
-    .pdf-generation-mode .txt {
+    body.pdf-generation-mode .txt {
         overflow: visible !important;
     }
 
