@@ -6,11 +6,12 @@ interface FooterProps {
     especialidad: string;
     onMedicoChange: (value: string) => void;
     onEspecialidadChange: (value: string) => void;
+    sectionId?: string;
 }
 
-const Footer: React.FC<FooterProps> = ({ medico, especialidad, onMedicoChange, onEspecialidadChange }) => {
+const Footer: React.FC<FooterProps> = ({ medico, especialidad, onMedicoChange, onEspecialidadChange, sectionId }) => {
     return (
-        <div className="sec" style={{ marginTop: '4px' }}>
+        <div className="sec" style={{ marginTop: '4px' }} id={sectionId}>
             <div className="grid-2">
                 <div className="row">
                     <div className="lbl">Médico</div>

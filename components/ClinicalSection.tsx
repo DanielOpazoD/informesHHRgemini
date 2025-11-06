@@ -8,10 +8,11 @@ interface ClinicalSectionProps {
     onSectionContentChange: (index: number, content: string) => void;
     onSectionTitleChange: (index: number, title: string) => void;
     onRemoveSection: (index: number) => void;
+    domId?: string;
 }
 
 const ClinicalSection: React.FC<ClinicalSectionProps> = ({
-    section, index, isEditing, onSectionContentChange, onSectionTitleChange, onRemoveSection
+    section, index, isEditing, onSectionContentChange, onSectionTitleChange, onRemoveSection, domId
 }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -29,7 +30,7 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     }, [section.content, adjustHeight]);
 
     return (
-        <div className="sec" data-section>
+        <div className="sec" data-section id={domId}>
             <button className="sec-del" onClick={() => onRemoveSection(index)}>×</button>
             <div
                 className="subtitle"
