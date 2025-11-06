@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
@@ -349,79 +348,146 @@ const App: React.FC = () => {
 
     // --- PDF & File Operations ---
     const generatePdfAsBlob = async (): Promise<Blob> => {
-        const sheetElement = document.getElementById('sheet');
-        const bodyElement = document.body;
-        if (!sheetElement || !bodyElement) throw new Error("Required elements for PDF generation not found");
-    
-        bodyElement.classList.add('pdf-generation-mode');
-        
-        const inputs = Array.from(sheetElement.getElementsByTagName('input'));
-        const textareas = Array.from(sheetElement.getElementsByTagName('textarea'));
-        const elementsToReplace = [...inputs, ...textareas];
-        const replacements: { element: HTMLElement; div: HTMLDivElement }[] = [];
-    
-        elementsToReplace.forEach(el => {
-            const isTextarea = el.tagName === 'TEXTAREA';
-            const input = el as HTMLInputElement | HTMLTextAreaElement;
-            
-            const div = document.createElement('div');
-            const style = window.getComputedStyle(input);
-            
-            // Copy relevant styles
-            ['font', 'border', 'padding', 'lineHeight', 'width', 'boxSizing', 'textAlign'].forEach(prop => {
-                div.style[prop as any] = style[prop as any];
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const marginX = 18;
+        const marginY = 18;
+        const contentWidth = pageWidth - marginX * 2;
+        let cursorY = marginY;
+
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(28, 45, 64);
+
+        const ensureSpace = (height: number, onAddPage?: () => void) => {
+            if (cursorY + height > pageHeight - marginY) {
+                doc.addPage();
+                cursorY = marginY;
+                if (onAddPage) {
+                    onAddPage();
+                }
+            }
+        };
+
+        const addDivider = () => {
+            doc.setDrawColor(221, 226, 238);
+            doc.setLineWidth(0.3);
+            doc.line(marginX, cursorY, pageWidth - marginX, cursorY);
+            cursorY += 4;
+        };
+
+        const addCenteredTitle = (text: string) => {
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.text(text, pageWidth / 2, cursorY, { align: 'center' });
+            cursorY += 10;
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(10);
+        };
+
+        const addPatientHeading = (text: string) => {
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.text(text, marginX, cursorY);
+            cursorY += 6;
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(10);
+        };
+
+        const addSectionHeading = (text: string) => {
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text(text, marginX, cursorY);
+            cursorY += 6;
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(10);
+        };
+
+        const titleText = record.title?.trim() || 'Registro clínico';
+        addCenteredTitle(titleText);
+        addDivider();
+
+        const patientFields = record.patientFields;
+        if (patientFields.length) {
+            addPatientHeading('Datos del paciente');
+            const labelColumnWidth = 42;
+            const valueColumnWidth = contentWidth - labelColumnWidth;
+            const lineHeight = 5.5;
+
+            patientFields.forEach(field => {
+                const label = field.label?.trim() || field.id || 'Campo';
+                const valueText = field.value?.trim() || '—';
+                const valueLines = doc.splitTextToSize(valueText, valueColumnWidth);
+                const safeLines = valueLines.length ? valueLines : ['—'];
+                const continuedLabel = `${label} (cont.)`;
+
+                const printLabel = (text: string) => {
+                    doc.setFont('Helvetica', 'bold');
+                    doc.text(`${text}:`, marginX, cursorY);
+                    doc.setFont('Helvetica', 'normal');
+                };
+
+                let needsContinuationLabel = false;
+                ensureSpace(lineHeight, () => {
+                    needsContinuationLabel = true;
+                    addPatientHeading('Datos del paciente (cont.)');
+                });
+                printLabel(needsContinuationLabel ? continuedLabel : label);
+
+                safeLines.forEach((line, index) => {
+                    if (index > 0) {
+                        ensureSpace(lineHeight, () => {
+                            addPatientHeading('Datos del paciente (cont.)');
+                            printLabel(continuedLabel);
+                        });
+                    }
+                    doc.text(line, marginX + labelColumnWidth, cursorY);
+                    cursorY += lineHeight;
+                });
+                cursorY += 1.5;
             });
-    
-            if (isTextarea) {
-                div.style.minHeight = style.minHeight;
-                div.style.whiteSpace = 'pre-wrap';
-                div.style.wordWrap = 'break-word';
-            } else {
-                 div.style.height = style.height; // Ensure single line inputs have correct height
-                 div.style.display = 'flex';
-                 div.style.alignItems = 'center';
-            }
-            
-            div.innerText = input.value;
-    
-            // Hide original and insert replacement
-            input.style.display = 'none';
-            input.parentNode?.insertBefore(div, input);
-            replacements.push({ element: input, div });
+            cursorY += 2;
+            addDivider();
+        }
+
+        record.sections.forEach((section, index) => {
+            const heading = section.title?.trim() || `Sección ${index + 1}`;
+            const content = section.content?.trim() || '—';
+            const contentLines = doc.splitTextToSize(content, contentWidth);
+            const safeLines = contentLines.length ? contentLines : ['—'];
+
+            ensureSpace(6);
+            addSectionHeading(heading);
+
+            safeLines.forEach(line => {
+                ensureSpace(5.5, () => addSectionHeading(`${heading} (cont.)`));
+                doc.text(line, marginX, cursorY);
+                cursorY += 5.5;
+            });
+            cursorY += 3;
+            addDivider();
         });
-    
-        await new Promise(resolve => setTimeout(resolve, 100)); // Wait for styles to apply
-    
-        try {
-            const canvas = await html2canvas(sheetElement, { scale: 2, useCORS: true, logging: false });
-            const imgData = canvas.toDataURL('image/png'); // Use PNG for better quality and compatibility
-            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-            
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            const imgHeight = canvas.height * pdfWidth / canvas.width;
-            
-            let heightLeft = imgHeight;
-            let position = 0;
-            
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-            heightLeft -= pageHeight;
-            
-            while (heightLeft > 0) {
-                position -= pageHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-                heightLeft -= pageHeight;
-            }
-            return pdf.output('blob');
-        } finally {
-            bodyElement.classList.remove('pdf-generation-mode');
-            // Clean up replacements
-            replacements.forEach(({ element, div }) => {
-                element.style.display = '';
-                div.remove();
+
+        const footerLines: string[] = [];
+        if (record.medico?.trim()) footerLines.push(`Profesional a cargo: ${record.medico.trim()}`);
+        if (record.especialidad?.trim()) footerLines.push(`Especialidad: ${record.especialidad.trim()}`);
+        const reportDate = getReportDate();
+        if (reportDate) footerLines.push(`Fecha del informe: ${formatDateDMY(reportDate)}`);
+
+        if (footerLines.length) {
+            cursorY += 2;
+            addDivider();
+            ensureSpace(6);
+            addSectionHeading('Resumen final');
+            footerLines.forEach(line => {
+                ensureSpace(5.5, () => addSectionHeading('Resumen final (cont.)'));
+                doc.text(line, marginX, cursorY);
+                cursorY += 5.5;
             });
         }
+
+        return doc.output('blob');
     };
 
     const handlePickerCallback = async (data: any) => {
@@ -637,6 +703,18 @@ const App: React.FC = () => {
         setTimeout(() => { document.title = originalTitle; }, 1000);
     };
 
+    const handleDownloadJson = () => {
+        const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
+        const fileName = `${suggestedFilename(record.templateId, patientName)}.json`;
+        const blob = new Blob([JSON.stringify(record, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        anchor.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <>
             <Header
@@ -648,7 +726,6 @@ const App: React.FC = () => {
                 isSignedIn={isSignedIn}
                 isGisReady={isGisReady}
                 isGapiReady={isGapiReady}
-                isPickerApiReady={isPickerApiReady}
                 tokenClient={tokenClient}
                 userProfile={userProfile}
                 isSaving={isSaving}
@@ -658,6 +735,7 @@ const App: React.FC = () => {
                 onChangeUser={handleChangeUser}
                 onOpenFromDrive={handleOpenFromDrive}
                 onOpenSettings={openSettingsModal}
+                onDownloadJson={handleDownloadJson}
                 hasApiKey={!!apiKey}
             />
             
