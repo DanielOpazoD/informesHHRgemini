@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder } from './types';
-import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
+import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS, TOPBAR_THEMES } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
 import Header from './components/Header';
@@ -50,6 +49,7 @@ const App: React.FC = () => {
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [topbarThemeId, setTopbarThemeId] = useState<string>(TOPBAR_THEMES[0]?.id ?? 'marine');
 
     // Settings Modal Temp State
     const [tempApiKey, setTempApiKey] = useState('');
@@ -71,9 +71,25 @@ const App: React.FC = () => {
     useEffect(() => {
         const savedApiKey = localStorage.getItem('googleApiKey');
         const savedClientId = localStorage.getItem('googleClientId');
+        const savedTheme = localStorage.getItem('topbarTheme');
         if (savedApiKey) setApiKey(savedApiKey);
         if (savedClientId) setClientId(savedClientId);
+        if (savedTheme && TOPBAR_THEMES.some(theme => theme.id === savedTheme)) {
+            setTopbarThemeId(savedTheme);
+        }
     }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof document === 'undefined') return;
+        const theme = TOPBAR_THEMES.find(entry => entry.id === topbarThemeId) ?? TOPBAR_THEMES[0];
+        if (!theme) return;
+        const root = document.documentElement;
+        Object.entries(theme.tokens).forEach(([token, value]) => {
+            root.style.setProperty(`--${token}`, value);
+        });
+        document.body.setAttribute('data-topbar-theme', theme.id);
+        localStorage.setItem('topbarTheme', theme.id);
+    }, [topbarThemeId]);
 
     useEffect(() => {
         if (scriptLoadRef.current) return;
@@ -349,79 +365,246 @@ const App: React.FC = () => {
 
     // --- PDF & File Operations ---
     const generatePdfAsBlob = async (): Promise<Blob> => {
-        const sheetElement = document.getElementById('sheet');
-        const bodyElement = document.body;
-        if (!sheetElement || !bodyElement) throw new Error("Required elements for PDF generation not found");
-    
-        bodyElement.classList.add('pdf-generation-mode');
-        
-        const inputs = Array.from(sheetElement.getElementsByTagName('input'));
-        const textareas = Array.from(sheetElement.getElementsByTagName('textarea'));
-        const elementsToReplace = [...inputs, ...textareas];
-        const replacements: { element: HTMLElement; div: HTMLDivElement }[] = [];
-    
-        elementsToReplace.forEach(el => {
-            const isTextarea = el.tagName === 'TEXTAREA';
-            const input = el as HTMLInputElement | HTMLTextAreaElement;
-            
-            const div = document.createElement('div');
-            const style = window.getComputedStyle(input);
-            
-            // Copy relevant styles
-            ['font', 'border', 'padding', 'lineHeight', 'width', 'boxSizing', 'textAlign'].forEach(prop => {
-                div.style[prop as any] = style[prop as any];
-            });
-    
-            if (isTextarea) {
-                div.style.minHeight = style.minHeight;
-                div.style.whiteSpace = 'pre-wrap';
-                div.style.wordWrap = 'break-word';
-            } else {
-                 div.style.height = style.height; // Ensure single line inputs have correct height
-                 div.style.display = 'flex';
-                 div.style.alignItems = 'center';
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const marginX = 18;
+        const marginY = 18;
+        const contentWidth = pageWidth - marginX * 2;
+        let cursorY = marginY;
+
+        const palette = {
+            text: [32, 41, 58],
+            muted: [100, 116, 139],
+            accent: [37, 99, 235],
+            accentDark: [21, 94, 239],
+            border: [214, 222, 235],
+            surface: [248, 250, 252],
+            header: [232, 240, 255],
+        } as const;
+
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(palette.text[0], palette.text[1], palette.text[2]);
+
+        const ensureSpace = (height: number, onAddPage?: () => void) => {
+            if (cursorY + height > pageHeight - marginY) {
+                doc.addPage();
+                cursorY = marginY;
+                if (onAddPage) {
+                    onAddPage();
+                }
             }
-            
-            div.innerText = input.value;
-    
-            // Hide original and insert replacement
-            input.style.display = 'none';
-            input.parentNode?.insertBefore(div, input);
-            replacements.push({ element: input, div });
-        });
-    
-        await new Promise(resolve => setTimeout(resolve, 100)); // Wait for styles to apply
-    
-        try {
-            const canvas = await html2canvas(sheetElement, { scale: 2, useCORS: true, logging: false });
-            const imgData = canvas.toDataURL('image/png'); // Use PNG for better quality and compatibility
-            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-            
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            const imgHeight = canvas.height * pdfWidth / canvas.width;
-            
-            let heightLeft = imgHeight;
-            let position = 0;
-            
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-            heightLeft -= pageHeight;
-            
-            while (heightLeft > 0) {
-                position -= pageHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-                heightLeft -= pageHeight;
+        };
+
+        const drawSectionHeading = (label: string) => {
+            ensureSpace(12);
+            doc.setFillColor(palette.header[0], palette.header[1], palette.header[2]);
+            doc.setDrawColor(palette.border[0], palette.border[1], palette.border[2]);
+            doc.roundedRect(marginX, cursorY, contentWidth, 9, 2, 2, 'F');
+            doc.roundedRect(marginX, cursorY, contentWidth, 9, 2, 2, 'S');
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(11.5);
+            doc.setTextColor(palette.accent[0], palette.accent[1], palette.accent[2]);
+            doc.text(label, marginX + 4, cursorY + 6);
+            cursorY += 12;
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(palette.text[0], palette.text[1], palette.text[2]);
+        };
+
+        const drawHeaderCard = () => {
+            const titleText = record.title?.trim() || 'Registro clínico';
+            const templateName = TEMPLATES[record.templateId]?.name;
+            const patientName = record.patientFields.find(f => f.id === 'nombre')?.value?.trim();
+            const reportDate = getReportDate();
+
+            ensureSpace(24);
+            doc.setFillColor(palette.surface[0], palette.surface[1], palette.surface[2]);
+            doc.setDrawColor(palette.border[0], palette.border[1], palette.border[2]);
+            doc.roundedRect(marginX, cursorY, contentWidth, 20, 3, 3, 'F');
+            doc.roundedRect(marginX, cursorY, contentWidth, 20, 3, 3, 'S');
+
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(15);
+            doc.setTextColor(palette.accentDark[0], palette.accentDark[1], palette.accentDark[2]);
+            doc.text(titleText, marginX + 6, cursorY + 12);
+
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(9.5);
+            doc.setTextColor(palette.muted[0], palette.muted[1], palette.muted[2]);
+            if (templateName) {
+                doc.text(templateName, marginX + 6, cursorY + 17);
             }
-            return pdf.output('blob');
-        } finally {
-            bodyElement.classList.remove('pdf-generation-mode');
-            // Clean up replacements
-            replacements.forEach(({ element, div }) => {
-                element.style.display = '';
-                div.remove();
+            if (reportDate) {
+                doc.text(`Fecha del informe: ${formatDateDMY(reportDate)}`, marginX + contentWidth - 6, cursorY + 12, { align: 'right' });
+            }
+            if (patientName) {
+                doc.text(`Paciente: ${patientName}`, marginX + contentWidth - 6, cursorY + 17, { align: 'right' });
+            }
+
+            cursorY += 26;
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(palette.text[0], palette.text[1], palette.text[2]);
+        };
+
+        const drawPatientDetails = () => {
+            const fields = record.patientFields;
+            if (!fields.length) return;
+
+            const columns = 2;
+            const gap = 6;
+            const cellWidth = (contentWidth - gap) / columns;
+            const paddingX = 4;
+            const paddingY = 5;
+            const lineHeight = 4.4;
+
+            const rows: PatientField[][] = [];
+            for (let i = 0; i < fields.length; i += columns) {
+                rows.push(fields.slice(i, i + columns));
+            }
+
+            let headingPrinted = false;
+            const printHeading = (suffix?: string) => {
+                const headingText = suffix ? `Datos del paciente ${suffix}` : 'Datos del paciente';
+                drawSectionHeading(headingText);
+                headingPrinted = true;
+            };
+
+            rows.forEach((row, rowIndex) => {
+                if (!headingPrinted) {
+                    printHeading();
+                }
+
+                const heights = row.map(field => {
+                    if (!field) return 0;
+                    const label = field.label?.trim() || field.id || 'Campo';
+                    const valueText = field.value?.trim() || 'Sin registro';
+                    const wrapped = doc.splitTextToSize(valueText, cellWidth - paddingX * 2);
+                    const lines = wrapped.length ? wrapped.length : 1;
+                    const labelHeight = 4.2;
+                    return Math.max(paddingY * 2 + labelHeight + lines * lineHeight, 22);
+                });
+
+                const rowHeight = Math.max(...heights, 22);
+
+                ensureSpace(rowHeight + 4, () => {
+                    printHeading('(cont.)');
+                });
+
+                row.forEach((field, colIndex) => {
+                    if (!field) return;
+                    const label = field.label?.trim() || field.id || 'Campo';
+                    const valueText = field.value?.trim() || 'Sin registro';
+                    const cellX = marginX + (cellWidth + gap) * colIndex;
+                    const wrapped = doc.splitTextToSize(valueText, cellWidth - paddingX * 2);
+                    const safeWrapped = wrapped.length ? wrapped : ['Sin registro'];
+
+                    doc.setFillColor(255, 255, 255);
+                    doc.setDrawColor(palette.border[0], palette.border[1], palette.border[2]);
+                    doc.roundedRect(cellX, cursorY, cellWidth, rowHeight, 2, 2, 'F');
+                    doc.roundedRect(cellX, cursorY, cellWidth, rowHeight, 2, 2, 'S');
+
+                    doc.setFont('Helvetica', 'bold');
+                    doc.setFontSize(9);
+                    doc.setTextColor(palette.muted[0], palette.muted[1], palette.muted[2]);
+                    doc.text(label, cellX + paddingX, cursorY + paddingY + 1);
+
+                    doc.setFont('Helvetica', 'normal');
+                    doc.setFontSize(10);
+                    doc.setTextColor(palette.text[0], palette.text[1], palette.text[2]);
+                    const textStart = cursorY + paddingY + 5;
+                    safeWrapped.forEach((line, index) => {
+                        doc.text(line, cellX + paddingX, textStart + index * lineHeight);
+                    });
+                });
+
+                cursorY += rowHeight + 4;
+
+                if (rowIndex === rows.length - 1) {
+                    cursorY += 2;
+                }
             });
-        }
+        };
+
+        const drawSections = () => {
+            record.sections.forEach((section, index) => {
+                const heading = section.title?.trim() || `Sección ${index + 1}`;
+                const content = section.content?.trim() || 'Sin información registrada.';
+                const wrapped = doc.splitTextToSize(content, contentWidth - 8);
+                const safeWrapped = wrapped.length ? wrapped : ['Sin información registrada.'];
+                const lineHeight = 4.6;
+                const textHeight = safeWrapped.length * lineHeight;
+                const boxHeight = Math.max(textHeight + 8, 30);
+
+                drawSectionHeading(heading);
+                ensureSpace(boxHeight + 6, () => drawSectionHeading(`${heading} (cont.)`));
+
+                doc.setFillColor(255, 255, 255);
+                doc.setDrawColor(palette.border[0], palette.border[1], palette.border[2]);
+                doc.roundedRect(marginX, cursorY, contentWidth, boxHeight, 3, 3, 'F');
+                doc.roundedRect(marginX, cursorY, contentWidth, boxHeight, 3, 3, 'S');
+
+                const textStart = cursorY + 6;
+                safeWrapped.forEach((line, idx) => {
+                    doc.text(line, marginX + 4, textStart + idx * lineHeight);
+                });
+
+                cursorY += boxHeight + 8;
+            });
+        };
+
+        const drawFooter = () => {
+            const footerEntries: { label: string; value: string }[] = [];
+            if (record.medico?.trim()) footerEntries.push({ label: 'Profesional a cargo', value: record.medico.trim() });
+            if (record.especialidad?.trim()) footerEntries.push({ label: 'Especialidad', value: record.especialidad.trim() });
+            const reportDate = getReportDate();
+            if (reportDate) footerEntries.push({ label: 'Fecha del informe', value: formatDateDMY(reportDate) });
+            if (!footerEntries.length) return;
+
+            drawSectionHeading('Resumen final');
+
+            const blockHeight = footerEntries.length * 7 + 14;
+            ensureSpace(blockHeight + 12);
+
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(palette.border[0], palette.border[1], palette.border[2]);
+            doc.roundedRect(marginX, cursorY, contentWidth, blockHeight, 3, 3, 'F');
+            doc.roundedRect(marginX, cursorY, contentWidth, blockHeight, 3, 3, 'S');
+
+            let lineY = cursorY + 10;
+            footerEntries.forEach(entry => {
+                doc.setFont('Helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.setTextColor(palette.muted[0], palette.muted[1], palette.muted[2]);
+                doc.text(entry.label, marginX + 4, lineY);
+                const labelWidth = doc.getTextWidth(entry.label);
+                doc.setFont('Helvetica', 'normal');
+                doc.setFontSize(10);
+                doc.setTextColor(palette.text[0], palette.text[1], palette.text[2]);
+                doc.text(`: ${entry.value}`, marginX + 4 + labelWidth, lineY);
+                lineY += 7;
+            });
+
+            cursorY += blockHeight + 10;
+
+            ensureSpace(22);
+            doc.setDrawColor(palette.border[0], palette.border[1], palette.border[2]);
+            doc.line(marginX, cursorY + 16, marginX + 60, cursorY + 16);
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(palette.muted[0], palette.muted[1], palette.muted[2]);
+            doc.text('Firma y timbre', marginX, cursorY + 20);
+            cursorY += 24;
+        };
+
+        drawHeaderCard();
+        drawPatientDetails();
+        drawSections();
+        drawFooter();
+
+        return doc.output('blob');
     };
 
     const handlePickerCallback = async (data: any) => {
@@ -637,6 +820,24 @@ const App: React.FC = () => {
         setTimeout(() => { document.title = originalTitle; }, 1000);
     };
 
+    const handleThemeChange = (themeId: string) => {
+        if (TOPBAR_THEMES.some(theme => theme.id === themeId)) {
+            setTopbarThemeId(themeId);
+        }
+    };
+
+    const handleDownloadJson = () => {
+        const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
+        const fileName = `${suggestedFilename(record.templateId, patientName)}.json`;
+        const blob = new Blob([JSON.stringify(record, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        anchor.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <>
             <Header
@@ -648,7 +849,6 @@ const App: React.FC = () => {
                 isSignedIn={isSignedIn}
                 isGisReady={isGisReady}
                 isGapiReady={isGapiReady}
-                isPickerApiReady={isPickerApiReady}
                 tokenClient={tokenClient}
                 userProfile={userProfile}
                 isSaving={isSaving}
@@ -658,7 +858,11 @@ const App: React.FC = () => {
                 onChangeUser={handleChangeUser}
                 onOpenFromDrive={handleOpenFromDrive}
                 onOpenSettings={openSettingsModal}
+                onDownloadJson={handleDownloadJson}
                 hasApiKey={!!apiKey}
+                themeId={topbarThemeId}
+                themes={TOPBAR_THEMES}
+                onThemeChange={handleThemeChange}
             />
             
             {/* --- Modals --- */}

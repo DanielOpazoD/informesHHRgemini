@@ -62,3 +62,10 @@ export interface DriveFolder {
     id: string;
     name: string;
 }
+
+export interface TopbarTheme {
+    id: string;
+    name: string;
+    preview: string;
+    tokens: Record<string, string>;
+}
