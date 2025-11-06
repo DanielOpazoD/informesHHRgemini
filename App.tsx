@@ -21,6 +21,11 @@ declare global {
 
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
+    const [theme, setTheme] = useState<string>(() => {
+        if (typeof window === 'undefined') return 'light';
+        const stored = localStorage.getItem('uiTheme');
+        return stored === 'dark' || stored === 'axia' ? stored : 'light';
+    });
     const [record, setRecord] = useState<ClinicalRecord>({
         version: 'v14',
         templateId: '2',
@@ -544,7 +549,7 @@ const App: React.FC = () => {
                 const editPanel = document.getElementById('editPanel');
                 const toggleButton = document.getElementById('toggleEdit');
                 if (editPanel && !editPanel.contains(event.target as Node) && toggleButton && !toggleButton.contains(event.target as Node)) {
-                    if ((event.target as HTMLElement).closest('.topbar')) return;
+                    if ((event.target as HTMLElement).closest('.barra-menu')) return;
                     setIsEditing(false);
                 }
             }
@@ -552,6 +557,16 @@ const App: React.FC = () => {
         document.addEventListener('mousedown', handleOutsideClick);
         return () => document.removeEventListener('mousedown', handleOutsideClick);
     }, [isEditing]);
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        if (theme === 'light') {
+            document.documentElement.removeAttribute('data-theme');
+        } else {
+            document.documentElement.setAttribute('data-theme', theme);
+        }
+        localStorage.setItem('uiTheme', theme);
+    }, [theme]);
 
     const handlePatientFieldChange = (index: number, value: string) => {
         const newFields = [...record.patientFields];
@@ -645,6 +660,8 @@ const App: React.FC = () => {
                 onPrint={handlePrint}
                 isEditing={isEditing}
                 onToggleEdit={() => setIsEditing(!isEditing)}
+                theme={theme}
+                onThemeChange={setTheme}
                 isSignedIn={isSignedIn}
                 isGisReady={isGisReady}
                 isGapiReady={isGapiReady}
