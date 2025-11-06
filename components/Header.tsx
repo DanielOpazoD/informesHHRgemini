@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { GoogleUserProfile } from '../types';
+import type { GoogleUserProfile, TopbarTheme } from '../types';
 import { TEMPLATES } from '../constants';
 
 interface HeaderProps {
@@ -22,6 +22,9 @@ interface HeaderProps {
     onOpenSettings: () => void;
     onDownloadJson: () => void;
     hasApiKey: boolean;
+    themeId: string;
+    themes: TopbarTheme[];
+    onThemeChange: (themeId: string) => void;
 }
 
 const PrintIcon = () => (
@@ -95,6 +98,20 @@ const ChevronIcon = ({ open }: { open: boolean }) => (
     </svg>
 );
 
+const PaletteIcon = () => (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="icon">
+        <path
+            d="M12 2a10 10 0 0 0 0 20h1.5a2.5 2.5 0 0 0 2.45-3 1.5 1.5 0 0 1 1.47-1.9H18a4 4 0 0 0 0-8h-.5a1.5 1.5 0 0 1-1.47-1.9A2.5 2.5 0 0 0 12.5 2z"
+            fill="currentColor"
+            opacity="0.85"
+        />
+        <circle cx="8" cy="9" r="1.5" fill="currentColor" />
+        <circle cx="8" cy="14" r="1.5" fill="currentColor" />
+        <circle cx="12" cy="6.5" r="1.5" fill="currentColor" />
+        <circle cx="15" cy="11" r="1.5" fill="currentColor" />
+    </svg>
+);
+
 const getInitials = (profile: GoogleUserProfile | null) => {
     if (!profile) return 'U';
     if (profile.picture) {
@@ -127,15 +144,24 @@ const Header: React.FC<HeaderProps> = ({
     onOpenSettings,
     onDownloadJson,
     hasApiKey,
+    themeId,
+    themes,
+    onThemeChange,
 }) => {
     const [menuOpen, setMenuOpen] = useState(false);
+    const [themeMenuOpen, setThemeMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const themeMenuRef = useRef<HTMLDivElement>(null);
     const canSignIn = isGisReady && isGapiReady && !!tokenClient;
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+            const target = event.target as Node;
+            if (menuRef.current && !menuRef.current.contains(target)) {
                 setMenuOpen(false);
+            }
+            if (themeMenuRef.current && !themeMenuRef.current.contains(target)) {
+                setThemeMenuOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -144,7 +170,10 @@ const Header: React.FC<HeaderProps> = ({
 
     useEffect(() => {
         const handleEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') setMenuOpen(false);
+            if (event.key === 'Escape') {
+                setMenuOpen(false);
+                setThemeMenuOpen(false);
+            }
         };
         document.addEventListener('keydown', handleEscape);
         return () => document.removeEventListener('keydown', handleEscape);
@@ -157,10 +186,16 @@ const Header: React.FC<HeaderProps> = ({
     }, [isSignedIn]);
 
     const initials = useMemo(() => getInitials(userProfile), [userProfile]);
+    const selectedTheme = useMemo(() => themes.find(theme => theme.id === themeId), [themes, themeId]);
 
     const handleMenuAction = (callback: () => void) => () => {
         setMenuOpen(false);
         callback();
+    };
+
+    const handleThemeSelect = (id: string) => {
+        onThemeChange(id);
+        setThemeMenuOpen(false);
     };
 
     return (
@@ -196,6 +231,42 @@ const Header: React.FC<HeaderProps> = ({
                 </button>
             </div>
             <div className="topbar-right">
+                <div className={`theme-menu ${themeMenuOpen ? 'open' : ''}`} ref={themeMenuRef}>
+                    <button
+                        className="btn-icon theme-trigger"
+                        type="button"
+                        onClick={() => {
+                            setThemeMenuOpen(prev => !prev);
+                            setMenuOpen(false);
+                        }}
+                        aria-haspopup="true"
+                        aria-expanded={themeMenuOpen}
+                        title="Cambiar colores de la barra"
+                    >
+                        <PaletteIcon />
+                    </button>
+                    {themeMenuOpen && (
+                        <div className="theme-dropdown" role="menu">
+                            <div className="theme-title">Colores de la barra</div>
+                            <div className="theme-options">
+                                {themes.map(theme => (
+                                    <button
+                                        key={theme.id}
+                                        className={`theme-option ${theme.id === themeId ? 'active' : ''}`}
+                                        type="button"
+                                        onClick={() => handleThemeSelect(theme.id)}
+                                    >
+                                        <span className="theme-swatch" style={{ background: theme.preview }} />
+                                        <div className="theme-meta">
+                                            <span className="theme-name">{theme.name}</span>
+                                            {selectedTheme?.id === theme.id && <span className="theme-current">En uso</span>}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
                 <button onClick={onOpenSettings} className="btn-icon" type="button" title="Configuración">
                     <SettingsIcon />
                     {hasApiKey && <span className="badge-active" aria-hidden="true" />}

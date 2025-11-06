@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import jsPDF from 'jspdf';
 import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder } from './types';
-import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
+import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS, TOPBAR_THEMES } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
 import Header from './components/Header';
@@ -49,6 +49,7 @@ const App: React.FC = () => {
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [topbarThemeId, setTopbarThemeId] = useState<string>(TOPBAR_THEMES[0]?.id ?? 'marine');
 
     // Settings Modal Temp State
     const [tempApiKey, setTempApiKey] = useState('');
@@ -70,9 +71,25 @@ const App: React.FC = () => {
     useEffect(() => {
         const savedApiKey = localStorage.getItem('googleApiKey');
         const savedClientId = localStorage.getItem('googleClientId');
+        const savedTheme = localStorage.getItem('topbarTheme');
         if (savedApiKey) setApiKey(savedApiKey);
         if (savedClientId) setClientId(savedClientId);
+        if (savedTheme && TOPBAR_THEMES.some(theme => theme.id === savedTheme)) {
+            setTopbarThemeId(savedTheme);
+        }
     }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof document === 'undefined') return;
+        const theme = TOPBAR_THEMES.find(entry => entry.id === topbarThemeId) ?? TOPBAR_THEMES[0];
+        if (!theme) return;
+        const root = document.documentElement;
+        Object.entries(theme.tokens).forEach(([token, value]) => {
+            root.style.setProperty(`--${token}`, value);
+        });
+        document.body.setAttribute('data-topbar-theme', theme.id);
+        localStorage.setItem('topbarTheme', theme.id);
+    }, [topbarThemeId]);
 
     useEffect(() => {
         if (scriptLoadRef.current) return;
@@ -356,9 +373,19 @@ const App: React.FC = () => {
         const contentWidth = pageWidth - marginX * 2;
         let cursorY = marginY;
 
+        const palette = {
+            text: [32, 41, 58],
+            muted: [100, 116, 139],
+            accent: [37, 99, 235],
+            accentDark: [21, 94, 239],
+            border: [214, 222, 235],
+            surface: [248, 250, 252],
+            header: [232, 240, 255],
+        } as const;
+
         doc.setFont('Helvetica', 'normal');
         doc.setFontSize(10);
-        doc.setTextColor(28, 45, 64);
+        doc.setTextColor(palette.text[0], palette.text[1], palette.text[2]);
 
         const ensureSpace = (height: number, onAddPage?: () => void) => {
             if (cursorY + height > pageHeight - marginY) {
@@ -370,122 +397,212 @@ const App: React.FC = () => {
             }
         };
 
-        const addDivider = () => {
-            doc.setDrawColor(221, 226, 238);
-            doc.setLineWidth(0.3);
-            doc.line(marginX, cursorY, pageWidth - marginX, cursorY);
-            cursorY += 4;
-        };
-
-        const addCenteredTitle = (text: string) => {
+        const drawSectionHeading = (label: string) => {
+            ensureSpace(12);
+            doc.setFillColor(palette.header[0], palette.header[1], palette.header[2]);
+            doc.setDrawColor(palette.border[0], palette.border[1], palette.border[2]);
+            doc.roundedRect(marginX, cursorY, contentWidth, 9, 2, 2, 'F');
+            doc.roundedRect(marginX, cursorY, contentWidth, 9, 2, 2, 'S');
             doc.setFont('Helvetica', 'bold');
-            doc.setFontSize(16);
-            doc.text(text, pageWidth / 2, cursorY, { align: 'center' });
-            cursorY += 10;
+            doc.setFontSize(11.5);
+            doc.setTextColor(palette.accent[0], palette.accent[1], palette.accent[2]);
+            doc.text(label, marginX + 4, cursorY + 6);
+            cursorY += 12;
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(10);
+            doc.setTextColor(palette.text[0], palette.text[1], palette.text[2]);
         };
 
-        const addPatientHeading = (text: string) => {
+        const drawHeaderCard = () => {
+            const titleText = record.title?.trim() || 'Registro clínico';
+            const templateName = TEMPLATES[record.templateId]?.name;
+            const patientName = record.patientFields.find(f => f.id === 'nombre')?.value?.trim();
+            const reportDate = getReportDate();
+
+            ensureSpace(24);
+            doc.setFillColor(palette.surface[0], palette.surface[1], palette.surface[2]);
+            doc.setDrawColor(palette.border[0], palette.border[1], palette.border[2]);
+            doc.roundedRect(marginX, cursorY, contentWidth, 20, 3, 3, 'F');
+            doc.roundedRect(marginX, cursorY, contentWidth, 20, 3, 3, 'S');
+
             doc.setFont('Helvetica', 'bold');
-            doc.setFontSize(11);
-            doc.text(text, marginX, cursorY);
-            cursorY += 6;
+            doc.setFontSize(15);
+            doc.setTextColor(palette.accentDark[0], palette.accentDark[1], palette.accentDark[2]);
+            doc.text(titleText, marginX + 6, cursorY + 12);
+
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(9.5);
+            doc.setTextColor(palette.muted[0], palette.muted[1], palette.muted[2]);
+            if (templateName) {
+                doc.text(templateName, marginX + 6, cursorY + 17);
+            }
+            if (reportDate) {
+                doc.text(`Fecha del informe: ${formatDateDMY(reportDate)}`, marginX + contentWidth - 6, cursorY + 12, { align: 'right' });
+            }
+            if (patientName) {
+                doc.text(`Paciente: ${patientName}`, marginX + contentWidth - 6, cursorY + 17, { align: 'right' });
+            }
+
+            cursorY += 26;
             doc.setFont('Helvetica', 'normal');
             doc.setFontSize(10);
+            doc.setTextColor(palette.text[0], palette.text[1], palette.text[2]);
         };
 
-        const addSectionHeading = (text: string) => {
-            doc.setFont('Helvetica', 'bold');
-            doc.setFontSize(12);
-            doc.text(text, marginX, cursorY);
-            cursorY += 6;
-            doc.setFont('Helvetica', 'normal');
-            doc.setFontSize(10);
-        };
+        const drawPatientDetails = () => {
+            const fields = record.patientFields;
+            if (!fields.length) return;
 
-        const titleText = record.title?.trim() || 'Registro clínico';
-        addCenteredTitle(titleText);
-        addDivider();
+            const columns = 2;
+            const gap = 6;
+            const cellWidth = (contentWidth - gap) / columns;
+            const paddingX = 4;
+            const paddingY = 5;
+            const lineHeight = 4.4;
 
-        const patientFields = record.patientFields;
-        if (patientFields.length) {
-            addPatientHeading('Datos del paciente');
-            const labelColumnWidth = 42;
-            const valueColumnWidth = contentWidth - labelColumnWidth;
-            const lineHeight = 5.5;
+            const rows: PatientField[][] = [];
+            for (let i = 0; i < fields.length; i += columns) {
+                rows.push(fields.slice(i, i + columns));
+            }
 
-            patientFields.forEach(field => {
-                const label = field.label?.trim() || field.id || 'Campo';
-                const valueText = field.value?.trim() || '—';
-                const valueLines = doc.splitTextToSize(valueText, valueColumnWidth);
-                const safeLines = valueLines.length ? valueLines : ['—'];
-                const continuedLabel = `${label} (cont.)`;
+            let headingPrinted = false;
+            const printHeading = (suffix?: string) => {
+                const headingText = suffix ? `Datos del paciente ${suffix}` : 'Datos del paciente';
+                drawSectionHeading(headingText);
+                headingPrinted = true;
+            };
 
-                const printLabel = (text: string) => {
+            rows.forEach((row, rowIndex) => {
+                if (!headingPrinted) {
+                    printHeading();
+                }
+
+                const heights = row.map(field => {
+                    if (!field) return 0;
+                    const label = field.label?.trim() || field.id || 'Campo';
+                    const valueText = field.value?.trim() || 'Sin registro';
+                    const wrapped = doc.splitTextToSize(valueText, cellWidth - paddingX * 2);
+                    const lines = wrapped.length ? wrapped.length : 1;
+                    const labelHeight = 4.2;
+                    return Math.max(paddingY * 2 + labelHeight + lines * lineHeight, 22);
+                });
+
+                const rowHeight = Math.max(...heights, 22);
+
+                ensureSpace(rowHeight + 4, () => {
+                    printHeading('(cont.)');
+                });
+
+                row.forEach((field, colIndex) => {
+                    if (!field) return;
+                    const label = field.label?.trim() || field.id || 'Campo';
+                    const valueText = field.value?.trim() || 'Sin registro';
+                    const cellX = marginX + (cellWidth + gap) * colIndex;
+                    const wrapped = doc.splitTextToSize(valueText, cellWidth - paddingX * 2);
+                    const safeWrapped = wrapped.length ? wrapped : ['Sin registro'];
+
+                    doc.setFillColor(255, 255, 255);
+                    doc.setDrawColor(palette.border[0], palette.border[1], palette.border[2]);
+                    doc.roundedRect(cellX, cursorY, cellWidth, rowHeight, 2, 2, 'F');
+                    doc.roundedRect(cellX, cursorY, cellWidth, rowHeight, 2, 2, 'S');
+
                     doc.setFont('Helvetica', 'bold');
-                    doc.text(`${text}:`, marginX, cursorY);
+                    doc.setFontSize(9);
+                    doc.setTextColor(palette.muted[0], palette.muted[1], palette.muted[2]);
+                    doc.text(label, cellX + paddingX, cursorY + paddingY + 1);
+
                     doc.setFont('Helvetica', 'normal');
-                };
-
-                let needsContinuationLabel = false;
-                ensureSpace(lineHeight, () => {
-                    needsContinuationLabel = true;
-                    addPatientHeading('Datos del paciente (cont.)');
+                    doc.setFontSize(10);
+                    doc.setTextColor(palette.text[0], palette.text[1], palette.text[2]);
+                    const textStart = cursorY + paddingY + 5;
+                    safeWrapped.forEach((line, index) => {
+                        doc.text(line, cellX + paddingX, textStart + index * lineHeight);
+                    });
                 });
-                printLabel(needsContinuationLabel ? continuedLabel : label);
 
-                safeLines.forEach((line, index) => {
-                    if (index > 0) {
-                        ensureSpace(lineHeight, () => {
-                            addPatientHeading('Datos del paciente (cont.)');
-                            printLabel(continuedLabel);
-                        });
-                    }
-                    doc.text(line, marginX + labelColumnWidth, cursorY);
-                    cursorY += lineHeight;
+                cursorY += rowHeight + 4;
+
+                if (rowIndex === rows.length - 1) {
+                    cursorY += 2;
+                }
+            });
+        };
+
+        const drawSections = () => {
+            record.sections.forEach((section, index) => {
+                const heading = section.title?.trim() || `Sección ${index + 1}`;
+                const content = section.content?.trim() || 'Sin información registrada.';
+                const wrapped = doc.splitTextToSize(content, contentWidth - 8);
+                const safeWrapped = wrapped.length ? wrapped : ['Sin información registrada.'];
+                const lineHeight = 4.6;
+                const textHeight = safeWrapped.length * lineHeight;
+                const boxHeight = Math.max(textHeight + 8, 30);
+
+                drawSectionHeading(heading);
+                ensureSpace(boxHeight + 6, () => drawSectionHeading(`${heading} (cont.)`));
+
+                doc.setFillColor(255, 255, 255);
+                doc.setDrawColor(palette.border[0], palette.border[1], palette.border[2]);
+                doc.roundedRect(marginX, cursorY, contentWidth, boxHeight, 3, 3, 'F');
+                doc.roundedRect(marginX, cursorY, contentWidth, boxHeight, 3, 3, 'S');
+
+                const textStart = cursorY + 6;
+                safeWrapped.forEach((line, idx) => {
+                    doc.text(line, marginX + 4, textStart + idx * lineHeight);
                 });
-                cursorY += 1.5;
+
+                cursorY += boxHeight + 8;
             });
-            cursorY += 2;
-            addDivider();
-        }
+        };
 
-        record.sections.forEach((section, index) => {
-            const heading = section.title?.trim() || `Sección ${index + 1}`;
-            const content = section.content?.trim() || '—';
-            const contentLines = doc.splitTextToSize(content, contentWidth);
-            const safeLines = contentLines.length ? contentLines : ['—'];
+        const drawFooter = () => {
+            const footerEntries: { label: string; value: string }[] = [];
+            if (record.medico?.trim()) footerEntries.push({ label: 'Profesional a cargo', value: record.medico.trim() });
+            if (record.especialidad?.trim()) footerEntries.push({ label: 'Especialidad', value: record.especialidad.trim() });
+            const reportDate = getReportDate();
+            if (reportDate) footerEntries.push({ label: 'Fecha del informe', value: formatDateDMY(reportDate) });
+            if (!footerEntries.length) return;
 
-            ensureSpace(6);
-            addSectionHeading(heading);
+            drawSectionHeading('Resumen final');
 
-            safeLines.forEach(line => {
-                ensureSpace(5.5, () => addSectionHeading(`${heading} (cont.)`));
-                doc.text(line, marginX, cursorY);
-                cursorY += 5.5;
+            const blockHeight = footerEntries.length * 7 + 14;
+            ensureSpace(blockHeight + 12);
+
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(palette.border[0], palette.border[1], palette.border[2]);
+            doc.roundedRect(marginX, cursorY, contentWidth, blockHeight, 3, 3, 'F');
+            doc.roundedRect(marginX, cursorY, contentWidth, blockHeight, 3, 3, 'S');
+
+            let lineY = cursorY + 10;
+            footerEntries.forEach(entry => {
+                doc.setFont('Helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.setTextColor(palette.muted[0], palette.muted[1], palette.muted[2]);
+                doc.text(entry.label, marginX + 4, lineY);
+                const labelWidth = doc.getTextWidth(entry.label);
+                doc.setFont('Helvetica', 'normal');
+                doc.setFontSize(10);
+                doc.setTextColor(palette.text[0], palette.text[1], palette.text[2]);
+                doc.text(`: ${entry.value}`, marginX + 4 + labelWidth, lineY);
+                lineY += 7;
             });
-            cursorY += 3;
-            addDivider();
-        });
 
-        const footerLines: string[] = [];
-        if (record.medico?.trim()) footerLines.push(`Profesional a cargo: ${record.medico.trim()}`);
-        if (record.especialidad?.trim()) footerLines.push(`Especialidad: ${record.especialidad.trim()}`);
-        const reportDate = getReportDate();
-        if (reportDate) footerLines.push(`Fecha del informe: ${formatDateDMY(reportDate)}`);
+            cursorY += blockHeight + 10;
 
-        if (footerLines.length) {
-            cursorY += 2;
-            addDivider();
-            ensureSpace(6);
-            addSectionHeading('Resumen final');
-            footerLines.forEach(line => {
-                ensureSpace(5.5, () => addSectionHeading('Resumen final (cont.)'));
-                doc.text(line, marginX, cursorY);
-                cursorY += 5.5;
-            });
-        }
+            ensureSpace(22);
+            doc.setDrawColor(palette.border[0], palette.border[1], palette.border[2]);
+            doc.line(marginX, cursorY + 16, marginX + 60, cursorY + 16);
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(palette.muted[0], palette.muted[1], palette.muted[2]);
+            doc.text('Firma y timbre', marginX, cursorY + 20);
+            cursorY += 24;
+        };
+
+        drawHeaderCard();
+        drawPatientDetails();
+        drawSections();
+        drawFooter();
 
         return doc.output('blob');
     };
@@ -703,6 +820,12 @@ const App: React.FC = () => {
         setTimeout(() => { document.title = originalTitle; }, 1000);
     };
 
+    const handleThemeChange = (themeId: string) => {
+        if (TOPBAR_THEMES.some(theme => theme.id === themeId)) {
+            setTopbarThemeId(themeId);
+        }
+    };
+
     const handleDownloadJson = () => {
         const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
         const fileName = `${suggestedFilename(record.templateId, patientName)}.json`;
@@ -737,6 +860,9 @@ const App: React.FC = () => {
                 onOpenSettings={openSettingsModal}
                 onDownloadJson={handleDownloadJson}
                 hasApiKey={!!apiKey}
+                themeId={topbarThemeId}
+                themes={TOPBAR_THEMES}
+                onThemeChange={handleThemeChange}
             />
             
             {/* --- Modals --- */}
