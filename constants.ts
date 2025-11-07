@@ -28,3 +28,4 @@ export const DEFAULT_SECTIONS: ClinicalSectionData[] = [
     { title: 'Diagnósticos', content: '' },
     { title: 'Plan', content: '' },
 ];
+

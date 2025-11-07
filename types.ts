@@ -61,4 +61,7 @@ export interface GoogleUserProfile {
 export interface DriveFolder {
     id: string;
     name: string;
+    modifiedTime?: string;
+    mimeType?: string;
 }
+

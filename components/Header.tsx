@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { GoogleUserProfile } from '../types';
 import { TEMPLATES } from '../constants';
 
@@ -23,6 +23,11 @@ interface HeaderProps {
     onOpenSettings: () => void;
     onDownloadJson: () => void;
     hasApiKey: boolean;
+    onQuickSave: () => void;
+    saveStatusLabel: string;
+    lastSaveTime: string;
+    hasUnsavedChanges: boolean;
+    onOpenHistory: () => void;
 }
 
 const PrintIcon = () => (
@@ -105,6 +110,22 @@ const LoginIcon = () => (
     </svg>
 );
 
+const SaveIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M7 21h10a2 2 0 0 0 2-2V7.5L15.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2Z" />
+        <path d="M7 3v6h8" />
+        <path d="M10 17h4" />
+    </svg>
+);
+
+const HistoryIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3v6h6" />
+        <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+        <path d="M12 7v5l4 2" />
+    </svg>
+);
+
 const Header: React.FC<HeaderProps> = ({
     templateId,
     onTemplateChange,
@@ -125,7 +146,12 @@ const Header: React.FC<HeaderProps> = ({
     onOpenFromDrive,
     onOpenSettings,
     onDownloadJson,
-    hasApiKey
+    hasApiKey,
+    onQuickSave,
+    saveStatusLabel,
+    lastSaveTime,
+    hasUnsavedChanges,
+    onOpenHistory
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -157,14 +183,10 @@ const Header: React.FC<HeaderProps> = ({
         }
     }, [isSignedIn]);
 
-    const initials = useMemo(() => {
-        if (userProfile?.name) {
-            const parts = userProfile.name.trim().split(/\s+/);
-            const letters = parts.slice(0, 2).map(part => part[0]?.toUpperCase() ?? '').join('');
-            return letters || (userProfile.email?.[0]?.toUpperCase() ?? 'U');
-        }
-        return userProfile?.email?.[0]?.toUpperCase() ?? 'U';
-    }, [userProfile]);
+    const userEmail = userProfile?.email?.trim() ?? '';
+    const fallbackName = userProfile?.name?.trim() ?? '';
+    const avatarLetter = (userEmail || fallbackName || 'U').charAt(0).toUpperCase();
+    const displayEmail = userEmail || fallbackName || 'Correo no disponible';
 
     const toggleMenu = () => setIsMenuOpen(current => !current);
 
@@ -174,34 +196,58 @@ const Header: React.FC<HeaderProps> = ({
     };
 
     const driveOptionDisabled = hasApiKey && !isPickerApiReady;
+    const statusState = hasUnsavedChanges || !lastSaveTime ? 'unsaved' : 'saved';
 
     return (
         <div className="topbar">
-            <div className="topbar-group">
-                <select style={{ flex: '0 1 300px' }} value={templateId} onChange={e => onTemplateChange(e.target.value)}>
-                    {Object.values(TEMPLATES).map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                </select>
+            <div className="topbar-scroll">
+                <div className="topbar-group topbar-group-templates">
+                    <select
+                        style={{ flex: '0 1 220px', minWidth: '160px', maxWidth: '240px' }}
+                        value={templateId}
+                        onChange={e => onTemplateChange(e.target.value)}
+                    >
+                        {Object.values(TEMPLATES).map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="topbar-group topbar-group-actions">
+                    <button onClick={onQuickSave} className="action-btn" type="button" disabled={!hasUnsavedChanges} title={!hasUnsavedChanges ? 'No hay cambios pendientes' : undefined}>
+                        <SaveIcon />
+                        <span>Guardar borrador</span>
+                    </button>
+                    <button onClick={onPrint} className="action-btn primary" type="button">
+                        <PrintIcon />
+                        <span>Imprimir PDF</span>
+                    </button>
+                    <button onClick={onOpenHistory} className="action-btn" type="button">
+                        <HistoryIcon />
+                        <span>Historial</span>
+                    </button>
+                    <button id="toggleEdit" onClick={onToggleEdit} className="action-btn" type="button">
+                        <EditIcon />
+                        <span>{isEditing ? 'Finalizar' : 'Editar'}</span>
+                    </button>
+                    <button onClick={onOpenSettings} className="action-btn" type="button" title="Configuración de Google API">
+                        <SettingsIcon />
+                        <span>Google API</span>
+                        {hasApiKey && <span className="api-badge">✓</span>}
+                    </button>
+                    <button className="action-btn" type="button" onClick={() => document.getElementById('importJson')?.click()}>
+                        <UploadIcon />
+                        <span>Importar</span>
+                    </button>
+                    <div className={`save-status ${statusState}`}>
+                        <span className="status-dot" data-state={statusState} />
+                        <div>
+                            <div className="status-label">{saveStatusLabel}</div>
+                            {!hasUnsavedChanges && lastSaveTime && <div className="status-meta">Último guardado: {lastSaveTime}</div>}
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div className="topbar-group">
-                <button onClick={onPrint} className="action-btn primary" type="button">
-                    <PrintIcon />
-                    <span>Imprimir PDF</span>
-                </button>
-                <button id="toggleEdit" onClick={onToggleEdit} className="action-btn" type="button">
-                    <EditIcon />
-                    <span>{isEditing ? 'Finalizar' : 'Editar'}</span>
-                </button>
-                <button onClick={onOpenSettings} className="action-btn" type="button" title="Configuración de Google API">
-                    <SettingsIcon />
-                    <span>Google API</span>
-                    {hasApiKey && <span className="api-badge">✓</span>}
-                </button>
-                <button className="action-btn" type="button" onClick={() => document.getElementById('importJson')?.click()}>
-                    <UploadIcon />
-                    <span>Importar</span>
-                </button>
+            <div className="topbar-account">
                 {isSignedIn ? (
                     <div className="user-menu" ref={menuRef}>
                         <button
@@ -210,11 +256,12 @@ const Header: React.FC<HeaderProps> = ({
                             onClick={toggleMenu}
                             aria-haspopup="true"
                             aria-expanded={isMenuOpen}
+                            title={displayEmail}
                         >
                             {userProfile?.picture ? (
                                 <img src={userProfile.picture} alt={userProfile.name || 'Usuario'} />
                             ) : (
-                                <span>{initials}</span>
+                                <span>{avatarLetter}</span>
                             )}
                         </button>
                         {isMenuOpen && (
@@ -224,12 +271,12 @@ const Header: React.FC<HeaderProps> = ({
                                         {userProfile?.picture ? (
                                             <img src={userProfile.picture} alt={userProfile.name || 'Usuario'} />
                                         ) : (
-                                            <span>{initials}</span>
+                                            <span>{avatarLetter}</span>
                                         )}
                                     </div>
                                     <div>
-                                        <div className="user-menu-name">{userProfile?.name}</div>
-                                        <div className="user-menu-email">{userProfile?.email}</div>
+                                        <div className="user-menu-name">{userProfile?.name || displayEmail}</div>
+                                        <div className="user-menu-email" title={displayEmail}>{displayEmail}</div>
                                     </div>
                                 </div>
                                 <div className="user-menu-divider" />
