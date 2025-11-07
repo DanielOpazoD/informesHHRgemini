@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { GoogleUserProfile, ThemeId, ThemeOption } from '../types';
 import { TEMPLATES } from '../constants';
 
@@ -216,14 +216,8 @@ const Header: React.FC<HeaderProps> = ({
         }
     }, [isSignedIn]);
 
-    const initials = useMemo(() => {
-        if (userProfile?.name) {
-            const parts = userProfile.name.trim().split(/\s+/);
-            const letters = parts.slice(0, 2).map(part => part[0]?.toUpperCase() ?? '').join('');
-            return letters || (userProfile.email?.[0]?.toUpperCase() ?? 'U');
-        }
-        return userProfile?.email?.[0]?.toUpperCase() ?? 'U';
-    }, [userProfile]);
+    const userEmail = userProfile?.email ?? '';
+    const avatarLetter = userEmail.charAt(0).toUpperCase() || 'U';
 
     const toggleMenu = () => setIsMenuOpen(current => !current);
 
@@ -302,11 +296,12 @@ const Header: React.FC<HeaderProps> = ({
                             onClick={toggleMenu}
                             aria-haspopup="true"
                             aria-expanded={isMenuOpen}
+                            title={userEmail || undefined}
                         >
                             {userProfile?.picture ? (
                                 <img src={userProfile.picture} alt={userProfile.name || 'Usuario'} />
                             ) : (
-                                <span>{initials}</span>
+                                <span>{avatarLetter}</span>
                             )}
                         </button>
                         {isMenuOpen && (
@@ -316,12 +311,12 @@ const Header: React.FC<HeaderProps> = ({
                                         {userProfile?.picture ? (
                                             <img src={userProfile.picture} alt={userProfile.name || 'Usuario'} />
                                         ) : (
-                                            <span>{initials}</span>
+                                            <span>{avatarLetter}</span>
                                         )}
                                     </div>
                                     <div>
                                         <div className="user-menu-name">{userProfile?.name}</div>
-                                        <div className="user-menu-email">{userProfile?.email}</div>
+                                        <div className="user-menu-email" title={userEmail || undefined}>{userEmail}</div>
                                     </div>
                                 </div>
                                 <div className="user-menu-divider" />

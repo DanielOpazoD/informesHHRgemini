@@ -58,6 +58,10 @@
       color: #e2e8f0;
     }
 
+    body[data-theme='dark'] .input-hint {
+      color: #94a3b8;
+    }
+
     body[data-theme='hospital']{
       --topbar-bg: linear-gradient(90deg, #38bdf8, #0ea5e9 55%, #0369a1);
       --topbar-text: #0b1120;
@@ -127,7 +131,9 @@
       align-items: center;
       justify-content: space-between;
       box-shadow: var(--topbar-shadow);
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      white-space: nowrap;
       transition: background 0.3s ease, color 0.3s ease;
     }
 
@@ -135,7 +141,33 @@
       display: flex;
       gap: 12px;
       align-items: center;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+    }
+
+    .topbar-group:first-child {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .topbar-group:last-child {
+      flex: 0 0 auto;
+    }
+
+    .topbar-group > * {
+      flex-shrink: 0;
+    }
+
+    .topbar::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    .topbar::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.35);
+      border-radius: 9999px;
+    }
+
+    .topbar::-webkit-scrollbar-track {
+      background: transparent;
     }
 
     .topbar select {
@@ -148,6 +180,11 @@
       font-weight: 600;
       cursor: pointer;
       transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .topbar select,
+    .action-btn {
+      white-space: nowrap;
     }
 
     .topbar select:hover {
@@ -432,6 +469,7 @@
       font-weight: 600;
       z-index: 12000;
       animation: fade-in 0.18s ease-out;
+      white-space: pre-line;
     }
 
     .toast-success { background: #16a34a; color: #f0fdf4; }
@@ -533,7 +571,7 @@
     }
 
     .user-menu-name { font-weight: 700; font-size: 14px; }
-    .user-menu-email { font-size: 12px; color: var(--user-menu-text-muted); }
+    .user-menu-email { font-size: 12px; color: var(--user-menu-text-muted); overflow-wrap: anywhere; }
 
     .user-menu-divider {
       border-top: 1px solid rgba(148, 163, 184, 0.25);
@@ -588,6 +626,12 @@
       margin-bottom: 1px;
       font-size: 11px;
       display: block;
+    }
+
+    .input-hint {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
     }
 
     .inp, .txt {

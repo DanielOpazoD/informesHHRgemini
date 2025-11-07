@@ -128,6 +128,7 @@ const App: React.FC = () => {
     const [folderPath, setFolderPath] = useState<DriveFolder[]>([{ id: 'root', name: 'Mi unidad' }]);
     const [selectedFolderId, setSelectedFolderId] = useState<string>('root');
     const [newFolderName, setNewFolderName] = useState('');
+    const [fileNameInput, setFileNameInput] = useState('');
     const [isDriveLoading, setIsDriveLoading] = useState(false);
     
     const SCOPES = 'https://www.googleapis.com/auth/drive';
@@ -223,7 +224,7 @@ const App: React.FC = () => {
 
     const getRecordSnapshot = useCallback(() => {
         return JSON.parse(JSON.stringify(record)) as ClinicalRecord;
-    }, [record]);
+    }, [record, showToast]);
 
     const pushHistory = useCallback((snapshot: ClinicalRecord, timestamp: number) => {
         setVersionHistory(prev => {
@@ -259,7 +260,7 @@ const App: React.FC = () => {
             return;
         }
         setHasUnsavedChanges(true);
-    }, [record]);
+    }, [record, showToast]);
 
     useEffect(() => {
         if (!hasUnsavedChanges) return;
@@ -276,7 +277,7 @@ const App: React.FC = () => {
         }
         const errors = validateCriticalFields(record);
         if (errors.length) {
-            alert(`No se puede guardar porque:\n- ${errors.join('\n- ')}`);
+            showToast(`No se puede guardar porque:\n- ${errors.join('\n- ')}`, 'error');
             return;
         }
         saveDraft('manual');
@@ -301,6 +302,11 @@ const App: React.FC = () => {
         return new Date(lastLocalSave).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
     }, [lastLocalSave]);
 
+    const defaultDriveFileName = useMemo(() => {
+        const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
+        return suggestedFilename(record.templateId, patientName);
+    }, [record.patientFields, record.templateId]);
+
     useEffect(() => {
         if (scriptLoadRef.current) return;
         scriptLoadRef.current = true;
@@ -317,7 +323,7 @@ const App: React.FC = () => {
                     setIsPickerApiReady(true);
                 } catch (e) {
                     console.error("Error loading gapi client for drive:", e);
-                    alert('Hubo un error al inicializar la API de Google Drive.');
+                    showToast('Hubo un error al inicializar la API de Google Drive.', 'error');
                 }
             });
         };
@@ -373,7 +379,7 @@ const App: React.FC = () => {
         if (tokenClient) {
             tokenClient.requestAccessToken({prompt: ''});
         } else {
-            alert('El cliente de Google no está listo. Por favor, inténtelo de nuevo.');
+            showToast('El cliente de Google no está listo. Por favor, inténtelo de nuevo.', 'error');
         }
     };
     
@@ -419,7 +425,7 @@ const App: React.FC = () => {
             setClientId('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
         }
         
-        alert('Configuración guardada. Para que todos los cambios surtan efecto, por favor, recargue la página.');
+        showToast('Configuración guardada. Para que todos los cambios surtan efecto, por favor, recargue la página.');
         closeSettingsModal();
     };
 
@@ -429,7 +435,7 @@ const App: React.FC = () => {
             localStorage.removeItem('googleClientId');
             setApiKey('');
             setClientId('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
-            alert('Credenciales eliminadas. Recargue la página para aplicar los cambios.');
+            showToast('Credenciales eliminadas. Recargue la página para aplicar los cambios.', 'warning');
             closeSettingsModal();
         }
     };
@@ -461,7 +467,7 @@ const App: React.FC = () => {
             setSelectedFolderId(folderId);
         } catch (error) {
             console.error("Error fetching folders:", error);
-            alert("No se pudieron cargar las carpetas de Drive.");
+            showToast('No se pudieron cargar las carpetas de Drive.', 'error');
         } finally {
             setIsDriveLoading(false);
         }
@@ -508,7 +514,7 @@ const App: React.FC = () => {
             setSelectedFolderId(folderId);
         } catch (error) {
             console.error("Error fetching folder contents:", error);
-            alert("No se pudieron cargar los contenidos de la carpeta de Drive.");
+            showToast('No se pudieron cargar los contenidos de la carpeta de Drive.', 'error');
         } finally {
             setIsDriveLoading(false);
         }
@@ -640,7 +646,7 @@ const App: React.FC = () => {
             showToast(`Se encontraron ${files.length} archivo(s).`);
         } catch (error) {
             console.error('Error al buscar en Drive:', error);
-            alert('No se pudo completar la búsqueda en Drive.');
+            showToast('No se pudo completar la búsqueda en Drive.', 'error');
         } finally {
             setIsDriveLoading(false);
         }
@@ -696,10 +702,11 @@ const App: React.FC = () => {
     // --- Save Modal Handlers ---
     const openSaveModal = () => {
         if (!isSignedIn) {
-            alert('Por favor, inicie sesión para guardar en Google Drive.');
+            showToast('Por favor, inicie sesión para guardar en Google Drive.', 'warning');
             handleSignIn();
             return;
         }
+        setFileNameInput(defaultDriveFileName);
         const savedPath = localStorage.getItem('defaultDriveFolderPath');
         if (savedPath) {
             const path = JSON.parse(savedPath) as DriveFolder[];
@@ -712,7 +719,10 @@ const App: React.FC = () => {
         setIsSaveModalOpen(true);
     };
 
-    const closeSaveModal = () => setIsSaveModalOpen(false);
+    const closeSaveModal = () => {
+        setIsSaveModalOpen(false);
+        setFileNameInput('');
+    };
     const handleSaveFolderClick = (folder: DriveFolder) => {
         setFolderPath(currentPath => [...currentPath, folder]);
         fetchDriveFolders(folder.id);
@@ -724,7 +734,7 @@ const App: React.FC = () => {
 
     const handleCreateFolder = async () => {
         if (!newFolderName.trim()) {
-            alert("Por favor, ingrese un nombre para la nueva carpeta.");
+            showToast('Por favor, ingrese un nombre para la nueva carpeta.', 'warning');
             return;
         }
         setIsDriveLoading(true);
@@ -744,7 +754,7 @@ const App: React.FC = () => {
             showToast('Carpeta creada correctamente.');
         } catch (error) {
             console.error("Error creating folder:", error);
-            alert("No se pudo crear la carpeta.");
+            showToast('No se pudo crear la carpeta.', 'error');
         } finally {
             setIsDriveLoading(false);
         }
@@ -785,11 +795,11 @@ const App: React.FC = () => {
                 showToast('Archivo cargado exitosamente desde Google Drive.');
                 setIsOpenModalOpen(false);
             } else {
-                alert('El archivo JSON seleccionado de Drive no es válido.');
+                showToast('El archivo JSON seleccionado de Drive no es válido.', 'error');
             }
         } catch (error) {
             console.error('Error al abrir el archivo desde Drive:', error);
-            alert('Hubo un error al leer el archivo desde Google Drive.');
+            showToast('Hubo un error al leer el archivo desde Google Drive.', 'error');
         } finally {
             setIsDriveLoading(false);
         }
@@ -941,7 +951,7 @@ const App: React.FC = () => {
     const handleOpenFromDrive = () => {
         const accessToken = window.gapi.client.getToken()?.access_token;
         if (!accessToken) {
-            alert('Por favor, inicie sesión para continuar.');
+            showToast('Por favor, inicie sesión para continuar.', 'warning');
             handleSignIn();
             return;
         }
@@ -961,7 +971,7 @@ const App: React.FC = () => {
         }
 
         if (!isPickerApiReady || !window.google?.picker) {
-            alert('La API de Google Picker no está lista. Por favor, espere un momento e intente de nuevo.');
+            showToast('La API de Google Picker no está lista. Por favor, espere un momento e intente de nuevo.', 'warning');
             return;
         }
         
@@ -984,24 +994,22 @@ const App: React.FC = () => {
     const handleFinalSave = async () => {
         const errors = validateCriticalFields(record);
         if (errors.length) {
-            alert(`No se puede guardar porque:\n- ${errors.join('\n- ')}`);
+            showToast(`No se puede guardar porque:\n- ${errors.join('\n- ')}`, 'error');
             return;
         }
+        const defaultBaseName = defaultDriveFileName || 'Registro Clínico';
+        const sanitizedInput = fileNameInput.trim().replace(/\.(json|pdf)$/gi, '');
+        const baseFileName = sanitizedInput || defaultBaseName;
         setIsSaving(true);
         const saveFile = async (format: 'json' | 'pdf'): Promise<string> => {
-            const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
-            let fileContent: Blob, fileName: string, mimeType: string;
+            const extension = format === 'pdf' ? '.pdf' : '.json';
+            const fileName = `${baseFileName}${extension}`;
+            const mimeType = format === 'pdf' ? 'application/pdf' : 'application/json';
 
-            if (format === 'pdf') {
-                fileName = suggestedFilename(record.templateId, patientName) + '.pdf';
-                mimeType = 'application/pdf';
-                fileContent = await generatePdfAsBlob();
-            } else {
-                fileName = suggestedFilename(record.templateId, patientName) + '.json';
-                mimeType = 'application/json';
-                fileContent = new Blob([JSON.stringify(record, null, 2)], { type: mimeType });
-            }
-            
+            const fileContent = format === 'pdf'
+                ? await generatePdfAsBlob()
+                : new Blob([JSON.stringify(record, null, 2)], { type: mimeType });
+
             const metadata = { name: fileName, parents: [selectedFolderId] };
             const form = new FormData();
             form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
@@ -1024,15 +1032,15 @@ const App: React.FC = () => {
         try {
             if (saveFormat === 'json' || saveFormat === 'pdf') {
                 const fileName = await saveFile(saveFormat);
-                alert(`Archivo "${fileName}" guardado en Google Drive exitosamente.`);
+                showToast(`Archivo "${fileName}" guardado en Google Drive exitosamente.`);
             } else {
                 const [jsonFileName, pdfFileName] = await Promise.all([saveFile('json'), saveFile('pdf')]);
-                alert(`Archivos "${jsonFileName}" y "${pdfFileName}" guardados en Google Drive exitosamente.`);
+                showToast(`Archivos "${jsonFileName}" y "${pdfFileName}" guardados en Google Drive exitosamente.`);
             }
             closeSaveModal();
         } catch (error: any) {
             console.error('Error saving to Drive:', error);
-            alert(`Error al guardar en Google Drive: ${error.message || String(error)}`);
+            showToast(`Error al guardar en Google Drive: ${error.message || String(error)}`, 'error');
         } finally {
             setIsSaving(false);
         }
@@ -1140,10 +1148,10 @@ const App: React.FC = () => {
                     saveDraft('import');
                     showToast('Borrador importado correctamente.');
                 } else {
-                    alert('Archivo JSON inválido.');
+                    showToast('Archivo JSON inválido.', 'error');
                 }
             } catch (error) {
-                alert('Error al leer el archivo JSON.');
+                showToast('Error al leer el archivo JSON.', 'error');
             }
         };
         reader.readAsText(file);
@@ -1153,7 +1161,7 @@ const App: React.FC = () => {
     const handleDownloadJson = useCallback(() => {
         const errors = validateCriticalFields(record);
         if (errors.length) {
-            alert(`No se puede exportar porque:\n- ${errors.join('\n- ')}`);
+            showToast(`No se puede exportar porque:\n- ${errors.join('\n- ')}`, 'error');
             return;
         }
         const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
@@ -1167,7 +1175,7 @@ const App: React.FC = () => {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-    }, [record]);
+    }, [record, showToast]);
 
     const handlePrint = useCallback(() => {
         const errors = validateCriticalFields(record);
@@ -1280,7 +1288,7 @@ const App: React.FC = () => {
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <div className="modal-header">
-                            <div className="modal-title">Abrir desde Drive (Modo Simple)</div>
+                            <div className="modal-title">Abrir desde Drive</div>
                             <button onClick={() => setIsOpenModalOpen(false)} className="modal-close">&times;</button>
                         </div>
                         <div>
@@ -1366,6 +1374,17 @@ const App: React.FC = () => {
                         <div>
                             <div className="lbl">Formato</div>
                             <div className="flex gap-4"><label><input type="radio" name="format" value="json" checked={saveFormat === 'json'} onChange={() => setSaveFormat('json')} /> JSON</label><label><input type="radio" name="format" value="pdf" checked={saveFormat === 'pdf'} onChange={() => setSaveFormat('pdf')} /> PDF</label><label><input type="radio" name="format" value="both" checked={saveFormat === 'both'} onChange={() => setSaveFormat('both')} /> Ambos</label></div>
+                        </div>
+                        <div>
+                            <div className="lbl">Nombre del archivo</div>
+                            <input
+                                type="text"
+                                className="inp"
+                                value={fileNameInput}
+                                onChange={e => setFileNameInput(e.target.value)}
+                                placeholder={defaultDriveFileName}
+                            />
+                            <div className="input-hint">No incluyas la extensión; se agregará automáticamente según el formato seleccionado.</div>
                         </div>
                         <div>
                             <div className="lbl">Ubicación</div>
