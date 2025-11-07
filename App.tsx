@@ -19,6 +19,25 @@ declare global {
     }
 }
 
+const decodeIdToken = (idToken?: string): Partial<GoogleUserProfile> => {
+    if (!idToken) return {};
+    try {
+        const payload = idToken.split('.')[1];
+        if (!payload) return {};
+        const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+        const decoded = JSON.parse(atob(padded));
+        return {
+            name: decoded?.name,
+            email: decoded?.email,
+            picture: decoded?.picture,
+        };
+    } catch (error) {
+        console.warn('No se pudo decodificar el ID token:', error);
+        return {};
+    }
+};
+
 const AUTO_SAVE_INTERVAL = 30000;
 const MAX_HISTORY_ENTRIES = 5;
 const MAX_RECENT_FILES = 5;
@@ -117,7 +136,12 @@ const App: React.FC = () => {
     const [fileNameInput, setFileNameInput] = useState('');
     const [isDriveLoading, setIsDriveLoading] = useState(false);
     
-    const SCOPES = 'https://www.googleapis.com/auth/drive';
+    const SCOPES = [
+        'https://www.googleapis.com/auth/drive',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile',
+        'openid'
+    ].join(' ');
 
     const showToast = useCallback((message: string, type: 'success' | 'warning' | 'error' = 'success') => {
         setToast({ message, type });
@@ -311,15 +335,28 @@ const App: React.FC = () => {
         document.body.appendChild(scriptGis);
     }, []);
 
-    const fetchUserProfile = useCallback(async (accessToken: string) => {
+    const fetchUserProfile = useCallback(async (accessToken: string, idToken?: string) => {
         try {
             const response = await fetch('https://www.googleapis.com/oauth2/v1/userinfo?alt=json', {
                 headers: { Authorization: `Bearer ${accessToken}` }
             });
             const profile = await response.json();
-            setUserProfile({ name: profile.name, email: profile.email, picture: profile.picture });
+            const fallback = decodeIdToken(idToken);
+            setUserProfile({
+                name: profile?.name || fallback.name || '',
+                email: profile?.email || fallback.email || '',
+                picture: profile?.picture || fallback.picture || '',
+            });
         } catch (error) {
             console.error('Error fetching user profile:', error);
+            const fallback = decodeIdToken(idToken);
+            if (fallback.email || fallback.name || fallback.picture) {
+                setUserProfile({
+                    name: fallback.name || '',
+                    email: fallback.email || '',
+                    picture: fallback.picture || '',
+                });
+            }
         }
     }, []);
 
@@ -329,6 +366,7 @@ const App: React.FC = () => {
                 const client = window.google.accounts.oauth2.initTokenClient({
                     client_id: clientId,
                     scope: SCOPES,
+                    ux_mode: 'popup',
                     callback: (tokenResponse: any) => {
                         if (tokenResponse.error) {
                             console.error("Token response error:", tokenResponse.error);
@@ -337,7 +375,7 @@ const App: React.FC = () => {
                         if (tokenResponse.access_token) {
                             window.gapi.client.setToken({ access_token: tokenResponse.access_token });
                             setIsSignedIn(true);
-                            fetchUserProfile(tokenResponse.access_token);
+                            fetchUserProfile(tokenResponse.access_token, tokenResponse.id_token);
                         }
                     },
                 });

@@ -200,50 +200,54 @@ const Header: React.FC<HeaderProps> = ({
 
     return (
         <div className="topbar">
-            <div className="topbar-group">
-                <select
-                    style={{ flex: '0 1 220px', minWidth: '160px', maxWidth: '240px' }}
-                    value={templateId}
-                    onChange={e => onTemplateChange(e.target.value)}
-                >
-                    {Object.values(TEMPLATES).map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                </select>
-            </div>
-            <div className="topbar-group">
-                <button onClick={onQuickSave} className="action-btn" type="button" disabled={!hasUnsavedChanges} title={!hasUnsavedChanges ? 'No hay cambios pendientes' : undefined}>
-                    <SaveIcon />
-                    <span>Guardar borrador</span>
-                </button>
-                <button onClick={onPrint} className="action-btn primary" type="button">
-                    <PrintIcon />
-                    <span>Imprimir PDF</span>
-                </button>
-                <button onClick={onOpenHistory} className="action-btn" type="button">
-                    <HistoryIcon />
-                    <span>Historial</span>
-                </button>
-                <button id="toggleEdit" onClick={onToggleEdit} className="action-btn" type="button">
-                    <EditIcon />
-                    <span>{isEditing ? 'Finalizar' : 'Editar'}</span>
-                </button>
-                <button onClick={onOpenSettings} className="action-btn" type="button" title="Configuración de Google API">
-                    <SettingsIcon />
-                    <span>Google API</span>
-                    {hasApiKey && <span className="api-badge">✓</span>}
-                </button>
-                <button className="action-btn" type="button" onClick={() => document.getElementById('importJson')?.click()}>
-                    <UploadIcon />
-                    <span>Importar</span>
-                </button>
-                <div className={`save-status ${statusState}`}>
-                    <span className="status-dot" data-state={statusState} />
-                    <div>
-                        <div className="status-label">{saveStatusLabel}</div>
-                        {!hasUnsavedChanges && lastSaveTime && <div className="status-meta">Último guardado: {lastSaveTime}</div>}
+            <div className="topbar-scroll">
+                <div className="topbar-group topbar-group-templates">
+                    <select
+                        style={{ flex: '0 1 220px', minWidth: '160px', maxWidth: '240px' }}
+                        value={templateId}
+                        onChange={e => onTemplateChange(e.target.value)}
+                    >
+                        {Object.values(TEMPLATES).map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="topbar-group topbar-group-actions">
+                    <button onClick={onQuickSave} className="action-btn" type="button" disabled={!hasUnsavedChanges} title={!hasUnsavedChanges ? 'No hay cambios pendientes' : undefined}>
+                        <SaveIcon />
+                        <span>Guardar borrador</span>
+                    </button>
+                    <button onClick={onPrint} className="action-btn primary" type="button">
+                        <PrintIcon />
+                        <span>Imprimir PDF</span>
+                    </button>
+                    <button onClick={onOpenHistory} className="action-btn" type="button">
+                        <HistoryIcon />
+                        <span>Historial</span>
+                    </button>
+                    <button id="toggleEdit" onClick={onToggleEdit} className="action-btn" type="button">
+                        <EditIcon />
+                        <span>{isEditing ? 'Finalizar' : 'Editar'}</span>
+                    </button>
+                    <button onClick={onOpenSettings} className="action-btn" type="button" title="Configuración de Google API">
+                        <SettingsIcon />
+                        <span>Google API</span>
+                        {hasApiKey && <span className="api-badge">✓</span>}
+                    </button>
+                    <button className="action-btn" type="button" onClick={() => document.getElementById('importJson')?.click()}>
+                        <UploadIcon />
+                        <span>Importar</span>
+                    </button>
+                    <div className={`save-status ${statusState}`}>
+                        <span className="status-dot" data-state={statusState} />
+                        <div>
+                            <div className="status-label">{saveStatusLabel}</div>
+                            {!hasUnsavedChanges && lastSaveTime && <div className="status-meta">Último guardado: {lastSaveTime}</div>}
+                        </div>
                     </div>
                 </div>
+            </div>
+            <div className="topbar-account">
                 {isSignedIn ? (
                     <div className="user-menu" ref={menuRef}>
                         <button
