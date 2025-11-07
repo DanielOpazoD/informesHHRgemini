@@ -1,10 +1,12 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import type { GoogleUserProfile } from '../types';
+import type { GoogleUserProfile, TopbarTheme } from '../types';
 import { TEMPLATES } from '../constants';
 
 interface HeaderProps {
     templateId: string;
+    theme: TopbarTheme;
     onTemplateChange: (id: string) => void;
+    onThemeChange: (theme: TopbarTheme) => void;
     onPrint: () => void;
     isEditing: boolean;
     onToggleEdit: () => void;
@@ -105,9 +107,18 @@ const LoginIcon = () => (
     </svg>
 );
 
+const TOPBAR_THEME_OPTIONS: { value: TopbarTheme; label: string }[] = [
+    { value: 'light', label: 'Tema claro' },
+    { value: 'dark', label: 'Tema oscuro' },
+    { value: 'blue', label: 'Tema azul hospitalario' },
+    { value: 'green', label: 'Tema verde médico' },
+];
+
 const Header: React.FC<HeaderProps> = ({
     templateId,
+    theme,
     onTemplateChange,
+    onThemeChange,
     onPrint,
     isEditing,
     onToggleEdit,
@@ -178,9 +189,24 @@ const Header: React.FC<HeaderProps> = ({
     return (
         <div className="topbar">
             <div className="topbar-group">
-                <select style={{ flex: '0 1 300px' }} value={templateId} onChange={e => onTemplateChange(e.target.value)}>
+                <select
+                    style={{ flex: '0 1 300px' }}
+                    value={templateId}
+                    onChange={e => onTemplateChange(e.target.value)}
+                >
                     {Object.values(TEMPLATES).map(t => (
                         <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                </select>
+                <select
+                    style={{ flex: '0 1 220px' }}
+                    value={theme}
+                    onChange={e => onThemeChange(e.target.value as TopbarTheme)}
+                    aria-label="Seleccionar tema de la barra"
+                    title="Seleccionar tema de la barra"
+                >
+                    {TOPBAR_THEME_OPTIONS.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                 </select>
             </div>

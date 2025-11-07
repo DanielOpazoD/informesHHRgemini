@@ -62,3 +62,5 @@ export interface DriveFolder {
     id: string;
     name: string;
 }
+
+export type TopbarTheme = 'light' | 'dark' | 'blue' | 'green';

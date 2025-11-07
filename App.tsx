@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import jsPDF from 'jspdf';
-import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder } from './types';
+import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder, TopbarTheme } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
@@ -18,8 +18,19 @@ declare global {
     }
 }
 
+const THEME_STORAGE_KEY = 'topbarTheme';
+const THEME_CLASS_MAP: Record<TopbarTheme, string> = {
+    light: 'theme-light',
+    dark: 'theme-dark',
+    blue: 'theme-blue',
+    green: 'theme-green',
+};
+const THEME_VALUES = Object.keys(THEME_CLASS_MAP) as TopbarTheme[];
+const THEME_CLASSES = Object.values(THEME_CLASS_MAP);
+
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
+    const [theme, setTheme] = useState<TopbarTheme>('light');
     const [record, setRecord] = useState<ClinicalRecord>({
         version: 'v14',
         templateId: '2',
@@ -63,9 +74,27 @@ const App: React.FC = () => {
     const [selectedFolderId, setSelectedFolderId] = useState<string>('root');
     const [newFolderName, setNewFolderName] = useState('');
     const [isDriveLoading, setIsDriveLoading] = useState(false);
-    
+
     const SCOPES = 'https://www.googleapis.com/auth/drive';
-    
+
+    useEffect(() => {
+        const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+        if (storedTheme && THEME_VALUES.includes(storedTheme as TopbarTheme)) {
+            setTheme(storedTheme as TopbarTheme);
+        }
+    }, []);
+
+    useEffect(() => {
+        const { classList } = document.body;
+        THEME_CLASSES.forEach(themeClass => classList.remove(themeClass));
+        const activeThemeClass = THEME_CLASS_MAP[theme];
+        classList.add(activeThemeClass);
+        localStorage.setItem(THEME_STORAGE_KEY, theme);
+        return () => {
+            classList.remove(activeThemeClass);
+        };
+    }, [theme]);
+
     // Load settings from localStorage on initial render
     useEffect(() => {
         const savedApiKey = localStorage.getItem('googleApiKey');
@@ -643,6 +672,10 @@ const App: React.FC = () => {
         setRecord(r => ({ ...r, sections: newSections }));
     }
 
+    const handleThemeChange = useCallback((newTheme: TopbarTheme) => {
+        setTheme(newTheme);
+    }, []);
+
     const handleTemplateChange = (id: string) => {
         const template = TEMPLATES[id];
         setRecord(r => ({...r, templateId: id, sections: JSON.parse(JSON.stringify(DEFAULT_SECTIONS)), title: template.title}));
@@ -713,7 +746,9 @@ const App: React.FC = () => {
         <>
             <Header
                 templateId={record.templateId}
+                theme={theme}
                 onTemplateChange={handleTemplateChange}
+                onThemeChange={handleThemeChange}
                 onPrint={handlePrint}
                 isEditing={isEditing}
                 onToggleEdit={() => setIsEditing(!isEditing)}

@@ -6,21 +6,210 @@
   <title>Registro Clínico – Hospital Hanga Roa</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root{ --gap-y: 4px; --fs: 13px; }
-    body{ font-family: Arial, sans-serif; font-size: var(--fs); color: #1f2937; background: #f5f5f5; margin: 0; }
+    :root {
+      --gap-y: 4px;
+      --fs: 13px;
+      --body-bg-color: #f5f5f5;
+      --body-text-color: #1f2937;
+      --topbar-bg: linear-gradient(90deg, #f8fafc, #e2e8f0 60%, #cbd5f5);
+      --topbar-color: #0f172a;
+      --topbar-shadow: 0 10px 28px rgba(148, 163, 184, 0.35);
+      --topbar-select-bg: rgba(255, 255, 255, 0.75);
+      --topbar-select-color: #0f172a;
+      --topbar-select-border: rgba(148, 163, 184, 0.6);
+      --topbar-select-hover-bg: rgba(96, 165, 250, 0.35);
+      --topbar-select-hover-border: #3b82f6;
+      --topbar-select-hover-shadow: 0 6px 18px rgba(148, 163, 184, 0.3);
+      --topbar-select-option-bg: #f8fafc;
+      --topbar-select-option-color: #0f172a;
+      --action-btn-bg: rgba(148, 163, 184, 0.22);
+      --action-btn-color: #0f172a;
+      --action-btn-border: rgba(148, 163, 184, 0.45);
+      --action-btn-hover-bg: rgba(96, 165, 250, 0.35);
+      --action-btn-hover-shadow: 0 8px 22px rgba(148, 163, 184, 0.3);
+      --action-btn-primary-bg: #1d4ed8;
+      --action-btn-primary-border: #1d4ed8;
+      --action-btn-primary-color: #f8fafc;
+      --action-btn-primary-hover-bg: #1e3a8a;
+      --user-menu-button-bg: rgba(255, 255, 255, 0.7);
+      --user-menu-button-border: rgba(148, 163, 184, 0.55);
+      --user-menu-button-color: #0f172a;
+      --user-menu-button-hover-border: #60a5fa;
+      --user-menu-button-hover-shadow: 0 10px 24px rgba(96, 165, 250, 0.35);
+      --user-menu-dropdown-bg: #ffffff;
+      --user-menu-dropdown-color: #0f172a;
+      --user-menu-dropdown-border: rgba(148, 163, 184, 0.35);
+      --user-menu-option-icon-color: #2563eb;
+      --user-menu-option-hover-bg: rgba(96, 165, 250, 0.2);
+      --user-menu-option-hover-color: #0f172a;
+      --user-menu-email-color: #1d4ed8;
+      --user-menu-divider-color: rgba(148, 163, 184, 0.35);
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: var(--fs);
+      color: var(--body-text-color);
+      background: var(--body-bg-color);
+      margin: 0;
+    }
+
+    body.theme-light {
+      --topbar-bg: linear-gradient(90deg, #f8fafc, #e2e8f0 60%, #cbd5f5);
+      --topbar-color: #0f172a;
+      --topbar-shadow: 0 10px 28px rgba(148, 163, 184, 0.35);
+      --topbar-select-bg: rgba(255, 255, 255, 0.75);
+      --topbar-select-color: #0f172a;
+      --topbar-select-border: rgba(148, 163, 184, 0.6);
+      --topbar-select-hover-bg: rgba(96, 165, 250, 0.35);
+      --topbar-select-hover-border: #3b82f6;
+      --topbar-select-hover-shadow: 0 6px 18px rgba(148, 163, 184, 0.3);
+      --topbar-select-option-bg: #f8fafc;
+      --topbar-select-option-color: #0f172a;
+      --action-btn-bg: rgba(148, 163, 184, 0.22);
+      --action-btn-color: #0f172a;
+      --action-btn-border: rgba(148, 163, 184, 0.45);
+      --action-btn-hover-bg: rgba(96, 165, 250, 0.35);
+      --action-btn-hover-shadow: 0 8px 22px rgba(148, 163, 184, 0.3);
+      --action-btn-primary-bg: #1d4ed8;
+      --action-btn-primary-border: #1d4ed8;
+      --action-btn-primary-color: #f8fafc;
+      --action-btn-primary-hover-bg: #1e3a8a;
+      --user-menu-button-bg: rgba(255, 255, 255, 0.7);
+      --user-menu-button-border: rgba(148, 163, 184, 0.55);
+      --user-menu-button-color: #0f172a;
+      --user-menu-button-hover-border: #60a5fa;
+      --user-menu-button-hover-shadow: 0 10px 24px rgba(96, 165, 250, 0.35);
+      --user-menu-dropdown-bg: #ffffff;
+      --user-menu-dropdown-color: #0f172a;
+      --user-menu-dropdown-border: rgba(148, 163, 184, 0.35);
+      --user-menu-option-icon-color: #2563eb;
+      --user-menu-option-hover-bg: rgba(96, 165, 250, 0.2);
+      --user-menu-option-hover-color: #0f172a;
+      --user-menu-email-color: #1d4ed8;
+      --user-menu-divider-color: rgba(148, 163, 184, 0.35);
+    }
+
+    body.theme-dark {
+      --topbar-bg: linear-gradient(90deg, #0f172a, #1e293b 60%, #111827);
+      --topbar-color: #f8fafc;
+      --topbar-shadow: 0 10px 28px rgba(15, 23, 42, 0.35);
+      --topbar-select-bg: rgba(15, 23, 42, 0.65);
+      --topbar-select-color: #f8fafc;
+      --topbar-select-border: rgba(148, 163, 184, 0.35);
+      --topbar-select-hover-bg: rgba(30, 64, 175, 0.35);
+      --topbar-select-hover-border: #1d4ed8;
+      --topbar-select-hover-shadow: 0 6px 18px rgba(30, 64, 175, 0.25);
+      --topbar-select-option-bg: #0f172a;
+      --topbar-select-option-color: #f8fafc;
+      --action-btn-bg: rgba(148, 163, 184, 0.16);
+      --action-btn-color: #f8fafc;
+      --action-btn-border: rgba(148, 163, 184, 0.35);
+      --action-btn-hover-bg: rgba(148, 163, 184, 0.28);
+      --action-btn-hover-shadow: 0 8px 22px rgba(15, 23, 42, 0.35);
+      --action-btn-primary-bg: #1d4ed8;
+      --action-btn-primary-border: #1d4ed8;
+      --action-btn-primary-color: #f8fafc;
+      --action-btn-primary-hover-bg: #1e3a8a;
+      --user-menu-button-bg: rgba(15, 23, 42, 0.65);
+      --user-menu-button-border: rgba(148, 163, 184, 0.35);
+      --user-menu-button-color: #e2e8f0;
+      --user-menu-button-hover-border: #60a5fa;
+      --user-menu-button-hover-shadow: 0 10px 24px rgba(37, 99, 235, 0.45);
+      --user-menu-dropdown-bg: #0f172a;
+      --user-menu-dropdown-color: #f8fafc;
+      --user-menu-dropdown-border: rgba(148, 163, 184, 0.35);
+      --user-menu-option-icon-color: #60a5fa;
+      --user-menu-option-hover-bg: rgba(30, 64, 175, 0.35);
+      --user-menu-option-hover-color: #ffffff;
+      --user-menu-email-color: #cbd5f5;
+      --user-menu-divider-color: rgba(148, 163, 184, 0.25);
+    }
+
+    body.theme-blue {
+      --topbar-bg: linear-gradient(90deg, #0ea5e9, #2563eb 55%, #1d4ed8);
+      --topbar-color: #f8fafc;
+      --topbar-shadow: 0 10px 28px rgba(14, 165, 233, 0.35);
+      --topbar-select-bg: rgba(255, 255, 255, 0.22);
+      --topbar-select-color: #f8fafc;
+      --topbar-select-border: rgba(219, 234, 254, 0.55);
+      --topbar-select-hover-bg: rgba(191, 219, 254, 0.4);
+      --topbar-select-hover-border: #bfdbfe;
+      --topbar-select-hover-shadow: 0 6px 18px rgba(30, 64, 175, 0.4);
+      --topbar-select-option-bg: #1d4ed8;
+      --topbar-select-option-color: #f8fafc;
+      --action-btn-bg: rgba(59, 130, 246, 0.28);
+      --action-btn-color: #f8fafc;
+      --action-btn-border: rgba(191, 219, 254, 0.6);
+      --action-btn-hover-bg: rgba(191, 219, 254, 0.45);
+      --action-btn-hover-shadow: 0 8px 22px rgba(14, 165, 233, 0.4);
+      --action-btn-primary-bg: #0b61d6;
+      --action-btn-primary-border: #0b61d6;
+      --action-btn-primary-color: #f8fafc;
+      --action-btn-primary-hover-bg: #0a4ea9;
+      --user-menu-button-bg: rgba(255, 255, 255, 0.22);
+      --user-menu-button-border: rgba(191, 219, 254, 0.65);
+      --user-menu-button-color: #f8fafc;
+      --user-menu-button-hover-border: #e0f2fe;
+      --user-menu-button-hover-shadow: 0 10px 24px rgba(14, 165, 233, 0.45);
+      --user-menu-dropdown-bg: rgba(15, 23, 42, 0.92);
+      --user-menu-dropdown-color: #f8fafc;
+      --user-menu-dropdown-border: rgba(191, 219, 254, 0.35);
+      --user-menu-option-icon-color: #bae6fd;
+      --user-menu-option-hover-bg: rgba(59, 130, 246, 0.35);
+      --user-menu-option-hover-color: #ffffff;
+      --user-menu-email-color: #e0f2fe;
+      --user-menu-divider-color: rgba(191, 219, 254, 0.4);
+    }
+
+    body.theme-green {
+      --topbar-bg: linear-gradient(90deg, #047857, #059669 60%, #047857);
+      --topbar-color: #ecfdf5;
+      --topbar-shadow: 0 10px 28px rgba(4, 120, 87, 0.4);
+      --topbar-select-bg: rgba(20, 83, 45, 0.6);
+      --topbar-select-color: #ecfdf5;
+      --topbar-select-border: rgba(167, 243, 208, 0.45);
+      --topbar-select-hover-bg: rgba(52, 211, 153, 0.42);
+      --topbar-select-hover-border: #34d399;
+      --topbar-select-hover-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+      --topbar-select-option-bg: #065f46;
+      --topbar-select-option-color: #ecfdf5;
+      --action-btn-bg: rgba(16, 185, 129, 0.28);
+      --action-btn-color: #ecfdf5;
+      --action-btn-border: rgba(134, 239, 172, 0.6);
+      --action-btn-hover-bg: rgba(52, 211, 153, 0.48);
+      --action-btn-hover-shadow: 0 8px 22px rgba(6, 95, 70, 0.45);
+      --action-btn-primary-bg: #0f766e;
+      --action-btn-primary-border: #0f766e;
+      --action-btn-primary-color: #ecfdf5;
+      --action-btn-primary-hover-bg: #0d5f58;
+      --user-menu-button-bg: rgba(4, 120, 87, 0.6);
+      --user-menu-button-border: rgba(167, 243, 208, 0.45);
+      --user-menu-button-color: #ecfdf5;
+      --user-menu-button-hover-border: #bbf7d0;
+      --user-menu-button-hover-shadow: 0 10px 24px rgba(45, 212, 191, 0.45);
+      --user-menu-dropdown-bg: rgba(4, 47, 46, 0.95);
+      --user-menu-dropdown-color: #ecfdf5;
+      --user-menu-dropdown-border: rgba(134, 239, 172, 0.4);
+      --user-menu-option-icon-color: #6ee7b7;
+      --user-menu-option-hover-bg: rgba(45, 212, 191, 0.35);
+      --user-menu-option-hover-color: #ecfdf5;
+      --user-menu-email-color: #bbf7d0;
+      --user-menu-divider-color: rgba(134, 239, 172, 0.4);
+    }
     
     .topbar {
       position: sticky;
       top: 0;
       z-index: 10000;
-      background: linear-gradient(90deg, #0f172a, #1e293b 60%, #111827);
-      color: #f8fafc;
+      background: var(--topbar-bg);
+      color: var(--topbar-color);
       padding: 12px 16px;
       display: flex;
       gap: 12px;
       align-items: center;
       justify-content: space-between;
-      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.35);
+      box-shadow: var(--topbar-shadow);
       flex-wrap: wrap;
     }
 
@@ -32,23 +221,26 @@
     }
 
     .topbar select {
-      background: rgba(15, 23, 42, 0.65);
-      color: #f8fafc;
-      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: var(--topbar-select-bg);
+      color: var(--topbar-select-color);
+      border: 1px solid var(--topbar-select-border);
       border-radius: 9999px;
       padding: 6px 14px;
       font-size: var(--fs);
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, color 0.2s;
     }
 
     .topbar select:hover {
-      background: rgba(30, 64, 175, 0.35);
-      border-color: #1d4ed8;
-      box-shadow: 0 6px 18px rgba(30, 64, 175, 0.25);
+      background: var(--topbar-select-hover-bg);
+      border-color: var(--topbar-select-hover-border);
+      box-shadow: var(--topbar-select-hover-shadow);
     }
-    .topbar select option { background: #0f172a; color: #f8fafc; }
+    .topbar select option {
+      background: var(--topbar-select-option-bg);
+      color: var(--topbar-select-option-color);
+    }
 
     .btn {
       display: inline-flex;
@@ -79,22 +271,22 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: rgba(148, 163, 184, 0.16);
-      color: #f8fafc;
-      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: var(--action-btn-bg);
+      color: var(--action-btn-color);
+      border: 1px solid var(--action-btn-border);
       border-radius: 9999px;
       padding: 6px 14px;
       cursor: pointer;
       font-size: var(--fs);
       font-weight: 600;
-      transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+      transition: background 0.2s, box-shadow 0.2s, transform 0.2s, color 0.2s, border-color 0.2s;
     }
 
     .action-btn svg { width: 16px; height: 16px; }
 
     .action-btn:hover {
-      background: rgba(148, 163, 184, 0.28);
-      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.35);
+      background: var(--action-btn-hover-bg);
+      box-shadow: var(--action-btn-hover-shadow);
       transform: translateY(-1px);
     }
 
@@ -106,12 +298,13 @@
     }
 
     .action-btn.primary {
-      background: #1d4ed8;
-      border-color: #1d4ed8;
+      background: var(--action-btn-primary-bg);
+      border-color: var(--action-btn-primary-border);
+      color: var(--action-btn-primary-color);
     }
 
     .action-btn.primary:hover {
-      background: #1e3a8a;
+      background: var(--action-btn-primary-hover-bg);
     }
 
     .api-badge {
@@ -131,14 +324,14 @@
       width: 38px;
       height: 38px;
       border-radius: 9999px;
-      border: 2px solid rgba(148, 163, 184, 0.35);
-      background: rgba(15, 23, 42, 0.65);
+      border: 2px solid var(--user-menu-button-border);
+      background: var(--user-menu-button-bg);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #e2e8f0;
+      color: var(--user-menu-button-color);
       cursor: pointer;
-      transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s, color 0.2s, background 0.2s;
       overflow: hidden;
     }
 
@@ -157,8 +350,8 @@
 
     .user-menu-button:hover,
     .user-menu-button.open {
-      border-color: #60a5fa;
-      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.45);
+      border-color: var(--user-menu-button-hover-border);
+      box-shadow: var(--user-menu-button-hover-shadow);
       transform: translateY(-1px);
     }
 
@@ -166,9 +359,9 @@
       position: absolute;
       right: 0;
       margin-top: 12px;
-      background: #0f172a;
-      color: #f8fafc;
-      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: var(--user-menu-dropdown-bg);
+      color: var(--user-menu-dropdown-color);
+      border: 1px solid var(--user-menu-dropdown-border);
       border-radius: 16px;
       padding: 16px;
       width: 280px;
@@ -209,10 +402,10 @@
     }
 
     .user-menu-name { font-weight: 700; font-size: 14px; }
-    .user-menu-email { font-size: 12px; color: #cbd5f5; }
+    .user-menu-email { font-size: 12px; color: var(--user-menu-email-color); }
 
     .user-menu-divider {
-      border-top: 1px solid rgba(148, 163, 184, 0.25);
+      border-top: 1px solid var(--user-menu-divider-color);
       margin: 12px 0;
     }
 
@@ -231,11 +424,18 @@
       transition: background 0.2s, color 0.2s;
     }
 
-    .user-menu-option svg { width: 18px; height: 18px; color: #60a5fa; }
+    .user-menu-option svg {
+      width: 18px;
+      height: 18px;
+      color: var(--user-menu-option-icon-color);
+      transition: color 0.2s;
+    }
+
+    .user-menu-option:hover svg { color: currentColor; }
 
     .user-menu-option:hover {
-      background: rgba(30, 64, 175, 0.35);
-      color: #fff;
+      background: var(--user-menu-option-hover-bg);
+      color: var(--user-menu-option-hover-color);
     }
 
     .user-menu-option:disabled {
