@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import type { GoogleUserProfile } from '../types';
+import type { GoogleUserProfile, ThemeId, ThemeOption } from '../types';
 import { TEMPLATES } from '../constants';
 
 interface HeaderProps {
@@ -23,6 +23,16 @@ interface HeaderProps {
     onOpenSettings: () => void;
     onDownloadJson: () => void;
     hasApiKey: boolean;
+    onQuickSave: () => void;
+    saveStatusLabel: string;
+    lastSaveTime: string;
+    hasUnsavedChanges: boolean;
+    themeId: ThemeId;
+    themeOptions: ThemeOption[];
+    onThemeChange: (theme: ThemeId) => void;
+    isCompactMode: boolean;
+    onToggleCompact: () => void;
+    onOpenHistory: () => void;
 }
 
 const PrintIcon = () => (
@@ -105,6 +115,45 @@ const LoginIcon = () => (
     </svg>
 );
 
+const SaveIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M7 21h10a2 2 0 0 0 2-2V7.5L15.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2Z" />
+        <path d="M7 3v6h8" />
+        <path d="M10 17h4" />
+    </svg>
+);
+
+const HistoryIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3v6h6" />
+        <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+        <path d="M12 7v5l4 2" />
+    </svg>
+);
+
+const ThemeIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3v2" />
+        <path d="M12 19v2" />
+        <path d="M5.22 5.22 6.64 6.64" />
+        <path d="M17.36 17.36 18.78 18.78" />
+        <path d="M3 12h2" />
+        <path d="M19 12h2" />
+        <path d="M5.22 18.78 6.64 17.36" />
+        <path d="M17.36 6.64 18.78 5.22" />
+        <circle cx="12" cy="12" r="5" />
+    </svg>
+);
+
+const CompactIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="6" rx="1" />
+        <rect x="3" y="14" width="18" height="6" rx="1" />
+        <path d="M7 7h10" />
+        <path d="M7 17h10" />
+    </svg>
+);
+
 const Header: React.FC<HeaderProps> = ({
     templateId,
     onTemplateChange,
@@ -125,7 +174,17 @@ const Header: React.FC<HeaderProps> = ({
     onOpenFromDrive,
     onOpenSettings,
     onDownloadJson,
-    hasApiKey
+    hasApiKey,
+    onQuickSave,
+    saveStatusLabel,
+    lastSaveTime,
+    hasUnsavedChanges,
+    themeId,
+    themeOptions,
+    onThemeChange,
+    isCompactMode,
+    onToggleCompact,
+    onOpenHistory
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -174,6 +233,12 @@ const Header: React.FC<HeaderProps> = ({
     };
 
     const driveOptionDisabled = hasApiKey && !isPickerApiReady;
+    const compactLabel = isCompactMode ? 'Vista estándar' : 'Modo compacto';
+    const handleThemeSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        onThemeChange(event.target.value as ThemeId);
+    };
+
+    const statusState = hasUnsavedChanges || !lastSaveTime ? 'unsaved' : 'saved';
 
     return (
         <div className="topbar">
@@ -183,11 +248,31 @@ const Header: React.FC<HeaderProps> = ({
                         <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
                 </select>
+                <div className="theme-select">
+                    <ThemeIcon />
+                    <select value={themeId} onChange={handleThemeSelect}>
+                        {themeOptions.map(option => (
+                            <option key={option.id} value={option.id}>{option.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <button onClick={onToggleCompact} className={`action-btn ${isCompactMode ? 'active' : ''}`} type="button">
+                    <CompactIcon />
+                    <span>{compactLabel}</span>
+                </button>
             </div>
             <div className="topbar-group">
+                <button onClick={onQuickSave} className="action-btn" type="button" disabled={!hasUnsavedChanges} title={!hasUnsavedChanges ? 'No hay cambios pendientes' : undefined}>
+                    <SaveIcon />
+                    <span>Guardar borrador</span>
+                </button>
                 <button onClick={onPrint} className="action-btn primary" type="button">
                     <PrintIcon />
                     <span>Imprimir PDF</span>
+                </button>
+                <button onClick={onOpenHistory} className="action-btn" type="button">
+                    <HistoryIcon />
+                    <span>Historial</span>
                 </button>
                 <button id="toggleEdit" onClick={onToggleEdit} className="action-btn" type="button">
                     <EditIcon />
@@ -202,6 +287,13 @@ const Header: React.FC<HeaderProps> = ({
                     <UploadIcon />
                     <span>Importar</span>
                 </button>
+                <div className={`save-status ${statusState}`}>
+                    <span className="status-dot" data-state={statusState} />
+                    <div>
+                        <div className="status-label">{saveStatusLabel}</div>
+                        {!hasUnsavedChanges && lastSaveTime && <div className="status-meta">Último guardado: {lastSaveTime}</div>}
+                    </div>
+                </div>
                 {isSignedIn ? (
                     <div className="user-menu" ref={menuRef}>
                         <button

@@ -1,5 +1,5 @@
 
-import type { PatientField, ClinicalSectionData, Template } from './types';
+import type { PatientField, ClinicalSectionData, Template, ThemeOption } from './types';
 
 export const TEMPLATES: Record<string, Template> = Object.freeze({
   '1': { id: '1', name: 'Informe médico de traslado - Hospital Hanga Roa', title: 'Informe médico de traslado - Hospital Hanga Roa' },
@@ -27,4 +27,11 @@ export const DEFAULT_SECTIONS: ClinicalSectionData[] = [
     { title: 'Exámenes complementarios', content: '' },
     { title: 'Diagnósticos', content: '' },
     { title: 'Plan', content: '' },
+];
+
+export const THEME_OPTIONS: ThemeOption[] = [
+    { id: 'light', name: 'Tema claro (predeterminado)' },
+    { id: 'dark', name: 'Tema oscuro' },
+    { id: 'hospital', name: 'Tema azul hospitalario' },
+    { id: 'medical', name: 'Tema verde médico' },
 ];

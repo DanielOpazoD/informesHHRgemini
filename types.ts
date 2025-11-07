@@ -61,4 +61,14 @@ export interface GoogleUserProfile {
 export interface DriveFolder {
     id: string;
     name: string;
+    modifiedTime?: string;
+    mimeType?: string;
+}
+
+export type ThemeId = 'light' | 'dark' | 'hospital' | 'medical';
+
+export interface ThemeOption {
+    id: ThemeId;
+    name: string;
+    description?: string;
 }
