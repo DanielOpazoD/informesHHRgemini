@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import jsPDF from 'jspdf';
-import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder, ThemeId } from './types';
-import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS, THEME_OPTIONS } from './constants';
+import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder } from './types';
+import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
 import { validateCriticalFields, formatTimeSince } from './utils/validationUtils';
@@ -27,8 +27,6 @@ const DRIVE_CONTENT_FETCH_CONCURRENCY = 4;
 const LOCAL_STORAGE_KEYS = {
     draft: 'hhr-local-draft',
     history: 'hhr-version-history',
-    theme: 'hhr-theme',
-    compact: 'hhr-compact',
     favorites: 'hhr-drive-favorites',
     recent: 'hhr-drive-recents',
 };
@@ -58,18 +56,6 @@ interface DriveCacheEntry {
 }
 
 const App: React.FC = () => {
-    const [themeId, setThemeId] = useState<ThemeId>(() => {
-        if (typeof window !== 'undefined') {
-            return (localStorage.getItem(LOCAL_STORAGE_KEYS.theme) as ThemeId) || 'light';
-        }
-        return 'light';
-    });
-    const [isCompactMode, setIsCompactMode] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem(LOCAL_STORAGE_KEYS.compact) === 'true';
-        }
-        return false;
-    });
     const [isEditing, setIsEditing] = useState(false);
     const [record, setRecord] = useState<ClinicalRecord>({
         version: 'v14',
@@ -151,14 +137,8 @@ const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        document.body.dataset.theme = themeId;
-        localStorage.setItem(LOCAL_STORAGE_KEYS.theme, themeId);
-    }, [themeId]);
-
-    useEffect(() => {
-        document.body.dataset.compact = isCompactMode ? 'true' : 'false';
-        localStorage.setItem(LOCAL_STORAGE_KEYS.compact, isCompactMode ? 'true' : 'false');
-    }, [isCompactMode]);
+        document.body.dataset.theme = 'light';
+    }, []);
 
     useEffect(() => {
         const timer = window.setInterval(() => setNowTick(Date.now()), 60000);
@@ -224,7 +204,7 @@ const App: React.FC = () => {
 
     const getRecordSnapshot = useCallback(() => {
         return JSON.parse(JSON.stringify(record)) as ClinicalRecord;
-    }, [record, showToast]);
+    }, [record]);
 
     const pushHistory = useCallback((snapshot: ClinicalRecord, timestamp: number) => {
         setVersionHistory(prev => {
@@ -241,9 +221,11 @@ const App: React.FC = () => {
         });
     }, []);
 
-    const saveDraft = useCallback((reason: 'auto' | 'manual' | 'import') => {
+    const saveDraft = useCallback((reason: 'auto' | 'manual' | 'import', overrideRecord?: ClinicalRecord) => {
         if (typeof window === 'undefined') return;
-        const snapshot = getRecordSnapshot();
+        const snapshot = overrideRecord
+            ? (JSON.parse(JSON.stringify(overrideRecord)) as ClinicalRecord)
+            : getRecordSnapshot();
         const timestamp = Date.now();
         window.localStorage.setItem(LOCAL_STORAGE_KEYS.draft, JSON.stringify({ timestamp, record: snapshot }));
         setLastLocalSave(timestamp);
@@ -282,14 +264,6 @@ const App: React.FC = () => {
         }
         saveDraft('manual');
     }, [hasUnsavedChanges, record, saveDraft, showToast]);
-
-    const handleThemeChange = useCallback((id: ThemeId) => {
-        setThemeId(id);
-    }, []);
-
-    const toggleCompactMode = useCallback(() => {
-        setIsCompactMode(prev => !prev);
-    }, []);
 
     const saveStatusLabel = useMemo(() => {
         if (!lastLocalSave) return 'Sin guardados aún';
@@ -1145,7 +1119,7 @@ const App: React.FC = () => {
                     skipUnsavedRef.current = true;
                     setRecord(importedRecord);
                     setHasUnsavedChanges(false);
-                    saveDraft('import');
+                    saveDraft('import', importedRecord);
                     showToast('Borrador importado correctamente.');
                 } else {
                     showToast('Archivo JSON inválido.', 'error');
@@ -1239,11 +1213,6 @@ const App: React.FC = () => {
                 saveStatusLabel={saveStatusLabel}
                 lastSaveTime={lastSaveTime}
                 hasUnsavedChanges={hasUnsavedChanges}
-                themeId={themeId}
-                themeOptions={THEME_OPTIONS}
-                onThemeChange={handleThemeChange}
-                isCompactMode={isCompactMode}
-                onToggleCompact={toggleCompactMode}
                 onOpenHistory={() => setIsHistoryModalOpen(true)}
             />
             

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { GoogleUserProfile, ThemeId, ThemeOption } from '../types';
+import type { GoogleUserProfile } from '../types';
 import { TEMPLATES } from '../constants';
 
 interface HeaderProps {
@@ -27,11 +27,6 @@ interface HeaderProps {
     saveStatusLabel: string;
     lastSaveTime: string;
     hasUnsavedChanges: boolean;
-    themeId: ThemeId;
-    themeOptions: ThemeOption[];
-    onThemeChange: (theme: ThemeId) => void;
-    isCompactMode: boolean;
-    onToggleCompact: () => void;
     onOpenHistory: () => void;
 }
 
@@ -131,29 +126,6 @@ const HistoryIcon = () => (
     </svg>
 );
 
-const ThemeIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 3v2" />
-        <path d="M12 19v2" />
-        <path d="M5.22 5.22 6.64 6.64" />
-        <path d="M17.36 17.36 18.78 18.78" />
-        <path d="M3 12h2" />
-        <path d="M19 12h2" />
-        <path d="M5.22 18.78 6.64 17.36" />
-        <path d="M17.36 6.64 18.78 5.22" />
-        <circle cx="12" cy="12" r="5" />
-    </svg>
-);
-
-const CompactIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="6" rx="1" />
-        <rect x="3" y="14" width="18" height="6" rx="1" />
-        <path d="M7 7h10" />
-        <path d="M7 17h10" />
-    </svg>
-);
-
 const Header: React.FC<HeaderProps> = ({
     templateId,
     onTemplateChange,
@@ -179,11 +151,6 @@ const Header: React.FC<HeaderProps> = ({
     saveStatusLabel,
     lastSaveTime,
     hasUnsavedChanges,
-    themeId,
-    themeOptions,
-    onThemeChange,
-    isCompactMode,
-    onToggleCompact,
     onOpenHistory
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -216,8 +183,10 @@ const Header: React.FC<HeaderProps> = ({
         }
     }, [isSignedIn]);
 
-    const userEmail = userProfile?.email ?? '';
-    const avatarLetter = userEmail.charAt(0).toUpperCase() || 'U';
+    const userEmail = userProfile?.email?.trim() ?? '';
+    const fallbackName = userProfile?.name?.trim() ?? '';
+    const avatarLetter = (userEmail || fallbackName || 'U').charAt(0).toUpperCase();
+    const displayEmail = userEmail || fallbackName || 'Correo no disponible';
 
     const toggleMenu = () => setIsMenuOpen(current => !current);
 
@@ -227,33 +196,20 @@ const Header: React.FC<HeaderProps> = ({
     };
 
     const driveOptionDisabled = hasApiKey && !isPickerApiReady;
-    const compactLabel = isCompactMode ? 'Vista estándar' : 'Modo compacto';
-    const handleThemeSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
-        onThemeChange(event.target.value as ThemeId);
-    };
-
     const statusState = hasUnsavedChanges || !lastSaveTime ? 'unsaved' : 'saved';
 
     return (
         <div className="topbar">
             <div className="topbar-group">
-                <select style={{ flex: '0 1 300px' }} value={templateId} onChange={e => onTemplateChange(e.target.value)}>
+                <select
+                    style={{ flex: '0 1 220px', minWidth: '160px', maxWidth: '240px' }}
+                    value={templateId}
+                    onChange={e => onTemplateChange(e.target.value)}
+                >
                     {Object.values(TEMPLATES).map(t => (
                         <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
                 </select>
-                <div className="theme-select">
-                    <ThemeIcon />
-                    <select value={themeId} onChange={handleThemeSelect}>
-                        {themeOptions.map(option => (
-                            <option key={option.id} value={option.id}>{option.name}</option>
-                        ))}
-                    </select>
-                </div>
-                <button onClick={onToggleCompact} className={`action-btn ${isCompactMode ? 'active' : ''}`} type="button">
-                    <CompactIcon />
-                    <span>{compactLabel}</span>
-                </button>
             </div>
             <div className="topbar-group">
                 <button onClick={onQuickSave} className="action-btn" type="button" disabled={!hasUnsavedChanges} title={!hasUnsavedChanges ? 'No hay cambios pendientes' : undefined}>
@@ -296,7 +252,7 @@ const Header: React.FC<HeaderProps> = ({
                             onClick={toggleMenu}
                             aria-haspopup="true"
                             aria-expanded={isMenuOpen}
-                            title={userEmail || undefined}
+                            title={displayEmail}
                         >
                             {userProfile?.picture ? (
                                 <img src={userProfile.picture} alt={userProfile.name || 'Usuario'} />
@@ -315,8 +271,8 @@ const Header: React.FC<HeaderProps> = ({
                                         )}
                                     </div>
                                     <div>
-                                        <div className="user-menu-name">{userProfile?.name}</div>
-                                        <div className="user-menu-email" title={userEmail || undefined}>{userEmail}</div>
+                                        <div className="user-menu-name">{userProfile?.name || displayEmail}</div>
+                                        <div className="user-menu-email" title={displayEmail}>{displayEmail}</div>
                                     </div>
                                 </div>
                                 <div className="user-menu-divider" />

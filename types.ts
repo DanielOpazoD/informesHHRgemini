@@ -65,10 +65,3 @@ export interface DriveFolder {
     mimeType?: string;
 }
 
-export type ThemeId = 'light' | 'dark' | 'hospital' | 'medical';
-
-export interface ThemeOption {
-    id: ThemeId;
-    name: string;
-    description?: string;
-}

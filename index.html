@@ -110,15 +110,6 @@
       color: #064e3b;
     }
 
-    body[data-compact="true"] {
-      --fs: 12px;
-    }
-
-    body[data-compact="true"] .wrap { padding: 4px 6px; }
-    body[data-compact="true"] .sheet { padding: 6px 8px; }
-    body[data-compact="true"] .row { grid-template-columns: 100px 1fr auto; gap: 4px; }
-    body[data-compact="true"] .txt { min-height: 48px; }
-    
     .topbar {
       position: sticky;
       top: 0;
@@ -133,6 +124,7 @@
       box-shadow: var(--topbar-shadow);
       flex-wrap: nowrap;
       overflow-x: auto;
+      overflow-y: visible;
       white-space: nowrap;
       transition: background 0.3s ease, color 0.3s ease;
     }
@@ -261,29 +253,6 @@
 
     .action-btn.active {
       box-shadow: inset 0 0 0 2px var(--topbar-primary-bg);
-    }
-
-    .theme-select {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--topbar-action-bg);
-      border: 1px solid var(--topbar-action-border);
-      border-radius: 9999px;
-      padding: 4px 10px;
-    }
-
-    .theme-select svg { width: 16px; height: 16px; color: var(--topbar-action-text); }
-
-    .theme-select select {
-      border: none;
-      background: transparent;
-      color: inherit;
-      font-size: var(--fs);
-      font-weight: 600;
-      cursor: pointer;
-      padding: 0;
-      outline: none;
     }
 
     .save-status {
@@ -487,7 +456,7 @@
       letter-spacing: 0.5px;
     }
 
-    .user-menu { position: relative; }
+    .user-menu { position: relative; overflow: visible; }
 
     .user-menu-button {
       width: 38px;
@@ -535,6 +504,7 @@
       padding: 16px;
       width: 280px;
       box-shadow: var(--user-menu-shadow);
+      z-index: 15000;
       animation: fade-in 0.18s ease-out;
     }
 
