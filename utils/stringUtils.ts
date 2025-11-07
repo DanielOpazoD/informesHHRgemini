@@ -38,3 +38,10 @@ export function suggestedFilename(templateId: string, patientName: string): stri
     const parts = [base, name, date].filter(Boolean).join(' - ');
     return stripAccents(parts).replace(/[^A-Za-z0-9 _\-]/g, '');
 }
+
+export function sanitizeFilename(input: string): string {
+    if (!input) return '';
+    const withoutAccents = stripAccents(input);
+    const cleaned = withoutAccents.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '');
+    return cleaned.replace(/\s+/g, ' ').trim().slice(0, 140);
+}

@@ -5,7 +5,7 @@ import jsPDF from 'jspdf';
 import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
-import { suggestedFilename } from './utils/stringUtils';
+import { suggestedFilename, sanitizeFilename } from './utils/stringUtils';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -47,6 +47,7 @@ const App: React.FC = () => {
     
     // Modals State
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [customDriveFileName, setCustomDriveFileName] = useState('');
     const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
@@ -259,6 +260,10 @@ const App: React.FC = () => {
             handleSignIn();
             return;
         }
+        const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
+        const defaultName = suggestedFilename(record.templateId, patientName);
+        setCustomDriveFileName(defaultName);
+
         const savedPath = localStorage.getItem('defaultDriveFolderPath');
         if (savedPath) {
             const path = JSON.parse(savedPath) as DriveFolder[];
@@ -271,7 +276,10 @@ const App: React.FC = () => {
         setIsSaveModalOpen(true);
     };
 
-    const closeSaveModal = () => setIsSaveModalOpen(false);
+    const closeSaveModal = () => {
+        setIsSaveModalOpen(false);
+        setCustomDriveFileName('');
+    };
     const handleSaveFolderClick = (folder: DriveFolder) => {
         setFolderPath(currentPath => [...currentPath, folder]);
         fetchDriveFolders(folder.id);
@@ -533,17 +541,26 @@ const App: React.FC = () => {
     };
 
     const handleFinalSave = async () => {
+        const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
+        const fallbackName = suggestedFilename(record.templateId, patientName);
+        let sanitizedBase = sanitizeFilename(customDriveFileName || fallbackName).replace(/\.(json|pdf)$/i, '').trim();
+
+        if (!sanitizedBase) {
+            alert('Por favor, ingrese un nombre válido para el archivo que se guardará en Drive.');
+            return;
+        }
+
+        setCustomDriveFileName(sanitizedBase);
         setIsSaving(true);
         const saveFile = async (format: 'json' | 'pdf'): Promise<string> => {
-            const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
             let fileContent: Blob, fileName: string, mimeType: string;
 
             if (format === 'pdf') {
-                fileName = suggestedFilename(record.templateId, patientName) + '.pdf';
+                fileName = `${sanitizedBase}.pdf`;
                 mimeType = 'application/pdf';
                 fileContent = await generatePdfAsBlob();
             } else {
-                fileName = suggestedFilename(record.templateId, patientName) + '.json';
+                fileName = `${sanitizedBase}.json`;
                 mimeType = 'application/json';
                 fileContent = new Blob([JSON.stringify(record, null, 2)], { type: mimeType });
             }
@@ -820,6 +837,21 @@ const App: React.FC = () => {
                         <div>
                             <div className="lbl">Formato</div>
                             <div className="flex gap-4"><label><input type="radio" name="format" value="json" checked={saveFormat === 'json'} onChange={() => setSaveFormat('json')} /> JSON</label><label><input type="radio" name="format" value="pdf" checked={saveFormat === 'pdf'} onChange={() => setSaveFormat('pdf')} /> PDF</label><label><input type="radio" name="format" value="both" checked={saveFormat === 'both'} onChange={() => setSaveFormat('both')} /> Ambos</label></div>
+                        </div>
+                        <div>
+                            <div className="lbl">Nombre del archivo</div>
+                            <div className="file-name-editor">
+                                <input
+                                    type="text"
+                                    className="inp"
+                                    value={customDriveFileName}
+                                    onChange={e => setCustomDriveFileName(e.target.value)}
+                                    placeholder="Nombre del archivo"
+                                    maxLength={140}
+                                />
+                                <span className="file-name-suffix">{saveFormat === 'both' ? '.json / .pdf' : saveFormat === 'pdf' ? '.pdf' : '.json'}</span>
+                            </div>
+                            <div className="helper-text">Puedes personalizar el nombre sugerido antes de guardar en Drive.</div>
                         </div>
                         <div>
                             <div className="lbl">Ubicación</div>

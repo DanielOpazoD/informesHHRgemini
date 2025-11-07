@@ -105,6 +105,30 @@ const LoginIcon = () => (
     </svg>
 );
 
+const PatientIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M6 20a6 6 0 0 1 12 0" />
+    </svg>
+);
+
+const NotesIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 4h12l4 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
+        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+        <path d="M9 13h6" />
+        <path d="M9 17h3" />
+    </svg>
+);
+
+const SignatureIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 20h18" />
+        <path d="M16 12c-1.5 0-3 1-4 3s-2.5 3-4 3-2-1-2-2 1-2 2-2 2 1 2 2" />
+        <path d="M20 16c0-3.6-2.4-6-5-6-1.5 0-2.5.5-4 3" />
+    </svg>
+);
+
 const Header: React.FC<HeaderProps> = ({
     templateId,
     onTemplateChange,
@@ -128,7 +152,9 @@ const Header: React.FC<HeaderProps> = ({
     hasApiKey
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [activeNavTarget, setActiveNavTarget] = useState('');
     const menuRef = useRef<HTMLDivElement>(null);
+    const navTimeoutRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (!isMenuOpen) return;
@@ -157,6 +183,13 @@ const Header: React.FC<HeaderProps> = ({
         }
     }, [isSignedIn]);
 
+    useEffect(() => () => {
+        if (navTimeoutRef.current) {
+            window.clearTimeout(navTimeoutRef.current);
+            navTimeoutRef.current = null;
+        }
+    }, []);
+
     const initials = useMemo(() => {
         if (userProfile?.name) {
             const parts = userProfile.name.trim().split(/\s+/);
@@ -166,6 +199,12 @@ const Header: React.FC<HeaderProps> = ({
         return userProfile?.email?.[0]?.toUpperCase() ?? 'U';
     }, [userProfile]);
 
+    const navItems = useMemo(() => ([
+        { target: 'sec-datos', label: 'Paciente', title: 'Ir a los datos del paciente', icon: <PatientIcon /> },
+        { target: 'sectionsContainer', label: 'Secciones', title: 'Ir a las secciones clínicas', icon: <NotesIcon /> },
+        { target: 'medico', label: 'Firma', title: 'Ir a la firma del informe', icon: <SignatureIcon /> },
+    ]), []);
+
     const toggleMenu = () => setIsMenuOpen(current => !current);
 
     const handleMenuAction = (action: () => void) => {
@@ -174,125 +213,179 @@ const Header: React.FC<HeaderProps> = ({
     };
 
     const driveOptionDisabled = hasApiKey && !isPickerApiReady;
+    const openDriveTitle = driveOptionDisabled ? 'Cargando Google Picker…' : 'Abrir informe desde Drive';
+    const saveDriveTitle = isSignedIn ? 'Guardar una copia en Google Drive' : 'Inicie sesión para guardar en Drive';
+
+    const handleNavigate = (targetId: string) => {
+        const element = document.getElementById(targetId);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            element.classList.add('toolbar-focus');
+            window.setTimeout(() => element.classList.remove('toolbar-focus'), 1600);
+        }
+        if (navTimeoutRef.current) window.clearTimeout(navTimeoutRef.current);
+        setActiveNavTarget(targetId);
+        navTimeoutRef.current = window.setTimeout(() => {
+            setActiveNavTarget('');
+            navTimeoutRef.current = null;
+        }, 1600);
+    };
+
+    const triggerImport = () => document.getElementById('importJson')?.click();
 
     return (
-        <div className="topbar">
-            <div className="topbar-group">
-                <select style={{ flex: '0 1 300px' }} value={templateId} onChange={e => onTemplateChange(e.target.value)}>
-                    {Object.values(TEMPLATES).map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                </select>
-            </div>
-            <div className="topbar-group">
-                <button onClick={onPrint} className="action-btn primary" type="button">
-                    <PrintIcon />
-                    <span>Imprimir PDF</span>
-                </button>
-                <button id="toggleEdit" onClick={onToggleEdit} className="action-btn" type="button">
-                    <EditIcon />
-                    <span>{isEditing ? 'Finalizar' : 'Editar'}</span>
-                </button>
-                <button onClick={onOpenSettings} className="action-btn" type="button" title="Configuración de Google API">
-                    <SettingsIcon />
-                    <span>Google API</span>
-                    {hasApiKey && <span className="api-badge">✓</span>}
-                </button>
-                <button className="action-btn" type="button" onClick={() => document.getElementById('importJson')?.click()}>
-                    <UploadIcon />
-                    <span>Importar</span>
-                </button>
-                {isSignedIn ? (
-                    <div className="user-menu" ref={menuRef}>
-                        <button
-                            type="button"
-                            className={`user-menu-button ${isMenuOpen ? 'open' : ''}`}
-                            onClick={toggleMenu}
-                            aria-haspopup="true"
-                            aria-expanded={isMenuOpen}
-                        >
-                            {userProfile?.picture ? (
-                                <img src={userProfile.picture} alt={userProfile.name || 'Usuario'} />
-                            ) : (
-                                <span>{initials}</span>
-                            )}
-                        </button>
-                        {isMenuOpen && (
-                            <div className="user-menu-dropdown" role="menu">
-                                <div className="user-menu-header">
-                                    <div className="user-menu-avatar-large">
-                                        {userProfile?.picture ? (
-                                            <img src={userProfile.picture} alt={userProfile.name || 'Usuario'} />
-                                        ) : (
-                                            <span>{initials}</span>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <div className="user-menu-name">{userProfile?.name}</div>
-                                        <div className="user-menu-email">{userProfile?.email}</div>
-                                    </div>
-                                </div>
-                                <div className="user-menu-divider" />
-                                <button
-                                    type="button"
-                                    className="user-menu-option"
-                                    onClick={() => handleMenuAction(onSaveToDrive)}
-                                    disabled={isSaving}
-                                >
-                                    <DriveIcon />
-                                    <span>{isSaving ? 'Guardando…' : 'Guardar en Drive'}</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="user-menu-option"
-                                    onClick={() => handleMenuAction(onOpenFromDrive)}
-                                    disabled={driveOptionDisabled}
-                                    title={driveOptionDisabled ? 'Cargando Google Picker…' : undefined}
-                                >
-                                    <FolderOpenIcon />
-                                    <span>Abrir desde Drive</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="user-menu-option"
-                                    onClick={() => handleMenuAction(onDownloadJson)}
-                                >
-                                    <DownloadIcon />
-                                    <span>Descargar JSON</span>
-                                </button>
-                                <div className="user-menu-divider" />
-                                <button
-                                    type="button"
-                                    className="user-menu-option"
-                                    onClick={() => handleMenuAction(onChangeUser)}
-                                >
-                                    <SwitchUserIcon />
-                                    <span>Cambiar de usuario</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="user-menu-option"
-                                    onClick={() => handleMenuAction(onSignOut)}
-                                >
-                                    <SignOutIcon />
-                                    <span>Cerrar sesión</span>
-                                </button>
-                            </div>
-                        )}
+        <header className="topbar">
+            <div className="topbar-panel">
+                <div className="topbar-left">
+                    <div className="topbar-group template-selector">
+                        <span className="topbar-label">Plantilla</span>
+                        <select value={templateId} onChange={e => onTemplateChange(e.target.value)}>
+                            {Object.values(TEMPLATES).map(t => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                        </select>
                     </div>
-                ) : (
-                    <button
-                        onClick={onSignIn}
-                        className="action-btn primary"
-                        type="button"
-                        disabled={!isGisReady || !isGapiReady || !tokenClient}
-                    >
-                        <LoginIcon />
-                        <span>Iniciar sesión</span>
-                    </button>
-                )}
+                    <nav className="topbar-nav" aria-label="Navegación rápida">
+                        {navItems.map(item => (
+                            <button
+                                key={item.target}
+                                type="button"
+                                className={`topbar-nav-button ${activeNavTarget === item.target ? 'active' : ''}`}
+                                onClick={() => handleNavigate(item.target)}
+                                title={item.title}
+                            >
+                                {item.icon}
+                                <span>{item.label}</span>
+                            </button>
+                        ))}
+                    </nav>
+                </div>
+                <div className="topbar-right">
+                    <div className="topbar-actions">
+                        <button onClick={onPrint} className="action-btn primary" type="button">
+                            <PrintIcon />
+                            <span>Imprimir PDF</span>
+                        </button>
+                        <button id="toggleEdit" onClick={onToggleEdit} className="action-btn" type="button">
+                            <EditIcon />
+                            <span>{isEditing ? 'Finalizar' : 'Editar'}</span>
+                        </button>
+                        <button onClick={onOpenSettings} className="action-btn" type="button" title="Configuración de Google API">
+                            <SettingsIcon />
+                            <span>Google API</span>
+                            {hasApiKey && <span className="api-badge">✓</span>}
+                        </button>
+                    </div>
+                    <div className="topbar-actions secondary">
+                        <button onClick={onSaveToDrive} className="action-btn success" type="button" disabled={isSaving} title={saveDriveTitle}>
+                            <DriveIcon />
+                            <span>{isSaving ? 'Guardando…' : 'Guardar en Drive'}</span>
+                        </button>
+                        <button onClick={onOpenFromDrive} className="action-btn ghost" type="button" disabled={driveOptionDisabled} title={openDriveTitle}>
+                            <FolderOpenIcon />
+                            <span>Abrir</span>
+                        </button>
+                        <button onClick={onDownloadJson} className="action-btn ghost" type="button" title="Descargar el registro en JSON">
+                            <DownloadIcon />
+                            <span>Descargar</span>
+                        </button>
+                        <button className="action-btn ghost" type="button" onClick={triggerImport} title="Importar desde un archivo JSON">
+                            <UploadIcon />
+                            <span>Importar</span>
+                        </button>
+                    </div>
+                    {isSignedIn ? (
+                        <div className="user-menu" ref={menuRef}>
+                            <button
+                                type="button"
+                                className={`user-menu-button ${isMenuOpen ? 'open' : ''}`}
+                                onClick={toggleMenu}
+                                aria-haspopup="true"
+                                aria-expanded={isMenuOpen}
+                            >
+                                {userProfile?.picture ? (
+                                    <img src={userProfile.picture} alt={userProfile.name || 'Usuario'} />
+                                ) : (
+                                    <span>{initials}</span>
+                                )}
+                            </button>
+                            {isMenuOpen && (
+                                <div className="user-menu-dropdown" role="menu">
+                                    <div className="user-menu-header">
+                                        <div className="user-menu-avatar-large">
+                                            {userProfile?.picture ? (
+                                                <img src={userProfile.picture} alt={userProfile.name || 'Usuario'} />
+                                            ) : (
+                                                <span>{initials}</span>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div className="user-menu-name">{userProfile?.name}</div>
+                                            <div className="user-menu-email">{userProfile?.email}</div>
+                                        </div>
+                                    </div>
+                                    <div className="user-menu-divider" />
+                                    <button
+                                        type="button"
+                                        className="user-menu-option"
+                                        onClick={() => handleMenuAction(onSaveToDrive)}
+                                        disabled={isSaving}
+                                    >
+                                        <DriveIcon />
+                                        <span>{isSaving ? 'Guardando…' : 'Guardar en Drive'}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="user-menu-option"
+                                        onClick={() => handleMenuAction(onOpenFromDrive)}
+                                        disabled={driveOptionDisabled}
+                                        title={driveOptionDisabled ? 'Cargando Google Picker…' : undefined}
+                                    >
+                                        <FolderOpenIcon />
+                                        <span>Abrir desde Drive</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="user-menu-option"
+                                        onClick={() => handleMenuAction(onDownloadJson)}
+                                    >
+                                        <DownloadIcon />
+                                        <span>Descargar JSON</span>
+                                    </button>
+                                    <div className="user-menu-divider" />
+                                    <button
+                                        type="button"
+                                        className="user-menu-option"
+                                        onClick={() => handleMenuAction(onChangeUser)}
+                                    >
+                                        <SwitchUserIcon />
+                                        <span>Cambiar de usuario</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="user-menu-option"
+                                        onClick={() => handleMenuAction(onSignOut)}
+                                    >
+                                        <SignOutIcon />
+                                        <span>Cerrar sesión</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <button
+                            onClick={onSignIn}
+                            className="action-btn primary"
+                            type="button"
+                            disabled={!isGisReady || !isGapiReady || !tokenClient}
+                        >
+                            <LoginIcon />
+                            <span>Iniciar sesión</span>
+                        </button>
+                    )}
+                </div>
             </div>
-        </div>
+        </header>
     );
 };
 
