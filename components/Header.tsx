@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { GoogleUserProfile } from '../types';
+import type { GoogleUserProfile, ActiveModule } from '../types';
 import { TEMPLATES } from '../constants';
 
 interface HeaderProps {
@@ -28,6 +28,8 @@ interface HeaderProps {
     lastSaveTime: string;
     hasUnsavedChanges: boolean;
     onOpenHistory: () => void;
+    activeModule: ActiveModule;
+    onSelectApp: (app: ActiveModule) => void;
 }
 
 const GridIcon = () => (
@@ -53,6 +55,15 @@ const GlucoseIcon = () => (
         <path d="M8 8h8" />
         <path d="M8 12h8" />
         <path d="M10 16h4" />
+    </svg>
+);
+
+const PillIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="9" width="9" height="12" rx="2" />
+        <rect x="12" y="3" width="9" height="12" rx="2" />
+        <path d="M12 9h9" />
+        <path d="M3 15h9" />
     </svg>
 );
 
@@ -206,7 +217,9 @@ const Header: React.FC<HeaderProps> = ({
     saveStatusLabel,
     lastSaveTime,
     hasUnsavedChanges,
-    onOpenHistory
+    onOpenHistory,
+    activeModule,
+    onSelectApp
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isLauncherOpen, setIsLauncherOpen] = useState(false);
@@ -288,10 +301,17 @@ const Header: React.FC<HeaderProps> = ({
         }
     }, [isSignedIn]);
 
+    const isMainApp = activeModule === 'main';
     const userEmail = userProfile?.email?.trim() ?? '';
     const fallbackName = userProfile?.name?.trim() ?? '';
     const avatarLetter = (userEmail || fallbackName || 'U').charAt(0).toUpperCase();
     const displayEmail = userEmail || fallbackName || 'Correo no disponible';
+
+    useEffect(() => {
+        if (!isMainApp) {
+            setOpenActionMenu(null);
+        }
+    }, [isMainApp]);
 
     const toggleMenu = () => setIsMenuOpen(current => !current);
     const toggleAppLauncher = () => {
@@ -322,6 +342,22 @@ const Header: React.FC<HeaderProps> = ({
         setOpenActionMenu(null);
     };
 
+    const handleAppSelection = (app: ActiveModule) => {
+        onSelectApp(app);
+        setIsLauncherOpen(false);
+        setOpenActionMenu(null);
+    };
+
+    const moduleLabels: Record<ActiveModule, string> = {
+        main: 'Registro Clínico',
+        cartolaMedicamentos: 'Cartola de Medicamentos',
+    };
+
+    const availableApps: { id: ActiveModule; label: string; icon: React.ReactNode }[] = [
+        { id: 'main', label: 'Registro Clínico', icon: <FileGroupIcon /> },
+        { id: 'cartolaMedicamentos', label: 'Cartola Medicamentos', icon: <PillIcon /> },
+    ];
+
     const driveOptionDisabled = hasApiKey && !isPickerApiReady;
     const statusState = hasUnsavedChanges || !lastSaveTime ? 'unsaved' : 'saved';
 
@@ -343,6 +379,17 @@ const Header: React.FC<HeaderProps> = ({
                         {isLauncherOpen && (
                             <div className="app-launcher-dropdown" role="menu">
                                 <div className="app-launcher-grid">
+                                    {availableApps.map(app => (
+                                        <button
+                                            key={app.id}
+                                            type="button"
+                                            className={`app-tile ${activeModule === app.id ? 'active' : ''}`}
+                                            onClick={() => handleAppSelection(app.id)}
+                                        >
+                                            {app.icon}
+                                            <span>{app.label}</span>
+                                        </button>
+                                    ))}
                                     <button type="button" className="app-tile" onClick={() => setIsLauncherOpen(false)}>
                                         <BloodTestIcon />
                                         <span>Análisis de Sangre</span>
@@ -358,131 +405,142 @@ const Header: React.FC<HeaderProps> = ({
                             </div>
                         )}
                     </div>
-                    <div className="topbar-group topbar-group-templates">
-                        <select
-                            style={{ flex: '0 1 220px', minWidth: '160px', maxWidth: '240px' }}
-                            value={templateId}
-                            onChange={e => onTemplateChange(e.target.value)}
-                        >
-                            {Object.values(TEMPLATES).map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className={`save-status ${statusState}`}>
-                        <span className="status-dot" data-state={statusState} />
-                        <div>
-                            <div className="status-label">{saveStatusLabel}</div>
-                            {!hasUnsavedChanges && lastSaveTime && <div className="status-meta">Último guardado: {lastSaveTime}</div>}
+                    {isMainApp ? (
+                        <>
+                            <div className="topbar-group topbar-group-templates">
+                                <select
+                                    style={{ flex: '0 1 220px', minWidth: '160px', maxWidth: '240px' }}
+                                    value={templateId}
+                                    onChange={e => onTemplateChange(e.target.value)}
+                                >
+                                    {Object.values(TEMPLATES).map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className={`save-status ${statusState}`}>
+                                <span className="status-dot" data-state={statusState} />
+                                <div>
+                                    <div className="status-label">{saveStatusLabel}</div>
+                                    {!hasUnsavedChanges && lastSaveTime && <div className="status-meta">Último guardado: {lastSaveTime}</div>}
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="module-chip">
+                            <div className="module-chip-title">{moduleLabels[activeModule]}</div>
+                            <div className="module-chip-subtitle">Módulo complementario</div>
+                        </div>
+                    )}
+                </div>
+                {isMainApp && (
+                    <div className="topbar-actions">
+                        <div className={`action-group ${openActionMenu === 'archivo' ? 'open' : ''}`} ref={archivoMenuRef}>
+                            <button
+                                type="button"
+                                className="action-btn action-group-toggle"
+                                onClick={() => toggleActionMenu('archivo')}
+                                aria-haspopup="true"
+                                aria-expanded={openActionMenu === 'archivo'}
+                            >
+                                <FileGroupIcon />
+                                <span>Archivo</span>
+                                <ChevronDownIcon />
+                            </button>
+                            {openActionMenu === 'archivo' && (
+                                <div className="action-dropdown" role="menu">
+                                    <button
+                                        type="button"
+                                        id="toggleEdit"
+                                        onClick={() => handleDropdownAction(onToggleEdit)}
+                                    >
+                                        <EditIcon />
+                                        <span>{isEditing ? 'Finalizar edición' : 'Editar'}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDropdownAction(onQuickSave)}
+                                        disabled={!hasUnsavedChanges}
+                                        title={!hasUnsavedChanges ? 'No hay cambios pendientes' : undefined}
+                                    >
+                                        <SaveIcon />
+                                        <span>Guardar borrador</span>
+                                    </button>
+                                    <button type="button" onClick={() => handleDropdownAction(onPrint)}>
+                                        <PrintIcon />
+                                        <span>Imprimir PDF</span>
+                                    </button>
+                                    <button type="button" onClick={() => handleDropdownAction(onDownloadJson)}>
+                                        <DownloadIcon />
+                                        <span>Guardar JSON</span>
+                                    </button>
+                                    <button type="button" onClick={() => handleDropdownAction(onOpenHistory)}>
+                                        <HistoryIcon />
+                                        <span>Historial</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDropdownAction(() => document.getElementById('importJson')?.click())}
+                                    >
+                                        <UploadIcon />
+                                        <span>Importar</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        <div className={`action-group ${openActionMenu === 'drive' ? 'open' : ''}`} ref={driveMenuRef}>
+                            <button
+                                type="button"
+                                className="action-btn action-group-toggle"
+                                onClick={() => toggleActionMenu('drive')}
+                                aria-haspopup="true"
+                                aria-expanded={openActionMenu === 'drive'}
+                            >
+                                <DriveIcon />
+                                <span>Drive</span>
+                                <ChevronDownIcon />
+                            </button>
+                            {openActionMenu === 'drive' && (
+                                <div className="action-dropdown" role="menu">
+                                    <button type="button" onClick={() => handleDropdownAction(onSaveToDrive)} disabled={isSaving}>
+                                        <DriveIcon />
+                                        <span>{isSaving ? 'Guardando…' : 'Guardar en Drive'}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDropdownAction(onOpenFromDrive)}
+                                        disabled={driveOptionDisabled}
+                                        title={driveOptionDisabled ? 'Cargando Google Picker…' : undefined}
+                                    >
+                                        <FolderOpenIcon />
+                                        <span>Abrir desde Drive</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        <div className={`action-group ${openActionMenu === 'herramientas' ? 'open' : ''}`} ref={herramientasMenuRef}>
+                            <button
+                                type="button"
+                                className="action-btn action-group-toggle action-btn-plain"
+                                onClick={() => toggleActionMenu('herramientas')}
+                                aria-haspopup="true"
+                                aria-expanded={openActionMenu === 'herramientas'}
+                            >
+                                <span aria-hidden="true" className="action-icon-emoji">⚙️</span>
+                                <ChevronDownIcon />
+                            </button>
+                            {openActionMenu === 'herramientas' && (
+                                <div className="action-dropdown" role="menu">
+                                    <button type="button" onClick={() => handleDropdownAction(onOpenSettings)} title="Configuración de Google API">
+                                        <SettingsIcon />
+                                        <span>Google API</span>
+                                        {hasApiKey && <span className="api-badge">✓</span>}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
-                </div>
-                <div className="topbar-actions">
-                    <div className={`action-group ${openActionMenu === 'archivo' ? 'open' : ''}`} ref={archivoMenuRef}>
-                        <button
-                            type="button"
-                            className="action-btn action-group-toggle"
-                            onClick={() => toggleActionMenu('archivo')}
-                            aria-haspopup="true"
-                            aria-expanded={openActionMenu === 'archivo'}
-                        >
-                            <FileGroupIcon />
-                            <span>Archivo</span>
-                            <ChevronDownIcon />
-                        </button>
-                        {openActionMenu === 'archivo' && (
-                            <div className="action-dropdown" role="menu">
-                                <button
-                                    type="button"
-                                    id="toggleEdit"
-                                    onClick={() => handleDropdownAction(onToggleEdit)}
-                                >
-                                    <EditIcon />
-                                    <span>{isEditing ? 'Finalizar edición' : 'Editar'}</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleDropdownAction(onQuickSave)}
-                                    disabled={!hasUnsavedChanges}
-                                    title={!hasUnsavedChanges ? 'No hay cambios pendientes' : undefined}
-                                >
-                                    <SaveIcon />
-                                    <span>Guardar borrador</span>
-                                </button>
-                                <button type="button" onClick={() => handleDropdownAction(onPrint)}>
-                                    <PrintIcon />
-                                    <span>Imprimir PDF</span>
-                                </button>
-                                <button type="button" onClick={() => handleDropdownAction(onDownloadJson)}>
-                                    <DownloadIcon />
-                                    <span>Guardar JSON</span>
-                                </button>
-                                <button type="button" onClick={() => handleDropdownAction(onOpenHistory)}>
-                                    <HistoryIcon />
-                                    <span>Historial</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleDropdownAction(() => document.getElementById('importJson')?.click())}
-                                >
-                                    <UploadIcon />
-                                    <span>Importar</span>
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                    <div className={`action-group ${openActionMenu === 'drive' ? 'open' : ''}`} ref={driveMenuRef}>
-                        <button
-                            type="button"
-                            className="action-btn action-group-toggle"
-                            onClick={() => toggleActionMenu('drive')}
-                            aria-haspopup="true"
-                            aria-expanded={openActionMenu === 'drive'}
-                        >
-                            <DriveIcon />
-                            <span>Drive</span>
-                            <ChevronDownIcon />
-                        </button>
-                        {openActionMenu === 'drive' && (
-                            <div className="action-dropdown" role="menu">
-                                <button type="button" onClick={() => handleDropdownAction(onSaveToDrive)} disabled={isSaving}>
-                                    <DriveIcon />
-                                    <span>{isSaving ? 'Guardando…' : 'Guardar en Drive'}</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleDropdownAction(onOpenFromDrive)}
-                                    disabled={driveOptionDisabled}
-                                    title={driveOptionDisabled ? 'Cargando Google Picker…' : undefined}
-                                >
-                                    <FolderOpenIcon />
-                                    <span>Abrir desde Drive</span>
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                    <div className={`action-group ${openActionMenu === 'herramientas' ? 'open' : ''}`} ref={herramientasMenuRef}>
-                        <button
-                            type="button"
-                            className="action-btn action-group-toggle action-btn-plain"
-                            onClick={() => toggleActionMenu('herramientas')}
-                            aria-haspopup="true"
-                            aria-expanded={openActionMenu === 'herramientas'}
-                        >
-                            <span aria-hidden="true" className="action-icon-emoji">⚙️</span>
-                            <ChevronDownIcon />
-                        </button>
-                        {openActionMenu === 'herramientas' && (
-                            <div className="action-dropdown" role="menu">
-                                <button type="button" onClick={() => handleDropdownAction(onOpenSettings)} title="Configuración de Google API">
-                                    <SettingsIcon />
-                                    <span>Google API</span>
-                                    {hasApiKey && <span className="api-badge">✓</span>}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                )}
             </div>
             <div className="topbar-account">
                 {isSignedIn ? (
