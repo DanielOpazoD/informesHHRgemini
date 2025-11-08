@@ -65,6 +65,18 @@ export interface DriveFolder {
     mimeType?: string;
 }
 
+export interface FavoriteFolderEntry {
+    id: string;
+    path: DriveFolder[];
+    name: string;
+}
+
+export interface RecentDriveFile {
+    id: string;
+    name: string;
+    openedAt: number;
+}
+
 export interface VersionHistoryEntry {
     id: string;
     timestamp: number;

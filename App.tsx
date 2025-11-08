@@ -2,7 +2,13 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import jsPDF from 'jspdf';
-import type { ClinicalRecord, GoogleUserProfile, DriveFolder } from './types';
+import type {
+    ClinicalRecord,
+    GoogleUserProfile,
+    DriveFolder,
+    FavoriteFolderEntry,
+    RecentDriveFile,
+} from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
@@ -15,24 +21,16 @@ import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
 import Footer from './components/Footer';
+import SettingsModal from './components/modals/SettingsModal';
+import OpenFromDriveModal from './components/modals/OpenFromDriveModal';
+import SaveToDriveModal from './components/modals/SaveToDriveModal';
+import HistoryModal from './components/modals/HistoryModal';
 
 declare global {
     interface Window {
         gapi: any;
         google: any;
     }
-}
-
-interface FavoriteFolderEntry {
-    id: string;
-    path: DriveFolder[];
-    name: string;
-}
-
-interface RecentDriveFile {
-    id: string;
-    name: string;
-    openedAt: number;
 }
 
 interface DriveCacheEntry {
@@ -1115,214 +1113,78 @@ const App: React.FC = () => {
             />
             
             {/* --- Modals --- */}
-            {isSettingsModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <div className="modal-title">⚙️ Configuración de Google API</div>
-                            <button onClick={closeSettingsModal} className="modal-close">&times;</button>
-                        </div>
-                        <div style={{background: '#eff6ff', padding: '8px', borderRadius: '4px', fontSize: '12px'}}>
-                            <strong>💡 Opcional:</strong> Configure su propia API Key para usar el selector visual de Drive. Sin API Key, se usará un selector simple.
-                        </div>
-                        <div>
-                            <div className="lbl">Google API Key (opcional)</div>
-                            <div className="flex gap-2">
-                                <input type={showApiKey ? "text" : "password"} className="inp flex-grow" value={tempApiKey} onChange={e => setTempApiKey(e.target.value)} placeholder="AIzaSy..."/>
-                                <button className="btn" style={{padding: '6px'}} onClick={() => setShowApiKey(!showApiKey)}>{showApiKey ? '🙈' : '👁️'}</button>
-                            </div>
-                            <small className="text-xs text-gray-500">Obtén tu API Key en <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Google Cloud Console</a></small>
-                        </div>
-                        <div>
-                            <div className="lbl">Client ID (opcional)</div>
-                            <input type="text" className="inp" value={tempClientId} onChange={e => setTempClientId(e.target.value)} placeholder="123-abc.apps.googleusercontent.com"/>
-                        </div>
-                        <div style={{background: '#fef3c7', padding: '8px', borderRadius: '4px', fontSize: '12px'}}>
-                            <strong>⚠️ Privacidad:</strong> Las credenciales se guardan solo en su navegador. Nunca se envían a ningún servidor externo.
-                        </div>
-                        <div className="modal-footer">
-                            <button onClick={handleClearSettings} className="btn bg-red-600 hover:bg-red-700 text-white">🗑️ Eliminar credenciales</button>
-                            <div className="flex gap-2">
-                               <button className="btn" onClick={closeSettingsModal}>Cancelar</button>
-                               <button onClick={handleSaveSettings} className="btn btn-primary">💾 Guardar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <SettingsModal
+                isOpen={isSettingsModalOpen}
+                tempApiKey={tempApiKey}
+                tempClientId={tempClientId}
+                showApiKey={showApiKey}
+                onClose={closeSettingsModal}
+                onToggleShowApiKey={() => setShowApiKey(prev => !prev)}
+                onTempApiKeyChange={setTempApiKey}
+                onTempClientIdChange={setTempClientId}
+                onSave={handleSaveSettings}
+                onClearCredentials={handleClearSettings}
+            />
             
-            {isOpenModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <div className="modal-title">Abrir desde Drive</div>
-                            <button onClick={() => setIsOpenModalOpen(false)} className="modal-close">&times;</button>
-                        </div>
-                        <div>
-                            {isDriveLoading && <div className="drive-progress">⌛ Cargando información de Drive…</div>}
-                            <div className="lbl">Ubicación</div>
-                            <div className="breadcrumb flex gap-1">
-                                {folderPath.map((folder, index) => (
-                                    <React.Fragment key={folder.id}>
-                                        <span className="breadcrumb-item" onClick={() => handleOpenModalBreadcrumbClick(folder.id, index)}>{folder.name}</span>
-                                        {index < folderPath.length - 1 && <span>/</span>}
-                                    </React.Fragment>
-                                ))}
-                            </div>
-                            <div className="drive-search-grid">
-                                <input className="inp" type="text" placeholder="Nombre o paciente" value={driveSearchTerm} onChange={e => setDriveSearchTerm(e.target.value)} />
-                                <input className="inp" type="date" value={driveDateFrom} onChange={e => setDriveDateFrom(e.target.value)} />
-                                <input className="inp" type="date" value={driveDateTo} onChange={e => setDriveDateTo(e.target.value)} />
-                                <input className="inp" type="text" placeholder="Buscar en contenido" value={driveContentTerm} onChange={e => setDriveContentTerm(e.target.value)} />
-                                <div className="drive-search-actions">
-                                    <button className="btn" onClick={handleSearchInDrive} disabled={isDriveLoading}>Buscar</button>
-                                    <button className="btn" onClick={clearDriveSearch} disabled={isDriveLoading}>Limpiar</button>
-                                </div>
-                            </div>
-                            <div className="favorites-actions">
-                                <button className="btn" onClick={handleAddFavoriteFolder} disabled={folderPath[folderPath.length - 1]?.id === 'search'}>Agregar carpeta a favoritos</button>
-                            </div>
-                            {favoriteFolders.length > 0 && (
-                                <div className="favorites-row">
-                                    <span className="favorites-label">Favoritos:</span>
-                                    {favoriteFolders.map(fav => (
-                                        <div key={fav.id} className="favorite-pill">
-                                            <button type="button" onClick={() => handleGoToFavorite(fav, 'open')}>{fav.name}</button>
-                                            <button type="button" onClick={() => handleRemoveFavoriteFolder(fav.id)} title="Quitar">×</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            {recentFiles.length > 0 && (
-                                <div className="favorites-row">
-                                    <span className="favorites-label">Recientes:</span>
-                                    {recentFiles.map(file => {
-                                        const openedAt = new Date(file.openedAt).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
-                                        return (
-                                            <button key={file.id} className="favorite-chip" onClick={() => handleFileOpen({ id: file.id, name: file.name })} title={`Último acceso: ${openedAt}`}>
-                                                {file.name}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                            <div className="folder-list">
-                                {isDriveLoading ? <div className="p-4 text-center">Cargando...</div> : (<>
-                                    {driveFolders.map(folder => (
-                                        <div key={folder.id} className="folder-item" onClick={() => handleOpenModalFolderClick(folder)}>
-                                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a1.99 1.99 0 0 1 .54-1.31zM2.19 4a1 1 0 0 0-.996.886l-.637 7A1 1 0 0 0 1.558 13h10.617a1 1 0 0 0 .996-.886l-.637-7A1 1 0 0 0 11.826 4H2.19z"/></svg>
-                                          {folder.name}
-                                        </div>
-                                    ))}
-                                    {driveJsonFiles.map(file => (
-                                        <div key={file.id} className="folder-item file-item" onClick={() => handleFileOpen(file)}>
-                                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 0h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zM3 2v12h10V2H3zm3 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z"/></svg>
-                                          <div className="file-info">
-                                              <div className="file-name">{file.name}</div>
-                                              <div className="file-meta">{formatDriveDate(file.modifiedTime)}</div>
-                                          </div>
-                                        </div>
-                                    ))}
-                                </>)}
-                            </div>
-                        </div>
-                        <div className="modal-footer"><button className="btn" onClick={() => setIsOpenModalOpen(false)}>Cancelar</button></div>
-                    </div>
-                </div>
-            )}
+            <OpenFromDriveModal
+                isOpen={isOpenModalOpen}
+                isDriveLoading={isDriveLoading}
+                folderPath={folderPath}
+                driveFolders={driveFolders}
+                driveJsonFiles={driveJsonFiles}
+                driveSearchTerm={driveSearchTerm}
+                driveDateFrom={driveDateFrom}
+                driveDateTo={driveDateTo}
+                driveContentTerm={driveContentTerm}
+                favoriteFolders={favoriteFolders}
+                recentFiles={recentFiles}
+                formatDriveDate={formatDriveDate}
+                onClose={() => setIsOpenModalOpen(false)}
+                onSearch={handleSearchInDrive}
+                onClearSearch={clearDriveSearch}
+                onAddFavorite={handleAddFavoriteFolder}
+                onRemoveFavorite={handleRemoveFavoriteFolder}
+                onGoToFavorite={favorite => handleGoToFavorite(favorite, 'open')}
+                onBreadcrumbClick={handleOpenModalBreadcrumbClick}
+                onFolderClick={handleOpenModalFolderClick}
+                onFileOpen={handleFileOpen}
+                onSearchTermChange={setDriveSearchTerm}
+                onDateFromChange={setDriveDateFrom}
+                onDateToChange={setDriveDateTo}
+                onContentTermChange={setDriveContentTerm}
+            />
             
-            {isSaveModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <div className="modal-title">Guardar en Google Drive</div>
-                            <button onClick={closeSaveModal} className="modal-close">&times;</button>
-                        </div>
-                        <div>
-                            <div className="lbl">Formato</div>
-                            <div className="flex gap-4"><label><input type="radio" name="format" value="json" checked={saveFormat === 'json'} onChange={() => setSaveFormat('json')} /> JSON</label><label><input type="radio" name="format" value="pdf" checked={saveFormat === 'pdf'} onChange={() => setSaveFormat('pdf')} /> PDF</label><label><input type="radio" name="format" value="both" checked={saveFormat === 'both'} onChange={() => setSaveFormat('both')} /> Ambos</label></div>
-                        </div>
-                        <div>
-                            <div className="lbl">Nombre del archivo</div>
-                            <input
-                                type="text"
-                                className="inp"
-                                value={fileNameInput}
-                                onChange={e => setFileNameInput(e.target.value)}
-                                placeholder={defaultDriveFileName}
-                            />
-                            <div className="input-hint">No incluyas la extensión; se agregará automáticamente según el formato seleccionado.</div>
-                        </div>
-                        <div>
-                            <div className="lbl">Ubicación</div>
-                            <div className="breadcrumb flex gap-1">
-                                {folderPath.map((folder, index) => (
-                                    <React.Fragment key={folder.id}><span className="breadcrumb-item" onClick={() => handleSaveBreadcrumbClick(folder.id, index)}>{folder.name}</span>{index < folderPath.length - 1 && <span>/</span>}</React.Fragment>
-                                ))}
-                            </div>
-                            <div className="favorites-actions">
-                                <button className="btn" onClick={handleAddFavoriteFolder}>Agregar carpeta a favoritos</button>
-                            </div>
-                            {favoriteFolders.length > 0 && (
-                                <div className="favorites-row">
-                                    <span className="favorites-label">Favoritos:</span>
-                                    {favoriteFolders.map(fav => (
-                                        <div key={fav.id} className="favorite-pill">
-                                            <button type="button" onClick={() => handleGoToFavorite(fav, 'save')}>{fav.name}</button>
-                                            <button type="button" onClick={() => handleRemoveFavoriteFolder(fav.id)} title="Quitar">×</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            <div className="folder-list">
-                                {isDriveLoading ? <div className="p-4 text-center">Cargando...</div> : (driveFolders.map(folder => (<div key={folder.id} className="folder-item" onClick={() => handleSaveFolderClick(folder)}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a1.99 1.99 0 0 1 .54-1.31zM2.19 4a1 1 0 0 0-.996.886l-.637 7A1 1 0 0 0 1.558 13h10.617a1 1 0 0 0 .996-.886l-.637-7A1 1 0 0 0 11.826 4H2.19z"/></svg>{folder.name}</div>)))}
-                            </div>
-                        </div>
-                        <div>
-                            <div className="lbl">Crear nueva carpeta aquí</div>
-                            <div className="flex gap-2"><input type="text" className="inp flex-grow" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Nombre de la carpeta" /><button className="btn" onClick={handleCreateFolder} disabled={isDriveLoading || !newFolderName.trim()}>Crear</button></div>
-                        </div>
-                        <div className="modal-footer"><div><button className="btn" onClick={handleSetDefaultFolder}>Establecer como predeterminada</button></div><div className="flex gap-2"><button className="btn" onClick={closeSaveModal}>Cancelar</button><button className="btn btn-primary" onClick={handleFinalSave} disabled={isSaving || isDriveLoading}>{isSaving ? 'Guardando...' : 'Guardar'}</button></div></div>
-                    </div>
-                </div>
-            )}
+            <SaveToDriveModal
+                isOpen={isSaveModalOpen}
+                isDriveLoading={isDriveLoading}
+                isSaving={isSaving}
+                saveFormat={saveFormat}
+                fileNameInput={fileNameInput}
+                defaultDriveFileName={defaultDriveFileName}
+                folderPath={folderPath}
+                driveFolders={driveFolders}
+                favoriteFolders={favoriteFolders}
+                newFolderName={newFolderName}
+                onClose={closeSaveModal}
+                onSave={handleFinalSave}
+                onAddFavorite={handleAddFavoriteFolder}
+                onRemoveFavorite={handleRemoveFavoriteFolder}
+                onGoToFavorite={favorite => handleGoToFavorite(favorite, 'save')}
+                onBreadcrumbClick={handleSaveBreadcrumbClick}
+                onFolderClick={handleSaveFolderClick}
+                onSaveFormatChange={setSaveFormat}
+                onFileNameInputChange={setFileNameInput}
+                onNewFolderNameChange={setNewFolderName}
+                onCreateFolder={handleCreateFolder}
+                onSetDefaultFolder={handleSetDefaultFolder}
+            />
 
-            {isHistoryModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <div className="modal-title">Historial de versiones locales</div>
-                            <button onClick={() => setIsHistoryModalOpen(false)} className="modal-close">&times;</button>
-                        </div>
-                        {versionHistory.length === 0 ? (
-                            <div style={{ padding: '16px', fontSize: '13px', color: '#4b5563' }}>Aún no hay versiones guardadas. El autoguardado generará versiones automáticamente.</div>
-                        ) : (
-                            <div className="history-list">
-                                {versionHistory.map(entry => {
-                                    const patientName = entry.record.patientFields.find(f => f.id === 'nombre')?.value || 'Sin nombre';
-                                    const templateName = TEMPLATES[entry.record.templateId]?.name || 'Plantilla desconocida';
-                                    const timestampLabel = new Date(entry.timestamp).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
-                                    return (
-                                        <div key={entry.id} className="history-item">
-                                            <div className="history-item-info">
-                                                <div className="history-item-title">{patientName}</div>
-                                                <div className="history-item-meta">{templateName}</div>
-                                                <div className="history-item-meta">Guardado: {timestampLabel}</div>
-                                            </div>
-                                            <div className="history-item-actions">
-                                                <button className="btn" onClick={() => handleRestoreHistoryEntry(entry)}>Restaurar</button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                        <div className="modal-footer">
-                            <button className="btn" onClick={() => setIsHistoryModalOpen(false)}>Cerrar</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <HistoryModal
+                isOpen={isHistoryModalOpen}
+                history={versionHistory}
+                onClose={() => setIsHistoryModalOpen(false)}
+                onRestore={handleRestoreHistoryEntry}
+            />
 
             {toast && (
                 <div className={`toast toast-${toast.type}`}>
