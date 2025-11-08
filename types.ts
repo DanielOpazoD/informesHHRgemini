@@ -65,3 +65,9 @@ export interface DriveFolder {
     mimeType?: string;
 }
 
+export interface VersionHistoryEntry {
+    id: string;
+    timestamp: number;
+    record: ClinicalRecord;
+}
+
