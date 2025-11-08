@@ -92,6 +92,20 @@ const SettingsIcon = () => (
     </svg>
 );
 
+const GmailIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z" />
+        <path d="M3 7 12 13 21 7" />
+    </svg>
+);
+
+const LaunchIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M7 17 17 7" />
+        <path d="M8 7h9v9" />
+    </svg>
+);
+
 const UploadIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 5v14" />
@@ -294,6 +308,10 @@ const Header: React.FC<HeaderProps> = ({
         setIsLauncherOpen(false);
     };
 
+    const openExternalLink = (url: string) => {
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
     const handleMenuAction = (action: () => void) => {
         action();
         setIsMenuOpen(false);
@@ -439,6 +457,20 @@ const Header: React.FC<HeaderProps> = ({
                                 >
                                     <FolderOpenIcon />
                                     <span>Abrir desde Drive</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDropdownAction(() => openExternalLink('https://drive.google.com'))}
+                                >
+                                    <LaunchIcon />
+                                    <span>Ir a Google Drive</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDropdownAction(() => openExternalLink('https://mail.google.com'))}
+                                >
+                                    <GmailIcon />
+                                    <span>Abrir Gmail</span>
                                 </button>
                             </div>
                         )}
