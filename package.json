@@ -9,17 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@tiptap/extension-color": "^2.10.3",
-    "@tiptap/extension-highlight": "^2.10.3",
-    "@tiptap/extension-link": "^2.10.3",
-    "@tiptap/extension-table": "^2.10.3",
-    "@tiptap/extension-table-cell": "^2.10.3",
-    "@tiptap/extension-table-header": "^2.10.3",
-    "@tiptap/extension-table-row": "^2.10.3",
-    "@tiptap/extension-text-style": "^2.10.3",
-    "@tiptap/extension-underline": "^2.10.3",
-    "@tiptap/react": "^2.10.3",
-    "@tiptap/starter-kit": "^2.10.3",
     "jspdf": "latest",
     "react": "19.2.0",
     "react-dom": "19.2.0"
