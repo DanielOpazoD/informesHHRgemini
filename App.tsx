@@ -7,6 +7,7 @@ import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
 import { validateCriticalFields, formatTimeSince } from './utils/validationUtils';
+import { convertPlainTextToHtml, isHtmlContent } from './utils/richText';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -894,36 +895,406 @@ const App: React.FC = () => {
             cursorY += 1.5;
         };
 
-        const addParagraphs = (content: string) => {
-            const paragraphs = content
-                .split(/\r?\n+/)
-                .map(paragraph => paragraph.trim())
-                .filter(Boolean);
+        interface InlineStyle {
+            bold?: boolean;
+            italic?: boolean;
+            underline?: boolean;
+            color?: [number, number, number];
+        }
 
+        interface TextRun extends InlineStyle {
+            text: string;
+            isLineBreak?: boolean;
+        }
+
+        interface RichTextBlock {
+            type: 'paragraph' | 'heading2' | 'heading3' | 'bullet' | 'number';
+            runs: TextRun[];
+            order?: number;
+        }
+
+        // Paleta mínima para resolver colores nombrados que pueda generar Quill.
+        const NAMED_COLORS: Record<string, [number, number, number]> = {
+            black: [0, 0, 0],
+            white: [255, 255, 255],
+            red: [255, 0, 0],
+            blue: [0, 0, 255],
+            green: [0, 128, 0],
+            yellow: [255, 215, 0],
+            orange: [255, 165, 0],
+            purple: [128, 0, 128],
+            gray: [128, 128, 128],
+        };
+
+        // Traduce valores CSS (hex, rgb o nombres) a tripletas RGB utilizables por jsPDF.
+        const parseColor = (value: string | null): [number, number, number] | undefined => {
+            if (!value) return undefined;
+            const normalized = value.trim().toLowerCase();
+
+            const hexMatch = normalized.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+            if (hexMatch) {
+                const hex = hexMatch[1];
+                if (hex.length === 3) {
+                    const r = parseInt(hex[0] + hex[0], 16);
+                    const g = parseInt(hex[1] + hex[1], 16);
+                    const b = parseInt(hex[2] + hex[2], 16);
+                    return [r, g, b];
+                }
+                const r = parseInt(hex.substring(0, 2), 16);
+                const g = parseInt(hex.substring(2, 4), 16);
+                const b = parseInt(hex.substring(4, 6), 16);
+                return [r, g, b];
+            }
+
+            const rgbMatch = normalized.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+            if (rgbMatch) {
+                return [Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3])];
+            }
+
+            return NAMED_COLORS[normalized];
+        };
+
+        // Recorre recursivamente el DOM para obtener fragmentos de texto con su estilo heredado.
+        const collectInlineRuns = (nodes: ChildNode[], baseStyle: InlineStyle = {}): TextRun[] => {
+            const runs: TextRun[] = [];
+            nodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const textContent = node.textContent ?? '';
+                    if (!textContent) return;
+                    runs.push({ ...baseStyle, text: textContent });
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    const element = node as HTMLElement;
+                    if (element.tagName === 'BR') {
+                        runs.push({ ...baseStyle, text: '\n', isLineBreak: true });
+                        return;
+                    }
+
+                    const nextStyle: InlineStyle = { ...baseStyle };
+                    const tag = element.tagName.toLowerCase();
+
+                    if (tag === 'strong' || tag === 'b') {
+                        nextStyle.bold = true;
+                    }
+                    if (tag === 'em' || tag === 'i') {
+                        nextStyle.italic = true;
+                    }
+                    if (tag === 'u') {
+                        nextStyle.underline = true;
+                    }
+
+                    const colorAttr = element.getAttribute('color') || element.style?.color;
+                    const parsedColor = parseColor(colorAttr);
+                    if (parsedColor) {
+                        nextStyle.color = parsedColor;
+                    }
+
+                    const fontWeight = element.style?.fontWeight;
+                    if (fontWeight && (fontWeight.toLowerCase() === 'bold' || parseInt(fontWeight, 10) >= 600)) {
+                        nextStyle.bold = true;
+                    }
+
+                    const fontStyle = element.style?.fontStyle;
+                    if (fontStyle && fontStyle.toLowerCase().includes('italic')) {
+                        nextStyle.italic = true;
+                    }
+
+                    const decoration = element.style?.textDecoration || element.style?.textDecorationLine;
+                    if (decoration && decoration.toLowerCase().includes('underline')) {
+                        nextStyle.underline = true;
+                    }
+
+                    runs.push(...collectInlineRuns(Array.from(element.childNodes), nextStyle));
+                }
+            });
+            return runs;
+        };
+
+        // Convierte el HTML enriquecido en bloques semánticos (párrafos, títulos, listas).
+        const parseHtmlToBlocks = (html: string): RichTextBlock[] => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
+            const container = (doc.body.firstElementChild as HTMLElement) ?? doc.body;
+            const blocks: RichTextBlock[] = [];
+            let pendingRuns: TextRun[] = [];
+
+            const flushPending = () => {
+                if (pendingRuns.length) {
+                    blocks.push({ type: 'paragraph', runs: pendingRuns });
+                    pendingRuns = [];
+                }
+            };
+
+            Array.from(container.childNodes).forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const textContent = node.textContent ?? '';
+                    if (!textContent) return;
+                    pendingRuns.push({ text: textContent });
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    const element = node as HTMLElement;
+                    const tag = element.tagName.toLowerCase();
+
+                    if (tag === 'p' || tag === 'div') {
+                        flushPending();
+                        const runs = collectInlineRuns(Array.from(element.childNodes));
+                        if (runs.length) {
+                            blocks.push({ type: 'paragraph', runs });
+                        }
+                    } else if (tag === 'h2') {
+                        flushPending();
+                        const runs = collectInlineRuns(Array.from(element.childNodes), { bold: true });
+                        if (runs.length) {
+                            blocks.push({ type: 'heading2', runs });
+                        }
+                    } else if (tag === 'h3') {
+                        flushPending();
+                        const runs = collectInlineRuns(Array.from(element.childNodes), { bold: true });
+                        if (runs.length) {
+                            blocks.push({ type: 'heading3', runs });
+                        }
+                    } else if (tag === 'ul' || tag === 'ol') {
+                        flushPending();
+                        const isOrdered = tag === 'ol';
+                        let order = 1;
+                        Array.from(element.children).forEach(item => {
+                            if (item.tagName.toLowerCase() !== 'li') return;
+                            const runs = collectInlineRuns(Array.from(item.childNodes));
+                            if (runs.length) {
+                                blocks.push({
+                                    type: isOrdered ? 'number' : 'bullet',
+                                    runs,
+                                    order: isOrdered ? order : undefined,
+                                });
+                            }
+                            if (isOrdered) order += 1;
+                        });
+                    } else if (tag === 'br') {
+                        pendingRuns.push({ text: '\n', isLineBreak: true });
+                    } else {
+                        const runs = collectInlineRuns(Array.from(element.childNodes));
+                        if (runs.length) {
+                            pendingRuns.push(...runs);
+                        }
+                    }
+                }
+            });
+
+            flushPending();
+
+            return blocks.filter(block =>
+                block.runs.some(run => run.isLineBreak || run.text.trim().length > 0),
+            );
+        };
+
+        const getFontStyle = (style: InlineStyle): 'normal' | 'bold' | 'italic' | 'bolditalic' => {
+            if (style.bold && style.italic) return 'bolditalic';
+            if (style.bold) return 'bold';
+            if (style.italic) return 'italic';
+            return 'normal';
+        };
+
+        type LayoutToken = {
+            type: 'text' | 'space' | 'lineBreak';
+            text?: string;
+            style?: InlineStyle;
+        };
+
+        // Divide los fragmentos en tokens manejables que respeten espacios y saltos de línea.
+        const buildTokens = (runs: TextRun[]): LayoutToken[] => {
+            const tokens: LayoutToken[] = [];
+            runs.forEach(run => {
+                if (run.isLineBreak) {
+                    tokens.push({ type: 'lineBreak' });
+                    return;
+                }
+
+                const style: InlineStyle = {
+                    bold: run.bold,
+                    italic: run.italic,
+                    underline: run.underline,
+                    color: run.color,
+                };
+
+                const normalized = (run.text ?? '').replace(/\r/g, '');
+                if (!normalized) return;
+
+                const segments = normalized.split(/(\s+)/);
+                segments.forEach(segment => {
+                    if (!segment) return;
+                    if (segment === '\n') {
+                        tokens.push({ type: 'lineBreak' });
+                    } else if (/^\s+$/.test(segment)) {
+                        tokens.push({ type: 'space', text: segment, style });
+                    } else {
+                        tokens.push({ type: 'text', text: segment, style });
+                    }
+                });
+            });
+            return tokens;
+        };
+
+        // Calcula el ancho real de un token según la tipografía activa.
+        const measureTokenWidth = (token: LayoutToken, fontSize: number): number => {
+            if (!token.text || token.type === 'lineBreak') return 0;
+            const style = token.style ?? {};
+            pdf.setFont('helvetica', getFontStyle(style));
+            pdf.setFontSize(fontSize);
+            const safeText = token.type === 'space' ? token.text.replace(/\u00a0/g, ' ') : token.text;
+            return pdf.getTextWidth(safeText);
+        };
+
+        // Renderiza un bloque de contenido conservando formato, listas y encabezados.
+        const renderBlock = (block: RichTextBlock) => {
+            let blockFontSize = 11;
+            let blockLineHeight = lineHeight;
+            let spacingAfter = 2;
+            let indent = 0;
+
+            if (block.type === 'heading2') {
+                blockFontSize = 14;
+                blockLineHeight = 7.5;
+                spacingAfter = 3;
+            } else if (block.type === 'heading3') {
+                blockFontSize = 13;
+                blockLineHeight = 7;
+                spacingAfter = 2.5;
+            } else if (block.type === 'bullet' || block.type === 'number') {
+                indent = 6;
+                spacingAfter = 2;
+            }
+
+            const tokens = buildTokens(block.runs);
+            if (!tokens.length) {
+                cursorY += spacingAfter;
+                return;
+            }
+
+            const availableWidth = contentWidth - indent;
+            let currentLine: LayoutToken[] = [];
+            let currentWidth = 0;
+            let isFirstLine = true;
+
+            const flushLine = () => {
+                ensureSpace(blockLineHeight);
+
+                if (!currentLine.length) {
+                    cursorY += blockLineHeight;
+                    isFirstLine = false;
+                    return;
+                }
+
+                let textX = marginX;
+                if (block.type === 'bullet' || block.type === 'number') {
+                    if (isFirstLine) {
+                        const marker = block.type === 'bullet' ? '•' : `${block.order ?? 1}.`;
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setFontSize(blockFontSize);
+                        pdf.setTextColor(0, 0, 0);
+                        pdf.text(marker, marginX, cursorY);
+                    }
+                    textX = marginX + indent;
+                }
+
+                let cursorX = textX;
+                currentLine.forEach(token => {
+                    if (token.type === 'space') {
+                        const width = measureTokenWidth(token, blockFontSize);
+                        cursorX += width;
+                        return;
+                    }
+
+                    if (!token.text) return;
+                    const style = token.style ?? {};
+                    const fontStyle = getFontStyle(style);
+                    const tokenWidth = measureTokenWidth(token, blockFontSize);
+
+                    pdf.setFont('helvetica', fontStyle);
+                    pdf.setFontSize(blockFontSize);
+                    if (style.color) {
+                        pdf.setTextColor(...style.color);
+                        pdf.setDrawColor(...style.color);
+                    } else {
+                        pdf.setTextColor(0, 0, 0);
+                        pdf.setDrawColor(0, 0, 0);
+                    }
+
+                    pdf.text(token.text, cursorX, cursorY);
+
+                    if (style.underline && tokenWidth > 0) {
+                        pdf.setLineWidth(0.2);
+                        const underlineY = cursorY + 0.5;
+                        pdf.line(cursorX, underlineY, cursorX + tokenWidth, underlineY);
+                    }
+
+                    cursorX += tokenWidth;
+                });
+
+                cursorY += blockLineHeight;
+                currentLine = [];
+                currentWidth = 0;
+                isFirstLine = false;
+            };
+
+            tokens.forEach(token => {
+                if (token.type === 'lineBreak') {
+                    flushLine();
+                    return;
+                }
+
+                const tokenWidth = measureTokenWidth(token, blockFontSize);
+                if (token.type === 'space' && currentLine.length === 0) {
+                    return;
+                }
+
+                if (currentWidth + tokenWidth > availableWidth && currentLine.length) {
+                    flushLine();
+                }
+
+                if (token.type === 'space' && currentLine.length === 0) {
+                    return;
+                }
+
+                currentLine.push(token);
+                currentWidth += tokenWidth;
+            });
+
+            if (currentLine.length) {
+                flushLine();
+            }
+
+            cursorY += spacingAfter;
             pdf.setFont('helvetica', 'normal');
             pdf.setFontSize(11);
+            pdf.setTextColor(0, 0, 0);
+            pdf.setDrawColor(0, 0, 0);
+        };
 
-            if (paragraphs.length === 0) {
+        // Punto de entrada que normaliza el contenido y delega en el renderer enriquecido.
+        const addRichTextContent = (content: string) => {
+            const normalized = content
+                ? isHtmlContent(content)
+                    ? content
+                    : convertPlainTextToHtml(content)
+                : '';
+
+            const blocks = normalized ? parseHtmlToBlocks(normalized) : [];
+            const hasVisibleText = blocks.some(block =>
+                block.runs.some(run => run.text.trim().length > 0),
+            );
+
+            if (!hasVisibleText) {
                 ensureSpace(lineHeight * 1.2);
                 pdf.setFont('helvetica', 'italic');
+                pdf.setFontSize(11);
+                pdf.setTextColor(0, 0, 0);
                 pdf.text('Sin contenido registrado.', marginX, cursorY);
                 pdf.setFont('helvetica', 'normal');
                 cursorY += lineHeight + 1.5;
                 return;
             }
 
-            paragraphs.forEach((paragraph, index) => {
-                const lines = pdf.splitTextToSize(paragraph, contentWidth);
-                ensureSpace(lineHeight * lines.length + 1);
-                lines.forEach(line => {
-                    pdf.text(line, marginX, cursorY);
-                    cursorY += lineHeight;
-                });
-                if (index < paragraphs.length - 1) {
-                    cursorY += 1.5;
-                }
+            blocks.forEach(block => {
+                renderBlock(block);
             });
-            cursorY += 2;
         };
 
         const templateTitle = record.title?.trim() || TEMPLATES[record.templateId]?.title || 'Registro Clínico';
@@ -941,7 +1312,7 @@ const App: React.FC = () => {
 
         record.sections.forEach(section => {
             addSectionTitle(section.title);
-            addParagraphs(section.content);
+            addRichTextContent(section.content);
         });
 
         if (record.medico || record.especialidad) {

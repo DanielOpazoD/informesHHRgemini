@@ -1,5 +1,8 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useEffect, useMemo } from 'react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import type { ClinicalSectionData } from '../types';
+import { convertPlainTextToHtml, isHtmlContent } from '../utils/richText';
 
 interface ClinicalSectionProps {
     section: ClinicalSectionData;
@@ -10,27 +13,47 @@ interface ClinicalSectionProps {
     onRemoveSection: (index: number) => void;
 }
 
+const toolbarOptions = [
+    [{ header: [2, 3, false] }],
+    ['bold', 'italic', 'underline'],
+    [{ list: 'ordered' }, { list: 'bullet' }],
+    [{ color: [] }],
+    ['clean'],
+];
+
+const formats = ['header', 'bold', 'italic', 'underline', 'list', 'bullet', 'color'];
+
 const ClinicalSection: React.FC<ClinicalSectionProps> = ({
-    section, index, isEditing, onSectionContentChange, onSectionTitleChange, onRemoveSection
+    section,
+    index,
+    isEditing,
+    onSectionContentChange,
+    onSectionTitleChange,
+    onRemoveSection,
 }) => {
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-    const adjustHeight = useCallback(() => {
-        const textarea = textareaRef.current;
-        if (textarea) {
-            textarea.style.height = 'auto'; // Reset height before calculating scroll height
-            textarea.style.height = `${textarea.scrollHeight}px`;
-        }
-    }, []);
-
+    // Si el contenido recibido aún está en texto plano legacy lo convertimos a HTML una sola vez.
     useEffect(() => {
-        // Adjust when content changes (e.g., from file import)
-        setTimeout(adjustHeight, 0); 
-    }, [section.content, adjustHeight]);
+        if (!section.content) return;
+        if (!isHtmlContent(section.content)) {
+            const html = convertPlainTextToHtml(section.content);
+            if (html !== section.content) {
+                onSectionContentChange(index, html);
+            }
+        }
+    }, [index, onSectionContentChange, section.content]);
+
+    const modules = useMemo(
+        () => ({
+            toolbar: toolbarOptions,
+        }),
+        [],
+    );
 
     return (
         <div className="sec" data-section>
-            <button className="sec-del" onClick={() => onRemoveSection(index)}>×</button>
+            <button className="sec-del" onClick={() => onRemoveSection(index)}>
+                ×
+            </button>
             <div
                 className="subtitle"
                 contentEditable={isEditing}
@@ -39,13 +62,15 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
             >
                 {section.title}
             </div>
-            <textarea
-                ref={textareaRef}
-                className="txt"
-                value={section.content}
-                onChange={e => onSectionContentChange(index, e.target.value)}
-                onInput={adjustHeight}
-            ></textarea>
+            <ReactQuill
+                theme="snow"
+                className="sec-editor"
+                value={section.content || ''}
+                onChange={value => onSectionContentChange(index, value)}
+                modules={modules}
+                formats={formats}
+                placeholder="Escriba aquí..."
+            />
         </div>
     );
 };
