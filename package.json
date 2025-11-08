@@ -11,7 +11,9 @@
   "dependencies": {
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "jspdf": "latest"
+    "jspdf": "latest",
+    "quill": "^1.3.7",
+    "react-quill": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
