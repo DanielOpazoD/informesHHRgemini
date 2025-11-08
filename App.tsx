@@ -1072,16 +1072,18 @@ const App: React.FC = () => {
     }, [record.templateId, getReportDate]);
     
     useEffect(() => {
+        if (!isEditing) return;
+
         const handleOutsideClick = (event: MouseEvent) => {
-            if (isEditing) {
-                const editPanel = document.getElementById('editPanel');
-                const toggleButton = document.getElementById('toggleEdit');
-                if (editPanel && !editPanel.contains(event.target as Node) && toggleButton && !toggleButton.contains(event.target as Node)) {
-                    if ((event.target as HTMLElement).closest('.topbar')) return;
-                    setIsEditing(false);
-                }
-            }
+            const target = event.target as Node | null;
+            if (!(target instanceof Element)) return;
+
+            if (target.closest('.topbar')) return;
+            if (target.closest('#sheet')) return;
+
+            setIsEditing(false);
         };
+
         document.addEventListener('mousedown', handleOutsideClick);
         return () => document.removeEventListener('mousedown', handleOutsideClick);
     }, [isEditing]);

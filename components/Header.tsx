@@ -63,13 +63,6 @@ const FileGroupIcon = () => (
     </svg>
 );
 
-const ToolsIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="m7.5 7.5 9 9" />
-        <path d="M16 3a3.5 3.5 0 0 1-4.95 3.95L5.95 12.1a3.5 3.5 0 1 0 5 5l5.15-5.15A3.5 3.5 0 1 1 21 12" />
-    </svg>
-);
-
 const ChevronDownIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="m6 9 6 6 6-6" />
@@ -383,6 +376,14 @@ const Header: React.FC<HeaderProps> = ({
                             <div className="action-dropdown" role="menu">
                                 <button
                                     type="button"
+                                    id="toggleEdit"
+                                    onClick={() => handleDropdownAction(onToggleEdit)}
+                                >
+                                    <EditIcon />
+                                    <span>{isEditing ? 'Finalizar edición' : 'Editar'}</span>
+                                </button>
+                                <button
+                                    type="button"
                                     onClick={() => handleDropdownAction(onQuickSave)}
                                     disabled={!hasUnsavedChanges}
                                     title={!hasUnsavedChanges ? 'No hay cambios pendientes' : undefined}
@@ -393,6 +394,10 @@ const Header: React.FC<HeaderProps> = ({
                                 <button type="button" onClick={() => handleDropdownAction(onPrint)}>
                                     <PrintIcon />
                                     <span>Imprimir PDF</span>
+                                </button>
+                                <button type="button" onClick={() => handleDropdownAction(onDownloadJson)}>
+                                    <DownloadIcon />
+                                    <span>Guardar JSON</span>
                                 </button>
                                 <button type="button" onClick={() => handleDropdownAction(onOpenHistory)}>
                                     <HistoryIcon />
@@ -446,16 +451,12 @@ const Header: React.FC<HeaderProps> = ({
                             aria-haspopup="true"
                             aria-expanded={openActionMenu === 'herramientas'}
                         >
-                            <ToolsIcon />
+                            <span aria-hidden="true" className="action-icon-emoji">⚙️</span>
                             <span>Herramientas</span>
                             <ChevronDownIcon />
                         </button>
                         {openActionMenu === 'herramientas' && (
                             <div className="action-dropdown" role="menu">
-                                <button type="button" onClick={() => handleDropdownAction(onToggleEdit)}>
-                                    <EditIcon />
-                                    <span>{isEditing ? 'Finalizar edición' : 'Editar'}</span>
-                                </button>
                                 <button type="button" onClick={() => handleDropdownAction(onOpenSettings)} title="Configuración de Google API">
                                     <SettingsIcon />
                                     <span>Google API</span>
