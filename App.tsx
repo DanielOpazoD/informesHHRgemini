@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import jsPDF from 'jspdf';
-import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder } from './types';
+import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder, ActiveModule } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
@@ -11,6 +11,7 @@ import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
 import Footer from './components/Footer';
+import CartolaMedicamentosModule from './components/modules/CartolaMedicamentosModule';
 
 declare global {
     interface Window {
@@ -90,6 +91,7 @@ const App: React.FC = () => {
     const [versionHistory, setVersionHistory] = useState<VersionHistoryEntry[]>([]);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error'; } | null>(null);
+    const [activeModule, setActiveModule] = useState<ActiveModule>('main');
     const [nowTick, setNowTick] = useState(Date.now());
     const [driveSearchTerm, setDriveSearchTerm] = useState('');
     const [driveDateFrom, setDriveDateFrom] = useState('');
@@ -152,6 +154,16 @@ const App: React.FC = () => {
             setToast(null);
             toastTimeoutRef.current = null;
         }, 4000);
+    }, []);
+
+    const handleModuleSelection = useCallback((module: ActiveModule) => {
+        setActiveModule(module);
+        if (module !== 'main') {
+            setIsSaveModalOpen(false);
+            setIsOpenModalOpen(false);
+            setIsSettingsModalOpen(false);
+            setIsHistoryModalOpen(false);
+        }
     }, []);
 
     useEffect(() => () => {
@@ -1254,8 +1266,14 @@ const App: React.FC = () => {
                 lastSaveTime={lastSaveTime}
                 hasUnsavedChanges={hasUnsavedChanges}
                 onOpenHistory={() => setIsHistoryModalOpen(true)}
+                activeModule={activeModule}
+                onSelectApp={handleModuleSelection}
             />
-            
+
+            {activeModule === 'cartolaMedicamentos' ? (
+                <CartolaMedicamentosModule onClose={() => handleModuleSelection('main')} />
+            ) : (
+                <>
             {/* --- Modals --- */}
             {isSettingsModalOpen && (
                 <div className="modal-overlay">
@@ -1493,6 +1511,8 @@ const App: React.FC = () => {
                     <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
                 </div>
             </div>
+                </>
+            )}
         </>
     );
 };

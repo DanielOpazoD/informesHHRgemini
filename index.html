@@ -248,6 +248,17 @@
       border-color: rgba(148, 163, 184, 0.45);
     }
 
+    .app-tile.active {
+      box-shadow: inset 0 0 0 2px var(--topbar-primary-bg);
+      background: rgba(37, 99, 235, 0.15);
+      color: var(--topbar-primary-bg);
+    }
+
+    body[data-theme='dark'] .app-tile.active {
+      background: rgba(59, 130, 246, 0.25);
+      color: #bfdbfe;
+    }
+
     .topbar-actions .action-btn {
       gap: 8px;
     }
@@ -1096,6 +1107,492 @@
       .grid-2 { grid-template-columns: 1fr; }
       .row { grid-template-columns: 100px 1fr auto; }
     }
+    .module-chip {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      background: rgba(148, 163, 184, 0.16);
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
+    }
+
+    .module-chip-title {
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .module-chip-subtitle {
+      font-size: 12px;
+      color: #475569;
+    }
+
+    body[data-theme='dark'] .module-chip {
+      background: rgba(148, 163, 184, 0.14);
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.35);
+      color: #e2e8f0;
+    }
+
+    body[data-theme='dark'] .module-chip-subtitle {
+      color: #cbd5f5;
+    }
+
+    .cartola-module {
+      padding: clamp(16px, 4vw, 32px);
+      max-width: 1120px;
+      margin: 0 auto 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .cartola-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .cartola-header h1 {
+      font-size: 24px;
+      margin: 0;
+      color: #0f172a;
+    }
+
+    .cartola-header p {
+      margin: 4px 0 0;
+      font-size: 14px;
+      color: #475569;
+      max-width: 640px;
+    }
+
+    .cartola-header-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .cartola-button {
+      border: none;
+      border-radius: 9999px;
+      padding: 8px 16px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .cartola-button.primary {
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+    }
+
+    .cartola-button.primary:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+
+    .cartola-button.secondary {
+      background: rgba(148, 163, 184, 0.2);
+      color: #0f172a;
+    }
+
+    .cartola-button.secondary:hover {
+      background: rgba(148, 163, 184, 0.3);
+    }
+
+    .cartola-button.ghost {
+      background: transparent;
+      color: inherit;
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.4);
+    }
+
+    .cartola-button.ghost:hover {
+      color: var(--topbar-primary-bg);
+      box-shadow: inset 0 0 0 1px var(--topbar-primary-bg);
+    }
+
+    .cartola-summary {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .cartola-summary-card {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .cartola-summary-label {
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+
+    .cartola-summary-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .cartola-summary-helper {
+      font-size: 12px;
+      color: #475569;
+    }
+
+    .cartola-form {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 24px 44px rgba(15, 23, 42, 0.12);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .cartola-form-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .cartola-form-header h2 {
+      margin: 0;
+      font-size: 20px;
+      color: #0f172a;
+    }
+
+    .cartola-form-header p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: #475569;
+      max-width: 520px;
+    }
+
+    .cartola-form-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .cartola-form-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .cartola-form-grid label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .cartola-form-grid input,
+    .cartola-form-grid textarea,
+    .cartola-form-grid select {
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 10px 12px;
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #0f172a;
+    }
+
+    .cartola-form-grid textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .cartola-form-full {
+      grid-column: 1 / -1;
+    }
+
+    .cartola-form-footer {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .cartola-form-error {
+      background: rgba(248, 113, 113, 0.15);
+      border: 1px solid rgba(248, 113, 113, 0.45);
+      color: #b91c1c;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+
+    .cartola-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cartola-search input {
+      border-radius: 9999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 10px 16px;
+      min-width: 260px;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .cartola-filter-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .cartola-chip {
+      border-radius: 9999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: transparent;
+      padding: 6px 14px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .cartola-chip.active {
+      background: rgba(37, 99, 235, 0.15);
+      border-color: rgba(37, 99, 235, 0.6);
+      color: #1d4ed8;
+    }
+
+    .cartola-table-card {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      box-shadow: 0 24px 44px rgba(15, 23, 42, 0.12);
+      overflow: hidden;
+    }
+
+    .cartola-table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .cartola-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .cartola-table th {
+      text-align: left;
+      padding: 14px 18px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      background: rgba(148, 163, 184, 0.15);
+    }
+
+    .cartola-table td {
+      padding: 16px 18px;
+      border-top: 1px solid rgba(148, 163, 184, 0.2);
+      vertical-align: top;
+      color: #0f172a;
+    }
+
+    .cartola-table tr.is-suspended td {
+      background: rgba(248, 250, 252, 0.7);
+    }
+
+    .cartola-medication-name {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .cartola-medication-helper {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .cartola-medication-notes {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.4;
+    }
+
+    .cartola-plan-dates {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: #475569;
+    }
+
+    .cartola-responsable {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .cartola-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 9999px;
+      padding: 6px 12px;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: capitalize;
+    }
+
+    .cartola-badge.activo {
+      background: rgba(34, 197, 94, 0.18);
+      color: #047857;
+    }
+
+    .cartola-badge.suspendido {
+      background: rgba(248, 113, 113, 0.15);
+      color: #b91c1c;
+    }
+
+    .cartola-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .cartola-actions-column {
+      width: 180px;
+    }
+
+    .cartola-empty {
+      padding: 24px;
+      text-align: center;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    body[data-theme='dark'] .cartola-header h1 {
+      color: #f8fafc;
+    }
+
+    body[data-theme='dark'] .cartola-header p {
+      color: #cbd5f5;
+    }
+
+    body[data-theme='dark'] .cartola-button.secondary {
+      background: rgba(148, 163, 184, 0.25);
+      color: #e2e8f0;
+    }
+
+    body[data-theme='dark'] .cartola-button.ghost {
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.4);
+    }
+
+    body[data-theme='dark'] .cartola-summary-card {
+      background: rgba(15, 23, 42, 0.92);
+      box-shadow: 0 16px 32px rgba(2, 6, 23, 0.6);
+    }
+
+    body[data-theme='dark'] .cartola-summary-label,
+    body[data-theme='dark'] .cartola-summary-helper,
+    body[data-theme='dark'] .cartola-plan-dates,
+    body[data-theme='dark'] .cartola-medication-helper,
+    body[data-theme='dark'] .cartola-medication-notes {
+      color: #cbd5f5;
+    }
+
+    body[data-theme='dark'] .cartola-summary-value {
+      color: #f8fafc;
+    }
+
+    body[data-theme='dark'] .cartola-form {
+      background: rgba(15, 23, 42, 0.94);
+      box-shadow: 0 24px 44px rgba(2, 6, 23, 0.65);
+    }
+
+    body[data-theme='dark'] .cartola-form-header h2,
+    body[data-theme='dark'] .cartola-form-grid label,
+    body[data-theme='dark'] .cartola-responsable {
+      color: #f8fafc;
+    }
+
+    body[data-theme='dark'] .cartola-form-grid input,
+    body[data-theme='dark'] .cartola-form-grid textarea,
+    body[data-theme='dark'] .cartola-form-grid select,
+    body[data-theme='dark'] .cartola-search input {
+      background: rgba(15, 23, 42, 0.85);
+      border-color: rgba(148, 163, 184, 0.4);
+      color: #e2e8f0;
+    }
+
+    body[data-theme='dark'] .cartola-table-card {
+      background: rgba(15, 23, 42, 0.94);
+      box-shadow: 0 24px 44px rgba(2, 6, 23, 0.7);
+    }
+
+    body[data-theme='dark'] .cartola-table th {
+      background: rgba(71, 85, 105, 0.35);
+      color: #cbd5f5;
+    }
+
+    body[data-theme='dark'] .cartola-table td {
+      border-color: rgba(148, 163, 184, 0.25);
+      color: #e2e8f0;
+    }
+
+    body[data-theme='dark'] .cartola-table tr.is-suspended td {
+      background: rgba(30, 41, 59, 0.55);
+    }
+
+    body[data-theme='dark'] .cartola-badge.activo {
+      background: rgba(16, 185, 129, 0.25);
+      color: #bbf7d0;
+    }
+
+    body[data-theme='dark'] .cartola-badge.suspendido {
+      background: rgba(239, 68, 68, 0.25);
+      color: #fecaca;
+    }
+
+    body[data-theme='dark'] .cartola-empty {
+      color: #cbd5f5;
+    }
+
+    @media (max-width: 768px) {
+      .cartola-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .cartola-form-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .cartola-table th,
+      .cartola-table td {
+        padding: 12px 14px;
+      }
+
+      .cartola-actions-column {
+        width: 140px;
+      }
+    }
+
   </style>
 <script type="importmap">
 {

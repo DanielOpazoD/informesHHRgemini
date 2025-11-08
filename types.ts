@@ -65,3 +65,5 @@ export interface DriveFolder {
     mimeType?: string;
 }
 
+export type ActiveModule = 'main' | 'cartolaMedicamentos';
+
