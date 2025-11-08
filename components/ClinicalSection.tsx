@@ -1,5 +1,7 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import type { ClinicalSectionData } from '../types';
+import RichTextEditor from './RichTextEditor';
+import { convertPlainTextToHtml, sanitizeHtml } from '../utils/htmlUtils';
 
 interface ClinicalSectionProps {
     section: ClinicalSectionData;
@@ -13,20 +15,9 @@ interface ClinicalSectionProps {
 const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     section, index, isEditing, onSectionContentChange, onSectionTitleChange, onRemoveSection
 }) => {
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-    const adjustHeight = useCallback(() => {
-        const textarea = textareaRef.current;
-        if (textarea) {
-            textarea.style.height = 'auto'; // Reset height before calculating scroll height
-            textarea.style.height = `${textarea.scrollHeight}px`;
-        }
-    }, []);
-
-    useEffect(() => {
-        // Adjust when content changes (e.g., from file import)
-        setTimeout(adjustHeight, 0); 
-    }, [section.content, adjustHeight]);
+    const displayContent = useMemo(() => {
+        return convertPlainTextToHtml(section.content || '');
+    }, [section.content]);
 
     return (
         <div className="sec" data-section>
@@ -39,13 +30,18 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
             >
                 {section.title}
             </div>
-            <textarea
-                ref={textareaRef}
-                className="txt"
-                value={section.content}
-                onChange={e => onSectionContentChange(index, e.target.value)}
-                onInput={adjustHeight}
-            ></textarea>
+            {isEditing ? (
+                <RichTextEditor
+                    value={displayContent}
+                    isEditing={isEditing}
+                    onChange={value => onSectionContentChange(index, value)}
+                />
+            ) : (
+                <div
+                    className="rich-text-preview"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayContent) }}
+                />
+            )}
         </div>
     );
 };

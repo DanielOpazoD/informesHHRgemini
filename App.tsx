@@ -25,6 +25,7 @@ import SettingsModal from './components/modals/SettingsModal';
 import OpenFromDriveModal from './components/modals/OpenFromDriveModal';
 import SaveToDriveModal from './components/modals/SaveToDriveModal';
 import HistoryModal from './components/modals/HistoryModal';
+import { htmlToPlainText } from './utils/htmlUtils';
 
 declare global {
     interface Window {
@@ -751,7 +752,8 @@ const App: React.FC = () => {
         };
 
         const addParagraphs = (content: string) => {
-            const paragraphs = content
+            const plainText = htmlToPlainText(content || '');
+            const paragraphs = plainText
                 .split(/\r?\n+/)
                 .map(paragraph => paragraph.trim())
                 .filter(Boolean);
