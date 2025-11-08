@@ -8,6 +8,8 @@ interface HeaderProps {
     onPrint: () => void;
     isEditing: boolean;
     onToggleEdit: () => void;
+    isAdvancedEditing: boolean;
+    onToggleAdvancedEditing: () => void;
     isSignedIn: boolean;
     isGisReady: boolean;
     isGapiReady: boolean;
@@ -82,6 +84,13 @@ const EditIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="m3 17.25 3.75-.75L17.81 5.19a1.5 1.5 0 0 0-2.12-2.12L4.62 14.38 3.87 18.13Z" />
         <path d="M14.5 4.5 19.5 9.5" />
+    </svg>
+);
+
+const PenIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m5 20 1.5-5.5L17.5 3.5a2 2 0 1 1 3 3L9.5 17.5Z" />
+        <path d="M4 21h5" />
     </svg>
 );
 
@@ -187,6 +196,8 @@ const Header: React.FC<HeaderProps> = ({
     onPrint,
     isEditing,
     onToggleEdit,
+    isAdvancedEditing,
+    onToggleAdvancedEditing,
     isSignedIn,
     isGisReady,
     isGapiReady,
@@ -398,7 +409,7 @@ const Header: React.FC<HeaderProps> = ({
                                     onClick={() => handleDropdownAction(onToggleEdit)}
                                 >
                                     <EditIcon />
-                                    <span>{isEditing ? 'Finalizar edición' : 'Editar'}</span>
+                                    <span>{isEditing ? 'Bloquear estructura' : 'Editar estructura'}</span>
                                 </button>
                                 <button
                                     type="button"
@@ -431,6 +442,17 @@ const Header: React.FC<HeaderProps> = ({
                             </div>
                         )}
                     </div>
+                    <button
+                        type="button"
+                        className={`action-btn ${isAdvancedEditing ? 'active' : ''}`}
+                        onClick={onToggleAdvancedEditing}
+                        aria-pressed={isAdvancedEditing}
+                        aria-label={isAdvancedEditing ? 'Desactivar edición avanzada' : 'Activar edición avanzada'}
+                        title={isAdvancedEditing ? 'Desactivar edición avanzada' : 'Activar edición avanzada'}
+                    >
+                        <PenIcon />
+                        <span>Modo avanzado</span>
+                    </button>
                     <div className={`action-group ${openActionMenu === 'drive' ? 'open' : ''}`} ref={driveMenuRef}>
                         <button
                             type="button"

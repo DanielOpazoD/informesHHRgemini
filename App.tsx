@@ -41,6 +41,7 @@ interface DriveCacheEntry {
 
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
+    const [isAdvancedEditing, setIsAdvancedEditing] = useState(false);
     const { toast, showToast } = useToast();
     const {
         record,
@@ -751,7 +752,25 @@ const App: React.FC = () => {
         };
 
         const addParagraphs = (content: string) => {
-            const paragraphs = content
+            const htmlToPlainText = (value: string) => {
+                if (!value) return '';
+                if (typeof window === 'undefined') return value;
+                const container = document.createElement('div');
+                container.innerHTML = value;
+                container.querySelectorAll('li').forEach(li => {
+                    const parent = li.parentElement;
+                    const isOrdered = parent?.tagName === 'OL';
+                    const index = parent ? Array.from(parent.children).indexOf(li) + 1 : 0;
+                    const prefix = isOrdered ? `${index}. ` : '• ';
+                    const text = li.innerText.trim();
+                    if (text.startsWith(prefix.trim())) return;
+                    li.insertAdjacentText('afterbegin', prefix);
+                });
+                return container.innerText;
+            };
+
+            const plainText = htmlToPlainText(content);
+            const paragraphs = plainText
                 .split(/\r?\n+/)
                 .map(paragraph => paragraph.trim())
                 .filter(Boolean);
@@ -970,6 +989,23 @@ const App: React.FC = () => {
         setRecord(r => ({ ...r, sections: newSections }));
     };
 
+    const handleToolbarCommand = useCallback((command: string) => {
+        const activeElement = document.activeElement as HTMLElement | null;
+        if (!activeElement) return;
+        const editable = activeElement.closest('[contenteditable="true"]') as HTMLElement | null;
+        if (!editable) return;
+        editable.focus();
+        try {
+            document.execCommand(command);
+        } catch (error) {
+            console.warn(`Comando no soportado: ${command}`, error);
+        }
+    }, []);
+
+    const preventToolbarMouseDown = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+    }, []);
+
     const handleSectionTitleChange = (index: number, title: string) => {
         const newSections = [...record.sections];
         newSections[index] = { ...newSections[index], title };
@@ -1090,6 +1126,8 @@ const App: React.FC = () => {
                 onPrint={handlePrint}
                 isEditing={isEditing}
                 onToggleEdit={() => setIsEditing(!isEditing)}
+                isAdvancedEditing={isAdvancedEditing}
+                onToggleAdvancedEditing={() => setIsAdvancedEditing(prev => !prev)}
                 isSignedIn={isSignedIn}
                 isGisReady={isGisReady}
                 isGapiReady={isGapiReady}
@@ -1209,7 +1247,97 @@ const App: React.FC = () => {
                     </div>
                     <div className="title" contentEditable={isEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>{record.title}</div>
                     <PatientInfo isEditing={isEditing} patientFields={record.patientFields} onPatientFieldChange={handlePatientFieldChange} onPatientLabelChange={handlePatientLabelChange} onRemovePatientField={handleRemovePatientField} />
-                    <div id="sectionsContainer">{record.sections.map((section, index) => (<ClinicalSection key={index} section={section} index={index} isEditing={isEditing} onSectionContentChange={handleSectionContentChange} onSectionTitleChange={handleSectionTitleChange} onRemoveSection={handleRemoveSection} />))}</div>
+                    {isAdvancedEditing && (
+                        <div className="editor-toolbar" role="toolbar" aria-label="Herramientas de edición avanzada">
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => handleToolbarCommand('bold')}
+                                aria-label="Aplicar negrita"
+                                title="Negrita"
+                            >
+                                <span className="toolbar-icon">B</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => handleToolbarCommand('underline')}
+                                aria-label="Aplicar subrayado"
+                                title="Subrayado"
+                            >
+                                <span className="toolbar-icon toolbar-underline">S</span>
+                            </button>
+                            <span className="toolbar-divider" aria-hidden="true" />
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => handleToolbarCommand('outdent')}
+                                aria-label="Reducir sangría"
+                                title="Reducir sangría"
+                            >
+                                <span className="toolbar-icon">⇤</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => handleToolbarCommand('indent')}
+                                aria-label="Aumentar sangría"
+                                title="Aumentar sangría"
+                            >
+                                <span className="toolbar-icon">⇥</span>
+                            </button>
+                            <span className="toolbar-divider" aria-hidden="true" />
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => handleToolbarCommand('insertUnorderedList')}
+                                aria-label="Lista con viñetas"
+                                title="Lista con viñetas"
+                            >
+                                <span className="toolbar-icon">•</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => handleToolbarCommand('insertOrderedList')}
+                                aria-label="Lista numerada"
+                                title="Lista numerada"
+                            >
+                                <span className="toolbar-icon">1.</span>
+                            </button>
+                            <span className="toolbar-divider" aria-hidden="true" />
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => handleToolbarCommand('undo')}
+                                aria-label="Deshacer"
+                                title="Deshacer"
+                            >
+                                <span className="toolbar-icon">↺</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => handleToolbarCommand('redo')}
+                                aria-label="Rehacer"
+                                title="Rehacer"
+                            >
+                                <span className="toolbar-icon">↻</span>
+                            </button>
+                        </div>
+                    )}
+                    <div id="sectionsContainer">{record.sections.map((section, index) => (
+                        <ClinicalSection
+                            key={index}
+                            section={section}
+                            index={index}
+                            isEditing={isEditing}
+                            isAdvancedEditing={isAdvancedEditing}
+                            onSectionContentChange={handleSectionContentChange}
+                            onSectionTitleChange={handleSectionTitleChange}
+                            onRemoveSection={handleRemoveSection}
+                        />
+                    ))}</div>
                     <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
                 </div>
             </div>
