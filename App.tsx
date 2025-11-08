@@ -15,6 +15,7 @@ import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
 import Footer from './components/Footer';
+import MedicationModule from './components/modules/MedicationModule';
 
 declare global {
     interface Window {
@@ -42,6 +43,7 @@ interface DriveCacheEntry {
 }
 
 const App: React.FC = () => {
+    const [activeApp, setActiveApp] = useState<'hhr' | 'cartolaMedicamentos'>('hhr');
     const [isEditing, setIsEditing] = useState(false);
     const { toast, showToast } = useToast();
     const {
@@ -110,6 +112,13 @@ const App: React.FC = () => {
 
     useEffect(() => {
         document.body.dataset.theme = 'light';
+    }, []);
+
+    const handleSelectApp = useCallback((app: 'hhr' | 'cartolaMedicamentos') => {
+        setActiveApp(app);
+        if (app !== 'hhr') {
+            setIsEditing(false);
+        }
     }, []);
 
     useEffect(() => {
@@ -1112,8 +1121,16 @@ const App: React.FC = () => {
                 lastSaveTime={lastSaveTime}
                 hasUnsavedChanges={hasUnsavedChanges}
                 onOpenHistory={() => setIsHistoryModalOpen(true)}
+                onSelectApp={handleSelectApp}
+                activeApp={activeApp}
             />
-            
+
+            {activeApp === 'cartolaMedicamentos' && (
+                <div className="module-overlay" role="dialog" aria-modal="true">
+                    <MedicationModule onClose={() => handleSelectApp('hhr')} />
+                </div>
+            )}
+
             {/* --- Modals --- */}
             {isSettingsModalOpen && (
                 <div className="modal-overlay">
