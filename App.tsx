@@ -40,7 +40,8 @@ interface DriveCacheEntry {
 }
 
 const App: React.FC = () => {
-    const [isEditing, setIsEditing] = useState(false);
+    const [isStructureEditing, setIsStructureEditing] = useState(false);
+    const [isAdvancedEditing, setIsAdvancedEditing] = useState(false);
     const { toast, showToast } = useToast();
     const {
         record,
@@ -928,7 +929,7 @@ const App: React.FC = () => {
     }, [record.templateId, getReportDate]);
     
     useEffect(() => {
-        if (!isEditing) return;
+        if (!isStructureEditing) return;
 
         const handleOutsideClick = (event: MouseEvent) => {
             const target = event.target as Node | null;
@@ -937,12 +938,20 @@ const App: React.FC = () => {
             if (target.closest('.topbar')) return;
             if (target.closest('#sheet')) return;
 
-            setIsEditing(false);
+            setIsStructureEditing(false);
         };
 
         document.addEventListener('mousedown', handleOutsideClick);
         return () => document.removeEventListener('mousedown', handleOutsideClick);
-    }, [isEditing]);
+    }, [isStructureEditing]);
+
+    const handleToolbarCommand = useCallback((command: string) => {
+        if (!isAdvancedEditing) return;
+        if (typeof document === 'undefined') return;
+        const activeElement = document.activeElement as HTMLElement | null;
+        if (!activeElement || !activeElement.isContentEditable) return;
+        document.execCommand(command, false);
+    }, [isAdvancedEditing]);
 
     const handlePatientFieldChange = (index: number, value: string) => {
         const newFields = [...record.patientFields];
@@ -1088,8 +1097,10 @@ const App: React.FC = () => {
                 templateId={record.templateId}
                 onTemplateChange={handleTemplateChange}
                 onPrint={handlePrint}
-                isEditing={isEditing}
-                onToggleEdit={() => setIsEditing(!isEditing)}
+                isStructureEditing={isStructureEditing}
+                onToggleStructureEdit={() => setIsStructureEditing(!isStructureEditing)}
+                isAdvancedEditing={isAdvancedEditing}
+                onToggleAdvancedEditing={() => setIsAdvancedEditing(prev => !prev)}
                 isSignedIn={isSignedIn}
                 isGisReady={isGisReady}
                 isGapiReady={isGapiReady}
@@ -1195,10 +1206,89 @@ const App: React.FC = () => {
             <input ref={importInputRef} id="importJson" type="file" accept="application/json" style={{ display: 'none' }} onChange={handleImportFile} />
 
             <div className="wrap">
-                <div id="sheet" className={`sheet ${isEditing ? 'edit-mode' : ''}`}>
+                {isAdvancedEditing && (
+                    <div className="advanced-toolbar" role="toolbar" aria-label="Herramientas de formato avanzado">
+                        <button
+                            type="button"
+                            onMouseDown={event => event.preventDefault()}
+                            onClick={() => handleToolbarCommand('bold')}
+                            aria-label="Negrita"
+                            title="Negrita"
+                        >
+                            <span className="toolbar-label">N</span>
+                        </button>
+                        <button
+                            type="button"
+                            onMouseDown={event => event.preventDefault()}
+                            onClick={() => handleToolbarCommand('underline')}
+                            aria-label="Subrayado"
+                            title="Subrayado"
+                        >
+                            <span className="toolbar-label">S</span>
+                        </button>
+                        <div className="toolbar-divider" aria-hidden="true" />
+                        <button
+                            type="button"
+                            onMouseDown={event => event.preventDefault()}
+                            onClick={() => handleToolbarCommand('outdent')}
+                            aria-label="Reducir sangría"
+                            title="Reducir sangría"
+                        >
+                            <span className="toolbar-label">⟵</span>
+                        </button>
+                        <button
+                            type="button"
+                            onMouseDown={event => event.preventDefault()}
+                            onClick={() => handleToolbarCommand('indent')}
+                            aria-label="Aumentar sangría"
+                            title="Aumentar sangría"
+                        >
+                            <span className="toolbar-label">⟶</span>
+                        </button>
+                        <div className="toolbar-divider" aria-hidden="true" />
+                        <button
+                            type="button"
+                            onMouseDown={event => event.preventDefault()}
+                            onClick={() => handleToolbarCommand('insertUnorderedList')}
+                            aria-label="Lista con viñetas"
+                            title="Lista con viñetas"
+                        >
+                            <span className="toolbar-label">• •</span>
+                        </button>
+                        <button
+                            type="button"
+                            onMouseDown={event => event.preventDefault()}
+                            onClick={() => handleToolbarCommand('insertOrderedList')}
+                            aria-label="Lista numerada"
+                            title="Lista numerada"
+                        >
+                            <span className="toolbar-label">1.</span>
+                        </button>
+                        <div className="toolbar-divider" aria-hidden="true" />
+                        <button
+                            type="button"
+                            onMouseDown={event => event.preventDefault()}
+                            onClick={() => handleToolbarCommand('undo')}
+                            aria-label="Deshacer"
+                            title="Deshacer"
+                        >
+                            <span className="toolbar-label">↺</span>
+                        </button>
+                        <button
+                            type="button"
+                            onMouseDown={event => event.preventDefault()}
+                            onClick={() => handleToolbarCommand('redo')}
+                            aria-label="Rehacer"
+                            title="Rehacer"
+                        >
+                            <span className="toolbar-label">↻</span>
+                        </button>
+                    </div>
+                )}
+                <div id="sheet" className={`sheet ${isStructureEditing ? 'edit-mode' : ''} ${isAdvancedEditing ? 'advanced-mode' : ''}`}>
                     <img id="logoLeft" src="https://iili.io/FEirDCl.png" className="absolute top-2 left-2 w-12 h-auto opacity-60 print:block" alt="Logo Left"/>
                     <img id="logoRight" src="https://iili.io/FEirQjf.png" className="absolute top-2 right-2 w-12 h-auto opacity-60 print:block" alt="Logo Right"/>
-                    <div id="editPanel" className={`edit-panel ${isEditing ? 'visible' : 'hidden'}`}>
+                    <div id="editPanel" className={`edit-panel ${isStructureEditing ? 'visible' : 'hidden'}`}>
                         <div>Edición</div>
                         <button onClick={handleAddSection} className="btn" type="button">Agregar sección</button>
                         <button onClick={() => handleRemoveSection(record.sections.length-1)} className="btn" type="button">Eliminar última sección</button>
@@ -1207,9 +1297,20 @@ const App: React.FC = () => {
                         <button onClick={() => setRecord(r => ({...r, patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS))}))} className="btn" type="button">Restaurar campos</button>
                         <hr /><button onClick={restoreAll} className="btn" type="button">Restaurar todo</button>
                     </div>
-                    <div className="title" contentEditable={isEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>{record.title}</div>
-                    <PatientInfo isEditing={isEditing} patientFields={record.patientFields} onPatientFieldChange={handlePatientFieldChange} onPatientLabelChange={handlePatientLabelChange} onRemovePatientField={handleRemovePatientField} />
-                    <div id="sectionsContainer">{record.sections.map((section, index) => (<ClinicalSection key={index} section={section} index={index} isEditing={isEditing} onSectionContentChange={handleSectionContentChange} onSectionTitleChange={handleSectionTitleChange} onRemoveSection={handleRemoveSection} />))}</div>
+                    <div className="title" contentEditable={isStructureEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>{record.title}</div>
+                    <PatientInfo isStructureEditing={isStructureEditing} patientFields={record.patientFields} onPatientFieldChange={handlePatientFieldChange} onPatientLabelChange={handlePatientLabelChange} onRemovePatientField={handleRemovePatientField} />
+                    <div id="sectionsContainer">{record.sections.map((section, index) => (
+                        <ClinicalSection
+                            key={index}
+                            section={section}
+                            index={index}
+                            isStructureEditing={isStructureEditing}
+                            isAdvancedEditing={isAdvancedEditing}
+                            onSectionContentChange={handleSectionContentChange}
+                            onSectionTitleChange={handleSectionTitleChange}
+                            onRemoveSection={handleRemoveSection}
+                        />
+                    ))}</div>
                     <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
                 </div>
             </div>
