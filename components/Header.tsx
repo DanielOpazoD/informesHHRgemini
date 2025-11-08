@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { GoogleUserProfile } from '../types';
 import { TEMPLATES } from '../constants';
 
+type LauncherApp = 'hhr' | 'cartolaMedicamentos';
+
 interface HeaderProps {
     templateId: string;
     onTemplateChange: (id: string) => void;
@@ -28,6 +30,8 @@ interface HeaderProps {
     lastSaveTime: string;
     hasUnsavedChanges: boolean;
     onOpenHistory: () => void;
+    onSelectApp: (app: LauncherApp) => void;
+    activeApp: LauncherApp;
 }
 
 const GridIcon = () => (
@@ -53,6 +57,13 @@ const GlucoseIcon = () => (
         <path d="M8 8h8" />
         <path d="M8 12h8" />
         <path d="M10 16h4" />
+    </svg>
+);
+
+const PillIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19 5a5 5 0 0 0-7.07 0l-6.93 6.93a5 5 0 1 0 7.07 7.07L19 12.07A5 5 0 0 0 19 5Z" />
+        <path d="m9.88 9.88 4.24 4.24" />
     </svg>
 );
 
@@ -322,6 +333,11 @@ const Header: React.FC<HeaderProps> = ({
         setOpenActionMenu(null);
     };
 
+    const handleAppTileClick = (app: LauncherApp) => {
+        onSelectApp(app);
+        setIsLauncherOpen(false);
+    };
+
     const driveOptionDisabled = hasApiKey && !isPickerApiReady;
     const statusState = hasUnsavedChanges || !lastSaveTime ? 'unsaved' : 'saved';
 
@@ -343,13 +359,21 @@ const Header: React.FC<HeaderProps> = ({
                         {isLauncherOpen && (
                             <div className="app-launcher-dropdown" role="menu">
                                 <div className="app-launcher-grid">
-                                    <button type="button" className="app-tile" onClick={() => setIsLauncherOpen(false)}>
+                                    <button
+                                        type="button"
+                                        className={`app-tile ${activeApp === 'hhr' ? 'active' : ''}`}
+                                        onClick={() => handleAppTileClick('hhr')}
+                                    >
                                         <BloodTestIcon />
-                                        <span>Análisis de Sangre</span>
+                                        <span>Registro Clínico</span>
                                     </button>
-                                    <button type="button" className="app-tile" onClick={() => setIsLauncherOpen(false)}>
-                                        <GlucoseIcon />
-                                        <span>Registro Glicemia</span>
+                                    <button
+                                        type="button"
+                                        className={`app-tile ${activeApp === 'cartolaMedicamentos' ? 'active' : ''}`}
+                                        onClick={() => handleAppTileClick('cartolaMedicamentos')}
+                                    >
+                                        <PillIcon />
+                                        <span>Cartola Medicamentos</span>
                                     </button>
                                     <div className="app-tile disabled">
                                         <span>Próximamente…</span>
