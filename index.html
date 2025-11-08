@@ -857,6 +857,67 @@
       overflow-y: hidden;
     }
 
+    .clinical-quill {
+      margin-top: 4px;
+    }
+
+    .clinical-quill .ql-toolbar {
+      background: #f9fafb;
+      border: 1px solid #d1d5db;
+      border-bottom: 1px solid #e5e7eb;
+      border-top-left-radius: 3px;
+      border-top-right-radius: 3px;
+      padding: 6px 8px;
+    }
+
+    .clinical-quill .ql-toolbar .ql-picker {
+      line-height: 1.2;
+    }
+
+    .clinical-quill .ql-container {
+      border: 1px solid #d1d5db;
+      border-top: none;
+      border-bottom-left-radius: 3px;
+      border-bottom-right-radius: 3px;
+      min-height: 100px;
+      font-family: inherit;
+      font-size: var(--fs);
+    }
+
+    .clinical-quill .ql-container.ql-snow.ql-focused {
+      border-color: #1e40af;
+      box-shadow: inset 0 0 0 1px rgba(30, 64, 175, 0.2);
+      background: #f0f9ff;
+    }
+
+    .clinical-quill .ql-editor {
+      min-height: 100px;
+      line-height: 1.4;
+      padding: 10px 12px;
+    }
+
+    .clinical-quill .ql-editor.ql-blank::before {
+      font-style: italic;
+      color: #9ca3af;
+    }
+
+    .clinical-quill .ql-toolbar button:hover,
+    .clinical-quill .ql-toolbar .ql-picker-label:hover,
+    .clinical-quill .ql-toolbar .ql-picker-item:hover {
+      color: #1e40af;
+    }
+
+    @media print {
+      .clinical-quill .ql-toolbar {
+        display: none !important;
+      }
+
+      .clinical-quill .ql-container {
+        border: none;
+        box-shadow: none;
+      }
+    }
+
     .sec {
       margin-top: 6px;
       position: relative;

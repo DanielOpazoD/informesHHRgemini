@@ -7,6 +7,7 @@ import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
 import { validateCriticalFields, formatTimeSince } from './utils/validationUtils';
+import { ensureHtmlContent } from './utils/htmlUtils';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -103,6 +104,15 @@ const App: React.FC = () => {
     const skipUnsavedRef = useRef(true);
     const toastTimeoutRef = useRef<number | null>(null);
 
+    // Normaliza las secciones para que incluso los registros antiguos guarden HTML válido.
+    const normalizeRecord = useCallback((incoming: ClinicalRecord): ClinicalRecord => ({
+        ...incoming,
+        sections: incoming.sections.map(section => ({
+            ...section,
+            content: ensureHtmlContent(section.content),
+        })),
+    }), []);
+
     // Google Auth State
     const [isSignedIn, setIsSignedIn] = useState(false);
     const [userProfile, setUserProfile] = useState<GoogleUserProfile | null>(null);
@@ -177,7 +187,7 @@ const App: React.FC = () => {
                 const parsed = JSON.parse(draftRaw) as { timestamp?: number; record?: ClinicalRecord };
                 if (parsed?.record) {
                     skipUnsavedRef.current = true;
-                    setRecord(parsed.record);
+                    setRecord(normalizeRecord(parsed.record));
                     if (parsed.timestamp) setLastLocalSave(parsed.timestamp);
                     setHasUnsavedChanges(false);
                     showToast('Borrador recuperado automáticamente.', 'success');
@@ -216,7 +226,7 @@ const App: React.FC = () => {
         } catch (error) {
             console.warn('No se pudo leer la lista de documentos recientes:', error);
         }
-    }, [showToast]);
+    }, [showToast, normalizeRecord]);
 
     // Load settings from localStorage on initial render
     useEffect(() => {
@@ -567,7 +577,7 @@ const App: React.FC = () => {
             showToast('Favorito eliminado.', 'warning');
             return updated;
         });
-    }, [showToast]);
+    }, [normalizeRecord, showToast]);
 
     const handleGoToFavorite = useCallback((favorite: FavoriteFolderEntry, mode: 'save' | 'open') => {
         const clonedPath = favorite.path?.length ? JSON.parse(JSON.stringify(favorite.path)) as DriveFolder[] : [{ id: 'root', name: 'Mi unidad' }];
@@ -691,7 +701,7 @@ const App: React.FC = () => {
         if (!window.confirm('¿Desea restaurar esta versión anterior? Se reemplazarán los datos actuales.')) return;
         const snapshot = JSON.parse(JSON.stringify(entry.record)) as ClinicalRecord;
         skipUnsavedRef.current = true;
-        setRecord(snapshot);
+        setRecord(normalizeRecord(snapshot));
         setHasUnsavedChanges(false);
         setLastLocalSave(entry.timestamp);
         if (typeof window !== 'undefined') {
@@ -699,7 +709,7 @@ const App: React.FC = () => {
         }
         showToast('Versión restaurada desde el historial.');
         setIsHistoryModalOpen(false);
-    }, [showToast]);
+    }, [normalizeRecord, showToast]);
 
     const formatDriveDate = useCallback((value?: string) => {
         if (!value) return 'Sin fecha';
@@ -799,10 +809,11 @@ const App: React.FC = () => {
             });
             const importedRecord = JSON.parse(response.body);
             if (importedRecord.version && importedRecord.patientFields && importedRecord.sections) {
+                const normalized = normalizeRecord(importedRecord);
                 skipUnsavedRef.current = true;
-                setRecord(importedRecord);
+                setRecord(normalized);
                 setHasUnsavedChanges(false);
-                saveDraft('import');
+                saveDraft('import', normalized);
                 addRecentFile(file);
                 showToast('Archivo cargado exitosamente desde Google Drive.');
                 setIsOpenModalOpen(false);
@@ -894,36 +905,386 @@ const App: React.FC = () => {
             cursorY += 1.5;
         };
 
-        const addParagraphs = (content: string) => {
-            const paragraphs = content
-                .split(/\r?\n+/)
-                .map(paragraph => paragraph.trim())
-                .filter(Boolean);
+        // --- Renderizado de contenido enriquecido en PDF ---
+        interface TextStyle {
+            bold?: boolean;
+            italic?: boolean;
+            underline?: boolean;
+            color?: string;
+        }
 
+        interface InlineSegment {
+            text: string;
+            style: TextStyle;
+        }
+
+        interface RichBlock {
+            type: 'paragraph' | 'heading2' | 'heading3' | 'list-item';
+            segments: InlineSegment[];
+            orderedIndex?: number;
+        }
+
+        const getFontStyle = (style: TextStyle): 'normal' | 'bold' | 'italic' | 'bolditalic' => {
+            if (style.bold && style.italic) return 'bolditalic';
+            if (style.bold) return 'bold';
+            if (style.italic) return 'italic';
+            return 'normal';
+        };
+
+        const parseColor = (value: string | undefined | null): [number, number, number] | null => {
+            if (!value) return null;
+            const trimmed = value.trim();
+
+            const hexMatch = trimmed.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+            if (hexMatch) {
+                let hex = hexMatch[1];
+                if (hex.length === 3) {
+                    hex = hex.split('').map(char => char + char).join('');
+                }
+                const r = parseInt(hex.slice(0, 2), 16);
+                const g = parseInt(hex.slice(2, 4), 16);
+                const b = parseInt(hex.slice(4, 6), 16);
+                return [r, g, b];
+            }
+
+            const rgbMatch = trimmed.match(/^rgba?\(([^)]+)\)$/i);
+            if (rgbMatch) {
+                const [r, g, b] = rgbMatch[1]
+                    .split(',')
+                    .map(part => parseFloat(part.trim()))
+                    .slice(0, 3)
+                    .map(channel => Math.max(0, Math.min(255, Number.isFinite(channel) ? channel : 0)));
+                return [r, g, b];
+            }
+
+            return null;
+        };
+
+        // Recorre el árbol HTML generando segmentos de texto con su estilo asociado.
+        const collectInlineSegments = (parent: Node, inheritedStyle: TextStyle = {}): InlineSegment[] => {
+            const segments: InlineSegment[] = [];
+
+            parent.childNodes.forEach(child => {
+                if (child.nodeType === Node.TEXT_NODE) {
+                    const raw = child.textContent ?? '';
+                    const normalized = raw.replace(/\u00a0/g, ' ');
+                    if (normalized.length > 0) {
+                        segments.push({ text: normalized, style: { ...inheritedStyle } });
+                    }
+                    return;
+                }
+
+                if (child.nodeType !== Node.ELEMENT_NODE) {
+                    return;
+                }
+
+                const element = child as HTMLElement;
+                const tag = element.tagName.toLowerCase();
+                const nextStyle: TextStyle = { ...inheritedStyle };
+
+                if (tag === 'strong' || tag === 'b') {
+                    nextStyle.bold = true;
+                }
+                if (tag === 'em' || tag === 'i') {
+                    nextStyle.italic = true;
+                }
+                if (tag === 'u') {
+                    nextStyle.underline = true;
+                }
+                if (tag === 'span') {
+                    const styleAttr = element.getAttribute('style');
+                    const colorMatch = styleAttr?.match(/color\s*:\s*([^;]+)/i);
+                    if (colorMatch) {
+                        nextStyle.color = colorMatch[1].trim();
+                    }
+                }
+
+                if (tag === 'br') {
+                    segments.push({ text: '\n', style: { ...nextStyle } });
+                    return;
+                }
+
+                if (tag === 'p' || tag === 'div') {
+                    const nestedSegments = collectInlineSegments(element, nextStyle);
+                    segments.push(...nestedSegments);
+                    segments.push({ text: '\n', style: { ...nextStyle } });
+                    return;
+                }
+
+                if (tag === 'ul' || tag === 'ol') {
+                    element.childNodes.forEach(nested => {
+                        segments.push(...collectInlineSegments(nested, nextStyle));
+                    });
+                    return;
+                }
+
+                segments.push(...collectInlineSegments(element, nextStyle));
+            });
+
+            return segments;
+        };
+
+        const removeEdgeBreaks = (segments: InlineSegment[]): InlineSegment[] => {
+            const trimmed = [...segments];
+            while (trimmed.length > 0) {
+                const first = trimmed[0];
+                if (first.text === '\n' || !first.text.replace(/\s+/g, '')) {
+                    trimmed.shift();
+                } else {
+                    break;
+                }
+            }
+            while (trimmed.length > 0) {
+                const last = trimmed[trimmed.length - 1];
+                if (last.text === '\n' || !last.text.replace(/\s+/g, '')) {
+                    trimmed.pop();
+                } else {
+                    break;
+                }
+            }
+            return trimmed;
+        };
+
+        const hasVisibleContent = (segments: InlineSegment[]): boolean =>
+            segments.some(segment => segment.text.replace(/\s+/g, '').length > 0);
+
+        const buildBlocksFromHtml = (content: string): RichBlock[] => {
+            const html = ensureHtmlContent(content).trim();
+            if (!html) {
+                return [];
+            }
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
+            const container = doc.body;
+            const blocks: RichBlock[] = [];
+
+            const processNode = (node: ChildNode) => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const text = (node.textContent ?? '').trim();
+                    if (text) {
+                        blocks.push({ type: 'paragraph', segments: [{ text, style: {} }] });
+                    }
+                    return;
+                }
+
+                if (node.nodeType !== Node.ELEMENT_NODE) {
+                    return;
+                }
+
+                const element = node as HTMLElement;
+                const tag = element.tagName.toLowerCase();
+
+                const segments = removeEdgeBreaks(collectInlineSegments(element));
+                if (tag === 'h2' || tag === 'h3') {
+                    if (hasVisibleContent(segments)) {
+                        blocks.push({
+                            type: tag === 'h2' ? 'heading2' : 'heading3',
+                            segments,
+                        });
+                    }
+                    return;
+                }
+
+                if (tag === 'ul' || tag === 'ol') {
+                    const ordered = tag === 'ol';
+                    let itemIndex = 0;
+                    Array.from(element.children).forEach(child => {
+                        if (child.tagName.toLowerCase() !== 'li') return;
+                        itemIndex += 1;
+                        const itemSegments = removeEdgeBreaks(collectInlineSegments(child));
+                        if (hasVisibleContent(itemSegments)) {
+                            blocks.push({
+                                type: 'list-item',
+                                segments: itemSegments,
+                                orderedIndex: ordered ? itemIndex : undefined,
+                            });
+                        }
+                    });
+                    return;
+                }
+
+                if (tag === 'br') {
+                    blocks.push({ type: 'paragraph', segments: [{ text: '\n', style: {} }] });
+                    return;
+                }
+
+                if (segments.length && hasVisibleContent(segments)) {
+                    blocks.push({ type: 'paragraph', segments });
+                    return;
+                }
+
+                element.childNodes.forEach(processNode);
+            };
+
+            Array.from(container.childNodes).forEach(processNode);
+
+            return blocks;
+        };
+
+        const measureTextWidth = (text: string, style: TextStyle, fontSize: number): number => {
+            pdf.setFont('helvetica', getFontStyle(style));
+            pdf.setFontSize(fontSize);
+            return pdf.getTextWidth(text);
+        };
+
+        // Divide los segmentos en líneas respetando el ancho disponible del PDF.
+        const wrapSegmentsIntoLines = (
+            segments: InlineSegment[],
+            fontSize: number,
+            maxWidth: number
+        ): InlineSegment[][] => {
+            const lines: InlineSegment[][] = [];
+            let currentLine: InlineSegment[] = [];
+            let currentWidth = 0;
+
+            const pushLine = () => {
+                if (currentLine.length > 0) {
+                    lines.push(currentLine);
+                } else {
+                    lines.push([{ text: '', style: {} }]);
+                }
+                currentLine = [];
+                currentWidth = 0;
+            };
+
+            const pushToken = (token: string, style: TextStyle) => {
+                if (token === '\n') {
+                    pushLine();
+                    return;
+                }
+
+                const pieces = token.split(/(\s+)/);
+                pieces.forEach(piece => {
+                    if (!piece) return;
+                    const isWhitespace = !piece.trim();
+                    if (isWhitespace && currentLine.length === 0) {
+                        return;
+                    }
+
+                    const width = measureTextWidth(piece, style, fontSize);
+                    if (!isWhitespace && currentLine.length > 0 && currentWidth + width > maxWidth) {
+                        pushLine();
+                    }
+
+                    currentLine.push({ text: piece, style: { ...style } });
+                    currentWidth += width;
+                });
+            };
+
+            segments.forEach(segment => {
+                const cleaned = segment.text.replace(/\r/g, '');
+                if (!cleaned) return;
+                const parts = cleaned.split('\n');
+                parts.forEach((part, index) => {
+                    if (index > 0) {
+                        pushToken('\n', segment.style);
+                    }
+                    if (part.length === 0) {
+                        return;
+                    }
+                    pushToken(part, segment.style);
+                });
+            });
+
+            if (currentLine.length > 0) {
+                lines.push(currentLine);
+            }
+
+            return lines.filter(line => line.length > 0);
+        };
+
+        // Pinta cada línea aplicando las fuentes, colores y subrayados necesarios.
+        const drawLineSegments = (
+            segments: InlineSegment[],
+            fontSize: number,
+            startX: number,
+            y: number
+        ) => {
+            let cursorX = startX;
+            segments.forEach(segment => {
+                const text = segment.text;
+                if (!text) {
+                    return;
+                }
+
+                const fontStyle = getFontStyle(segment.style);
+                pdf.setFont('helvetica', fontStyle);
+                pdf.setFontSize(fontSize);
+
+                const color = parseColor(segment.style.color);
+                if (color) {
+                    pdf.setTextColor(color[0], color[1], color[2]);
+                } else {
+                    pdf.setTextColor(0, 0, 0);
+                }
+
+                pdf.text(text, cursorX, y);
+                const width = pdf.getTextWidth(text);
+                if (segment.style.underline) {
+                    const underlineY = y + 1.2;
+                    pdf.setDrawColor(color ? color[0] : 0, color ? color[1] : 0, color ? color[2] : 0);
+                    pdf.line(cursorX, underlineY, cursorX + width, underlineY);
+                }
+                cursorX += width;
+            });
+            pdf.setTextColor(0, 0, 0);
             pdf.setFont('helvetica', 'normal');
-            pdf.setFontSize(11);
+        };
 
-            if (paragraphs.length === 0) {
+        // Renderiza el contenido clínico en el PDF respetando formato y listas.
+        const addRichTextContent = (content: string) => {
+            const blocks = buildBlocksFromHtml(content);
+
+            if (blocks.length === 0) {
                 ensureSpace(lineHeight * 1.2);
                 pdf.setFont('helvetica', 'italic');
+                pdf.setFontSize(11);
                 pdf.text('Sin contenido registrado.', marginX, cursorY);
                 pdf.setFont('helvetica', 'normal');
                 cursorY += lineHeight + 1.5;
+                pdf.setTextColor(0, 0, 0);
                 return;
             }
 
-            paragraphs.forEach((paragraph, index) => {
-                const lines = pdf.splitTextToSize(paragraph, contentWidth);
-                ensureSpace(lineHeight * lines.length + 1);
-                lines.forEach(line => {
-                    pdf.text(line, marginX, cursorY);
-                    cursorY += lineHeight;
-                });
-                if (index < paragraphs.length - 1) {
-                    cursorY += 1.5;
+            blocks.forEach(block => {
+                const fontSize = block.type === 'heading2' ? 13 : block.type === 'heading3' ? 12 : 11;
+                const blockLineHeight = block.type === 'heading2' ? lineHeight + 2 : block.type === 'heading3' ? lineHeight + 1 : lineHeight;
+                const indent = block.type === 'list-item' ? 4 : 0;
+                let markerWidth = 0;
+                let markerText = '';
+
+                if (block.type === 'list-item') {
+                    markerText = block.orderedIndex ? `${block.orderedIndex}.` : '•';
+                    markerWidth = measureTextWidth(`${markerText} `, {}, fontSize);
                 }
+
+                const availableWidth = Math.max(contentWidth - indent - markerWidth, contentWidth * 0.35);
+                const lines = wrapSegmentsIntoLines(block.segments, fontSize, availableWidth);
+                const totalHeight = blockLineHeight * Math.max(lines.length, 1);
+                ensureSpace(totalHeight + 1.5);
+
+                lines.forEach((lineSegments, lineIndex) => {
+                    let startX = marginX + indent;
+                    if (block.type === 'list-item') {
+                        if (lineIndex === 0) {
+                            pdf.setFont('helvetica', 'bold');
+                            pdf.setFontSize(fontSize);
+                            pdf.setTextColor(0, 0, 0);
+                            pdf.text(markerText, startX, cursorY);
+                        }
+                        startX += markerWidth;
+                    }
+
+                    drawLineSegments(lineSegments, fontSize, startX, cursorY);
+                    cursorY += blockLineHeight;
+                });
+
+                cursorY += block.type === 'list-item' ? 1 : 1.5;
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(11);
+                pdf.setTextColor(0, 0, 0);
             });
-            cursorY += 2;
         };
 
         const templateTitle = record.title?.trim() || TEMPLATES[record.templateId]?.title || 'Registro Clínico';
@@ -941,7 +1302,7 @@ const App: React.FC = () => {
 
         record.sections.forEach(section => {
             addSectionTitle(section.title);
-            addParagraphs(section.content);
+            addRichTextContent(section.content);
         });
 
         if (record.medico || record.especialidad) {
@@ -1142,7 +1503,7 @@ const App: React.FC = () => {
                 especialidad: ''
             };
             skipUnsavedRef.current = true;
-            setRecord(blankRecord);
+            setRecord(normalizeRecord(blankRecord));
             setHasUnsavedChanges(true);
             showToast('Formulario restablecido.', 'warning');
         }
@@ -1156,10 +1517,11 @@ const App: React.FC = () => {
             try {
                 const importedRecord = JSON.parse(e.target?.result as string);
                 if (importedRecord.version && importedRecord.patientFields && importedRecord.sections) {
+                    const normalized = normalizeRecord(importedRecord);
                     skipUnsavedRef.current = true;
-                    setRecord(importedRecord);
+                    setRecord(normalized);
                     setHasUnsavedChanges(false);
-                    saveDraft('import', importedRecord);
+                    saveDraft('import', normalized);
                     showToast('Borrador importado correctamente.');
                 } else {
                     showToast('Archivo JSON inválido.', 'error');

@@ -1,5 +1,8 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import type { ClinicalSectionData } from '../types';
+import { ensureHtmlContent } from '../utils/htmlUtils';
 
 interface ClinicalSectionProps {
     section: ClinicalSectionData;
@@ -13,20 +16,32 @@ interface ClinicalSectionProps {
 const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     section, index, isEditing, onSectionContentChange, onSectionTitleChange, onRemoveSection
 }) => {
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-    const adjustHeight = useCallback(() => {
-        const textarea = textareaRef.current;
-        if (textarea) {
-            textarea.style.height = 'auto'; // Reset height before calculating scroll height
-            textarea.style.height = `${textarea.scrollHeight}px`;
-        }
-    }, []);
+    const [editorValue, setEditorValue] = useState<string>(() => ensureHtmlContent(section.content));
 
     useEffect(() => {
-        // Adjust when content changes (e.g., from file import)
-        setTimeout(adjustHeight, 0); 
-    }, [section.content, adjustHeight]);
+        // Normalizamos el contenido recibido (texto plano → HTML) sin perder formato existente.
+        setEditorValue(ensureHtmlContent(section.content));
+    }, [section.content]);
+
+    const modules = useMemo(() => ({
+        toolbar: [
+            [{ header: [2, 3, false] }],
+            ['bold', 'italic', 'underline'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            [{ color: [] }],
+            ['clean'],
+        ],
+    }), []);
+
+    const formats = useMemo(
+        () => ['header', 'bold', 'italic', 'underline', 'list', 'bullet', 'color'],
+        []
+    );
+
+    const handleEditorChange = (value: string) => {
+        setEditorValue(value);
+        onSectionContentChange(index, value);
+    };
 
     return (
         <div className="sec" data-section>
@@ -39,13 +54,15 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
             >
                 {section.title}
             </div>
-            <textarea
-                ref={textareaRef}
-                className="txt"
-                value={section.content}
-                onChange={e => onSectionContentChange(index, e.target.value)}
-                onInput={adjustHeight}
-            ></textarea>
+            <ReactQuill
+                theme="snow"
+                value={editorValue}
+                onChange={handleEditorChange}
+                modules={modules}
+                formats={formats}
+                placeholder="Escriba aquí..."
+                className="clinical-quill"
+            />
         </div>
     );
 };
