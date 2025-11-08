@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import jsPDF from 'jspdf';
-import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder } from './types';
+import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder, ClinicalSectionData } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
 import { validateCriticalFields, formatTimeSince } from './utils/validationUtils';
-import { convertPlainTextToHtml, isHtmlContent } from './utils/richText';
+import { normalizeToSafeHtml } from './utils/richText';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -74,6 +74,25 @@ interface DriveCacheEntry {
     files: DriveFolder[];
     timestamp: number;
 }
+
+type SectionInput = Partial<ClinicalSectionData>;
+
+const normalizeRecordSections = (record: ClinicalRecord): ClinicalRecord => {
+    const sectionsArray: SectionInput[] = Array.isArray(record.sections)
+        ? (record.sections as SectionInput[])
+        : [];
+
+    const sanitizedSections = sectionsArray.map(section => ({
+        ...section,
+        title: section?.title ?? '',
+        content: normalizeToSafeHtml(section?.content ?? ''),
+    }));
+
+    return {
+        ...record,
+        sections: sanitizedSections,
+    };
+};
 
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
@@ -178,7 +197,8 @@ const App: React.FC = () => {
                 const parsed = JSON.parse(draftRaw) as { timestamp?: number; record?: ClinicalRecord };
                 if (parsed?.record) {
                     skipUnsavedRef.current = true;
-                    setRecord(parsed.record);
+                    const sanitizedRecord = normalizeRecordSections(parsed.record);
+                    setRecord(sanitizedRecord);
                     if (parsed.timestamp) setLastLocalSave(parsed.timestamp);
                     setHasUnsavedChanges(false);
                     showToast('Borrador recuperado automáticamente.', 'success');
@@ -691,12 +711,13 @@ const App: React.FC = () => {
     const handleRestoreHistoryEntry = useCallback((entry: VersionHistoryEntry) => {
         if (!window.confirm('¿Desea restaurar esta versión anterior? Se reemplazarán los datos actuales.')) return;
         const snapshot = JSON.parse(JSON.stringify(entry.record)) as ClinicalRecord;
+        const sanitizedSnapshot = normalizeRecordSections(snapshot);
         skipUnsavedRef.current = true;
-        setRecord(snapshot);
+        setRecord(sanitizedSnapshot);
         setHasUnsavedChanges(false);
         setLastLocalSave(entry.timestamp);
         if (typeof window !== 'undefined') {
-            window.localStorage.setItem(LOCAL_STORAGE_KEYS.draft, JSON.stringify({ timestamp: entry.timestamp, record: snapshot }));
+            window.localStorage.setItem(LOCAL_STORAGE_KEYS.draft, JSON.stringify({ timestamp: entry.timestamp, record: sanitizedSnapshot }));
         }
         showToast('Versión restaurada desde el historial.');
         setIsHistoryModalOpen(false);
@@ -799,11 +820,16 @@ const App: React.FC = () => {
                 alt: 'media',
             });
             const importedRecord = JSON.parse(response.body);
-            if (importedRecord.version && importedRecord.patientFields && importedRecord.sections) {
+            if (
+                importedRecord.version &&
+                Array.isArray(importedRecord.patientFields) &&
+                Array.isArray(importedRecord.sections)
+            ) {
+                const sanitizedRecord = normalizeRecordSections(importedRecord as ClinicalRecord);
                 skipUnsavedRef.current = true;
-                setRecord(importedRecord);
+                setRecord(sanitizedRecord);
                 setHasUnsavedChanges(false);
-                saveDraft('import');
+                saveDraft('import', sanitizedRecord);
                 addRecentFile(file);
                 showToast('Archivo cargado exitosamente desde Google Drive.');
                 setIsOpenModalOpen(false);
@@ -1270,12 +1296,7 @@ const App: React.FC = () => {
 
         // Punto de entrada que normaliza el contenido y delega en el renderer enriquecido.
         const addRichTextContent = (content: string) => {
-            const normalized = content
-                ? isHtmlContent(content)
-                    ? content
-                    : convertPlainTextToHtml(content)
-                : '';
-
+            const normalized = normalizeToSafeHtml(content);
             const blocks = normalized ? parseHtmlToBlocks(normalized) : [];
             const hasVisibleText = blocks.some(block =>
                 block.runs.some(run => run.text.trim().length > 0),
@@ -1526,11 +1547,16 @@ const App: React.FC = () => {
         reader.onload = (e) => {
             try {
                 const importedRecord = JSON.parse(e.target?.result as string);
-                if (importedRecord.version && importedRecord.patientFields && importedRecord.sections) {
+                if (
+                    importedRecord.version &&
+                    Array.isArray(importedRecord.patientFields) &&
+                    Array.isArray(importedRecord.sections)
+                ) {
+                    const sanitizedRecord = normalizeRecordSections(importedRecord as ClinicalRecord);
                     skipUnsavedRef.current = true;
-                    setRecord(importedRecord);
+                    setRecord(sanitizedRecord);
                     setHasUnsavedChanges(false);
-                    saveDraft('import', importedRecord);
+                    saveDraft('import', sanitizedRecord);
                     showToast('Borrador importado correctamente.');
                 } else {
                     showToast('Archivo JSON inválido.', 'error');

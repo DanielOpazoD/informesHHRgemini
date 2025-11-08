@@ -10,12 +10,14 @@
   },
   "dependencies": {
     "quill": "^2.0.2",
+    "dompurify": "^3.2.4",
     "react-quill": "^2.0.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "jspdf": "latest"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.2.0",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",

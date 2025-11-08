@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import type { ClinicalSectionData } from '../types';
-import { convertPlainTextToHtml, isHtmlContent } from '../utils/richText';
+import { normalizeToSafeHtml } from '../utils/richText';
 
 interface ClinicalSectionProps {
     section: ClinicalSectionData;
@@ -34,11 +34,9 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     // Si el contenido recibido aún está en texto plano legacy lo convertimos a HTML una sola vez.
     useEffect(() => {
         if (!section.content) return;
-        if (!isHtmlContent(section.content)) {
-            const html = convertPlainTextToHtml(section.content);
-            if (html !== section.content) {
-                onSectionContentChange(index, html);
-            }
+        const safeHtml = normalizeToSafeHtml(section.content);
+        if (safeHtml !== section.content) {
+            onSectionContentChange(index, safeHtml);
         }
     }, [index, onSectionContentChange, section.content]);
 
