@@ -62,6 +62,53 @@
       color: #94a3b8;
     }
 
+    body[data-theme='dark'] .advanced-toolbar {
+      background: rgba(15, 23, 42, 0.9);
+      border-color: rgba(96, 165, 250, 0.35);
+      box-shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
+    }
+
+    body[data-theme='dark'] .advanced-toolbar button {
+      color: #cbd5f5;
+    }
+
+    body[data-theme='dark'] .advanced-toolbar button:hover,
+    body[data-theme='dark'] .advanced-toolbar button:focus-visible {
+      background: rgba(37, 99, 235, 0.28);
+      color: #f8fafc;
+      box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.6);
+    }
+
+    body[data-theme='dark'] .toolbar-divider {
+      background: rgba(96, 165, 250, 0.45);
+    }
+
+    body[data-theme='dark'] .action-btn.is-active,
+    body[data-theme='dark'] .action-btn.advanced-toggle.is-active {
+      background: rgba(37, 99, 235, 0.35);
+      color: #bfdbfe;
+      border-color: rgba(96, 165, 250, 0.6);
+      box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.5);
+    }
+
+    body[data-theme='dark'] .sheet.advanced-mode .note-area {
+      border-color: rgba(96, 165, 250, 0.45);
+      background: rgba(30, 64, 175, 0.28);
+      box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.25);
+      color: #e2e8f0;
+    }
+
+    body[data-theme='dark'] .sheet.advanced-mode .subtitle {
+      color: #93c5fd;
+    }
+
+    body[data-theme='dark'] .sheet.advanced-mode .advanced-note-active .note-area,
+    body[data-theme='dark'] .sheet.advanced-mode .note-area.is-focused {
+      border-color: rgba(147, 197, 253, 0.95);
+      background: rgba(37, 99, 235, 0.32);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.45);
+    }
+
     body[data-theme='hospital']{
       --topbar-bg: linear-gradient(90deg, #38bdf8, #0ea5e9 55%, #0369a1);
       --topbar-text: #0b1120;
@@ -800,6 +847,62 @@
 
     .wrap { padding: 8px 12px; }
 
+    .advanced-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      margin: 0 auto 12px;
+      border-radius: 8px;
+      border: 1px solid #bfdbfe;
+      background: #f8fbff;
+      box-shadow: 0 4px 14px rgba(148, 163, 184, 0.2);
+      width: fit-content;
+    }
+
+    .advanced-toolbar button {
+      border: none;
+      background: transparent;
+      color: #1e3a8a;
+      font-weight: 600;
+      font-size: 13px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 34px;
+    }
+
+    .advanced-toolbar button:hover,
+    .advanced-toolbar button:focus-visible {
+      background: rgba(59, 130, 246, 0.12);
+      color: #0f172a;
+      outline: none;
+      box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.35);
+    }
+
+    .advanced-toolbar button:focus-visible {
+      box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.4);
+    }
+
+    .advanced-toolbar .toolbar-label {
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 24px;
+      background: rgba(37, 99, 235, 0.2);
+    }
+
     .sheet {
       position: relative;
       max-width: 900px;
@@ -852,9 +955,14 @@
     }
 
     .txt {
-      min-height: 60px;
-      resize: vertical;
-      overflow-y: hidden;
+      min-height: 80px;
+      overflow-y: visible;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .note-area {
+      cursor: text;
     }
 
     .sec {
@@ -937,6 +1045,36 @@
     .sec-del:hover { background: #dc2626; }
 
     .edit-mode .sec-del { display: flex; align-items: center; justify-content: center; }
+
+    .sec-del:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .action-btn.is-active,
+    .action-btn.advanced-toggle.is-active {
+      background: rgba(59, 130, 246, 0.15);
+      color: #1e3a8a;
+      border-color: rgba(37, 99, 235, 0.3);
+      box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.25);
+    }
+
+    .sheet.advanced-mode .note-area {
+      border-color: #93c5fd;
+      background: #f8fbff;
+      box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.15);
+    }
+
+    .sheet.advanced-mode .subtitle {
+      color: #1d4ed8;
+    }
+
+    .sheet.advanced-mode .advanced-note-active .note-area,
+    .sheet.advanced-mode .note-area.is-focused {
+      border-color: #2563eb;
+      background: #eff6ff;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
     
     .edit-mode .patient-field-row .row-del {
       display: inline-flex;

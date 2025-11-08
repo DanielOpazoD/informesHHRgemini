@@ -6,8 +6,10 @@ interface HeaderProps {
     templateId: string;
     onTemplateChange: (id: string) => void;
     onPrint: () => void;
-    isEditing: boolean;
-    onToggleEdit: () => void;
+    isStructureEditing: boolean;
+    onToggleStructureEdit: () => void;
+    isAdvancedEditing: boolean;
+    onToggleAdvancedEditing: () => void;
     isSignedIn: boolean;
     isGisReady: boolean;
     isGapiReady: boolean;
@@ -82,6 +84,13 @@ const EditIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="m3 17.25 3.75-.75L17.81 5.19a1.5 1.5 0 0 0-2.12-2.12L4.62 14.38 3.87 18.13Z" />
         <path d="M14.5 4.5 19.5 9.5" />
+    </svg>
+);
+
+const PenIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m12.1 6.4 5.5 5.5" />
+        <path d="M3 21l3.6-.7a2 2 0 0 0 1.1-.6L20 7.4a2 2 0 0 0 0-2.8l-.6-.6a2 2 0 0 0-2.8 0L4.3 16.9a2 2 0 0 0-.6 1.1Z" />
     </svg>
 );
 
@@ -185,8 +194,10 @@ const Header: React.FC<HeaderProps> = ({
     templateId,
     onTemplateChange,
     onPrint,
-    isEditing,
-    onToggleEdit,
+    isStructureEditing,
+    onToggleStructureEdit,
+    isAdvancedEditing,
+    onToggleAdvancedEditing,
     isSignedIn,
     isGisReady,
     isGapiReady,
@@ -395,10 +406,10 @@ const Header: React.FC<HeaderProps> = ({
                                 <button
                                     type="button"
                                     id="toggleEdit"
-                                    onClick={() => handleDropdownAction(onToggleEdit)}
+                                    onClick={() => handleDropdownAction(onToggleStructureEdit)}
                                 >
                                     <EditIcon />
-                                    <span>{isEditing ? 'Finalizar edición' : 'Editar'}</span>
+                                    <span>{isStructureEditing ? 'Finalizar edición de estructura' : 'Editar estructura'}</span>
                                 </button>
                                 <button
                                     type="button"
@@ -431,6 +442,17 @@ const Header: React.FC<HeaderProps> = ({
                             </div>
                         )}
                     </div>
+                    <button
+                        type="button"
+                        className={`action-btn advanced-toggle ${isAdvancedEditing ? 'is-active' : ''}`}
+                        onClick={onToggleAdvancedEditing}
+                        aria-pressed={isAdvancedEditing}
+                        title={isAdvancedEditing ? 'Desactivar edición avanzada' : 'Activar edición avanzada'}
+                        aria-label={isAdvancedEditing ? 'Desactivar edición avanzada' : 'Activar edición avanzada'}
+                    >
+                        <PenIcon />
+                        <span>Modo avanzado</span>
+                    </button>
                     <div className={`action-group ${openActionMenu === 'drive' ? 'open' : ''}`} ref={driveMenuRef}>
                         <button
                             type="button"
