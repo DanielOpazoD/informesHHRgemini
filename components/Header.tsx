@@ -30,6 +30,20 @@ interface HeaderProps {
     onOpenHistory: () => void;
 }
 
+const GridIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 4h4v4H4z" />
+        <path d="M10 4h4v4h-4z" />
+        <path d="M16 4h4v4h-4z" />
+        <path d="M4 10h4v4H4z" />
+        <path d="M10 10h4v4h-4z" />
+        <path d="M16 10h4v4h-4z" />
+        <path d="M4 16h4v4H4z" />
+        <path d="M10 16h4v4h-4z" />
+        <path d="M16 16h4v4h-4z" />
+    </svg>
+);
+
 const PrintIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 9V4h12v5" />
@@ -46,10 +60,31 @@ const EditIcon = () => (
     </svg>
 );
 
+const ToolsIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m3 7 3 3-3 3-1.5-1.5a4 4 0 0 1 5.66-5.66L7 7Z" />
+        <path d="M7 7 17 17" />
+        <path d="m17 17-3 3 3 3 1.5-1.5a4 4 0 0 0-5.66-5.66L17 17Z" />
+    </svg>
+);
+
 const SettingsIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+    </svg>
+);
+
+const FileIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+        <path d="M14 2v6h6" />
+    </svg>
+);
+
+const ChevronDownIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m6 9 6 6 6-6" />
     </svg>
 );
 
@@ -80,6 +115,22 @@ const DownloadIcon = () => (
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
         <path d="m7 10 5 5 5-5" />
         <path d="M12 15V3" />
+    </svg>
+);
+
+const BloodTestIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3s-4 4.5-4 7a4 4 0 0 0 8 0c0-2.5-4-7-4-7Z" />
+        <path d="M12 14.5a2 2 0 0 1-2-2" />
+    </svg>
+);
+
+const GlucoseIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2v6" />
+        <path d="M9 5h6" />
+        <path d="M7 10h10v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2Z" />
+        <path d="M7 14h10" />
     </svg>
 );
 
@@ -154,32 +205,52 @@ const Header: React.FC<HeaderProps> = ({
     onOpenHistory
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [openMenu, setOpenMenu] = useState<'file' | 'drive' | 'tools' | null>(null);
+    const [isAppLauncherOpen, setIsAppLauncherOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const fileMenuRef = useRef<HTMLDivElement>(null);
+    const driveMenuRef = useRef<HTMLDivElement>(null);
+    const toolsMenuRef = useRef<HTMLDivElement>(null);
+    const launcherRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!isMenuOpen) return;
+        if (!isMenuOpen && !openMenu && !isAppLauncherOpen) {
+            return;
+        }
+
         const handleClickOutside = (event: MouseEvent) => {
-            if (!menuRef.current) return;
-            if (!menuRef.current.contains(event.target as Node)) {
+            const target = event.target as Node;
+            const refs = [menuRef, fileMenuRef, driveMenuRef, toolsMenuRef, launcherRef];
+            const clickedInside = refs.some(ref => ref.current?.contains(target));
+
+            if (!clickedInside) {
                 setIsMenuOpen(false);
+                setOpenMenu(null);
+                setIsAppLauncherOpen(false);
             }
         };
+
         const handleEscape = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 setIsMenuOpen(false);
+                setOpenMenu(null);
+                setIsAppLauncherOpen(false);
             }
         };
+
         document.addEventListener('mousedown', handleClickOutside);
         document.addEventListener('keydown', handleEscape);
+
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
             document.removeEventListener('keydown', handleEscape);
         };
-    }, [isMenuOpen]);
+    }, [isMenuOpen, openMenu, isAppLauncherOpen]);
 
     useEffect(() => {
         if (!isSignedIn) {
             setIsMenuOpen(false);
+            setOpenMenu(current => (current === 'drive' ? null : current));
         }
     }, [isSignedIn]);
 
@@ -188,22 +259,72 @@ const Header: React.FC<HeaderProps> = ({
     const avatarLetter = (userEmail || fallbackName || 'U').charAt(0).toUpperCase();
     const displayEmail = userEmail || fallbackName || 'Correo no disponible';
 
-    const toggleMenu = () => setIsMenuOpen(current => !current);
+    const toggleMenu = () => {
+        setIsMenuOpen(current => !current);
+        setOpenMenu(null);
+        setIsAppLauncherOpen(false);
+    };
+
+    const toggleGroupMenu = (group: 'file' | 'drive' | 'tools') => {
+        setOpenMenu(current => (current === group ? null : group));
+        setIsMenuOpen(false);
+        setIsAppLauncherOpen(false);
+    };
+
+    const toggleAppLauncher = () => {
+        setIsAppLauncherOpen(current => !current);
+        setOpenMenu(null);
+        setIsMenuOpen(false);
+    };
 
     const handleMenuAction = (action: () => void) => {
         action();
         setIsMenuOpen(false);
     };
 
+    const handleDropdownAction = (action: () => void) => {
+        action();
+        setOpenMenu(null);
+    };
+
+    const handleLauncherAction = (templateId?: string) => {
+        if (templateId) {
+            onTemplateChange(templateId);
+        }
+        setIsAppLauncherOpen(false);
+    };
+
     const driveOptionDisabled = hasApiKey && !isPickerApiReady;
     const statusState = hasUnsavedChanges || !lastSaveTime ? 'unsaved' : 'saved';
+    const driveGroupDisabled = !isSignedIn;
+    const editingLabel = isEditing ? 'Finalizar edición' : 'Editar';
 
     return (
         <div className="topbar">
-            <div className="topbar-scroll">
-                <div className="topbar-group topbar-group-templates">
+            <div className="topbar-row topbar-row-primary">
+                <div className="topbar-primary-left">
+                    <div className="app-launcher" ref={launcherRef}>
+                        <button className={`app-launcher-btn ${isAppLauncherOpen ? 'open' : ''}`} type="button" onClick={toggleAppLauncher} aria-haspopup="true" aria-expanded={isAppLauncherOpen} title="Aplicaciones">
+                            <GridIcon />
+                        </button>
+                        {isAppLauncherOpen && (
+                            <div className="app-launcher-grid" role="menu">
+                                <button type="button" className="app-tile" onClick={() => handleLauncherAction('1')}>
+                                    <BloodTestIcon />
+                                    <span>Análisis de Sangre</span>
+                                </button>
+                                <button type="button" className="app-tile" onClick={() => handleLauncherAction('2')}>
+                                    <GlucoseIcon />
+                                    <span>Registro Glicemia</span>
+                                </button>
+                                <button type="button" className="app-tile disabled" disabled>
+                                    <span>Próximamente…</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <select
-                        style={{ flex: '0 1 220px', minWidth: '160px', maxWidth: '240px' }}
+                        className="topbar-template-select"
                         value={templateId}
                         onChange={e => onTemplateChange(e.target.value)}
                     >
@@ -212,132 +333,193 @@ const Header: React.FC<HeaderProps> = ({
                         ))}
                     </select>
                 </div>
-                <div className="topbar-group topbar-group-actions">
-                    <button onClick={onQuickSave} className="action-btn" type="button" disabled={!hasUnsavedChanges} title={!hasUnsavedChanges ? 'No hay cambios pendientes' : undefined}>
-                        <SaveIcon />
-                        <span>Guardar borrador</span>
-                    </button>
-                    <button onClick={onPrint} className="action-btn primary" type="button">
-                        <PrintIcon />
-                        <span>Imprimir PDF</span>
-                    </button>
-                    <button onClick={onOpenHistory} className="action-btn" type="button">
-                        <HistoryIcon />
-                        <span>Historial</span>
-                    </button>
-                    <button id="toggleEdit" onClick={onToggleEdit} className="action-btn" type="button">
-                        <EditIcon />
-                        <span>{isEditing ? 'Finalizar' : 'Editar'}</span>
-                    </button>
-                    <button onClick={onOpenSettings} className="action-btn" type="button" title="Configuración de Google API">
-                        <SettingsIcon />
-                        <span>Google API</span>
-                        {hasApiKey && <span className="api-badge">✓</span>}
-                    </button>
-                    <button className="action-btn" type="button" onClick={() => document.getElementById('importJson')?.click()}>
-                        <UploadIcon />
-                        <span>Importar</span>
-                    </button>
-                    <div className={`save-status ${statusState}`}>
-                        <span className="status-dot" data-state={statusState} />
-                        <div>
-                            <div className="status-label">{saveStatusLabel}</div>
-                            {!hasUnsavedChanges && lastSaveTime && <div className="status-meta">Último guardado: {lastSaveTime}</div>}
-                        </div>
+                <div className={`save-status ${statusState}`}>
+                    <span className="status-dot" data-state={statusState} />
+                    <div>
+                        <div className="status-label">{saveStatusLabel}</div>
+                        {!hasUnsavedChanges && lastSaveTime && <div className="status-meta">Último guardado: {lastSaveTime}</div>}
                     </div>
                 </div>
             </div>
-            <div className="topbar-account">
-                {isSignedIn ? (
-                    <div className="user-menu" ref={menuRef}>
+            <div className="topbar-row topbar-row-secondary">
+                <div className="topbar-actions">
+                    <div className={`topbar-action-group ${openMenu === 'file' ? 'open' : ''}`} ref={fileMenuRef}>
+                        <button type="button" className="action-group-button" onClick={() => toggleGroupMenu('file')} aria-haspopup="true" aria-expanded={openMenu === 'file'}>
+                            <FileIcon />
+                            <span>Archivo</span>
+                            <ChevronDownIcon />
+                        </button>
+                        {openMenu === 'file' && (
+                            <div className="action-dropdown" role="menu">
+                                <button type="button" className="dropdown-item" onClick={() => handleDropdownAction(onQuickSave)} disabled={!hasUnsavedChanges} title={!hasUnsavedChanges ? 'No hay cambios pendientes' : undefined}>
+                                    <SaveIcon />
+                                    <span>Guardar borrador</span>
+                                </button>
+                                <button type="button" className="dropdown-item" onClick={() => handleDropdownAction(onPrint)}>
+                                    <PrintIcon />
+                                    <span>Imprimir PDF</span>
+                                </button>
+                                <button type="button" className="dropdown-item" onClick={() => handleDropdownAction(onOpenHistory)}>
+                                    <HistoryIcon />
+                                    <span>Historial</span>
+                                </button>
+                                <button type="button" className="dropdown-item" onClick={() => handleDropdownAction(() => document.getElementById('importJson')?.click())}>
+                                    <UploadIcon />
+                                    <span>Importar</span>
+                                </button>
+                                <button type="button" className="dropdown-item" onClick={() => handleDropdownAction(onDownloadJson)}>
+                                    <DownloadIcon />
+                                    <span>Descargar JSON</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <div className={`topbar-action-group ${openMenu === 'drive' ? 'open' : ''}`} ref={driveMenuRef}>
                         <button
                             type="button"
-                            className={`user-menu-button ${isMenuOpen ? 'open' : ''}`}
-                            onClick={toggleMenu}
+                            className="action-group-button"
+                            onClick={() => !driveGroupDisabled && toggleGroupMenu('drive')}
                             aria-haspopup="true"
-                            aria-expanded={isMenuOpen}
-                            title={displayEmail}
+                            aria-expanded={openMenu === 'drive'}
+                            disabled={driveGroupDisabled}
+                            title={driveGroupDisabled ? 'Inicia sesión para acceder a Drive' : undefined}
                         >
-                            {userProfile?.picture ? (
-                                <img src={userProfile.picture} alt={userProfile.name || 'Usuario'} />
-                            ) : (
-                                <span>{avatarLetter}</span>
-                            )}
+                            <DriveIcon />
+                            <span>Drive</span>
+                            <ChevronDownIcon />
                         </button>
-                        {isMenuOpen && (
-                            <div className="user-menu-dropdown" role="menu">
-                                <div className="user-menu-header">
-                                    <div className="user-menu-avatar-large">
-                                        {userProfile?.picture ? (
-                                            <img src={userProfile.picture} alt={userProfile.name || 'Usuario'} />
-                                        ) : (
-                                            <span>{avatarLetter}</span>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <div className="user-menu-name">{userProfile?.name || displayEmail}</div>
-                                        <div className="user-menu-email" title={displayEmail}>{displayEmail}</div>
-                                    </div>
-                                </div>
-                                <div className="user-menu-divider" />
-                                <button
-                                    type="button"
-                                    className="user-menu-option"
-                                    onClick={() => handleMenuAction(onSaveToDrive)}
-                                    disabled={isSaving}
-                                >
+                        {openMenu === 'drive' && (
+                            <div className="action-dropdown" role="menu">
+                                <button type="button" className="dropdown-item" onClick={() => handleDropdownAction(onSaveToDrive)} disabled={isSaving}>
                                     <DriveIcon />
                                     <span>{isSaving ? 'Guardando…' : 'Guardar en Drive'}</span>
                                 </button>
                                 <button
                                     type="button"
-                                    className="user-menu-option"
-                                    onClick={() => handleMenuAction(onOpenFromDrive)}
+                                    className="dropdown-item"
+                                    onClick={() => handleDropdownAction(onOpenFromDrive)}
                                     disabled={driveOptionDisabled}
                                     title={driveOptionDisabled ? 'Cargando Google Picker…' : undefined}
                                 >
                                     <FolderOpenIcon />
                                     <span>Abrir desde Drive</span>
                                 </button>
-                                <button
-                                    type="button"
-                                    className="user-menu-option"
-                                    onClick={() => handleMenuAction(onDownloadJson)}
-                                >
-                                    <DownloadIcon />
-                                    <span>Descargar JSON</span>
+                            </div>
+                        )}
+                    </div>
+                    <div className={`topbar-action-group ${openMenu === 'tools' ? 'open' : ''}`} ref={toolsMenuRef}>
+                        <button type="button" className="action-group-button" onClick={() => toggleGroupMenu('tools')} aria-haspopup="true" aria-expanded={openMenu === 'tools'}>
+                            <ToolsIcon />
+                            <span>Herramientas</span>
+                            <ChevronDownIcon />
+                        </button>
+                        {openMenu === 'tools' && (
+                            <div className="action-dropdown" role="menu">
+                                <button type="button" className="dropdown-item" onClick={() => handleDropdownAction(onToggleEdit)}>
+                                    <EditIcon />
+                                    <span>{editingLabel}</span>
                                 </button>
-                                <div className="user-menu-divider" />
-                                <button
-                                    type="button"
-                                    className="user-menu-option"
-                                    onClick={() => handleMenuAction(onChangeUser)}
-                                >
-                                    <SwitchUserIcon />
-                                    <span>Cambiar de usuario</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="user-menu-option"
-                                    onClick={() => handleMenuAction(onSignOut)}
-                                >
-                                    <SignOutIcon />
-                                    <span>Cerrar sesión</span>
+                                <button type="button" className="dropdown-item" onClick={() => handleDropdownAction(onOpenSettings)} title="Configuración de Google API">
+                                    <SettingsIcon />
+                                    <span>Google API</span>
+                                    {hasApiKey && <span className="api-badge">✓</span>}
                                 </button>
                             </div>
                         )}
                     </div>
-                ) : (
-                    <button
-                        onClick={onSignIn}
-                        className="action-btn primary"
-                        type="button"
-                        disabled={!isGisReady || !isGapiReady || !tokenClient}
-                    >
-                        <LoginIcon />
-                        <span>Iniciar sesión</span>
-                    </button>
-                )}
+                </div>
+                <div className="topbar-account">
+                    {isSignedIn ? (
+                        <div className="user-menu" ref={menuRef}>
+                            <button
+                                type="button"
+                                className={`user-menu-button ${isMenuOpen ? 'open' : ''}`}
+                                onClick={toggleMenu}
+                                aria-haspopup="true"
+                                aria-expanded={isMenuOpen}
+                                title={displayEmail}
+                            >
+                                {userProfile?.picture ? (
+                                    <img src={userProfile.picture} alt={userProfile.name || 'Usuario'} />
+                                ) : (
+                                    <span>{avatarLetter}</span>
+                                )}
+                            </button>
+                            {isMenuOpen && (
+                                <div className="user-menu-dropdown" role="menu">
+                                    <div className="user-menu-header">
+                                        <div className="user-menu-avatar-large">
+                                            {userProfile?.picture ? (
+                                                <img src={userProfile.picture} alt={userProfile.name || 'Usuario'} />
+                                            ) : (
+                                                <span>{avatarLetter}</span>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div className="user-menu-name">{userProfile?.name || displayEmail}</div>
+                                            <div className="user-menu-email" title={displayEmail}>{displayEmail}</div>
+                                        </div>
+                                    </div>
+                                    <div className="user-menu-divider" />
+                                    <button
+                                        type="button"
+                                        className="user-menu-option"
+                                        onClick={() => handleMenuAction(onSaveToDrive)}
+                                        disabled={isSaving}
+                                    >
+                                        <DriveIcon />
+                                        <span>{isSaving ? 'Guardando…' : 'Guardar en Drive'}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="user-menu-option"
+                                        onClick={() => handleMenuAction(onOpenFromDrive)}
+                                        disabled={driveOptionDisabled}
+                                        title={driveOptionDisabled ? 'Cargando Google Picker…' : undefined}
+                                    >
+                                        <FolderOpenIcon />
+                                        <span>Abrir desde Drive</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="user-menu-option"
+                                        onClick={() => handleMenuAction(onDownloadJson)}
+                                    >
+                                        <DownloadIcon />
+                                        <span>Descargar JSON</span>
+                                    </button>
+                                    <div className="user-menu-divider" />
+                                    <button
+                                        type="button"
+                                        className="user-menu-option"
+                                        onClick={() => handleMenuAction(onChangeUser)}
+                                    >
+                                        <SwitchUserIcon />
+                                        <span>Cambiar de usuario</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="user-menu-option"
+                                        onClick={() => handleMenuAction(onSignOut)}
+                                    >
+                                        <SignOutIcon />
+                                        <span>Cerrar sesión</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <button
+                            onClick={onSignIn}
+                            className="action-btn primary"
+                            type="button"
+                            disabled={!isGisReady || !isGapiReady || !tokenClient}
+                        >
+                            <LoginIcon />
+                            <span>Iniciar sesión</span>
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
