@@ -314,7 +314,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div className={`app-launcher ${isLauncherOpen ? 'open' : ''}`} ref={launcherRef}>
                         <button
                             type="button"
-                            className="app-launcher-btn"
+                            className="app-launcher-btn action-btn-plain"
                             onClick={toggleAppLauncher}
                             aria-haspopup="true"
                             aria-expanded={isLauncherOpen}
@@ -446,13 +446,12 @@ const Header: React.FC<HeaderProps> = ({
                     <div className={`action-group ${openActionMenu === 'herramientas' ? 'open' : ''}`} ref={herramientasMenuRef}>
                         <button
                             type="button"
-                            className="action-btn action-group-toggle"
+                            className="action-btn action-group-toggle action-btn-plain"
                             onClick={() => toggleActionMenu('herramientas')}
                             aria-haspopup="true"
                             aria-expanded={openActionMenu === 'herramientas'}
                         >
                             <span aria-hidden="true" className="action-icon-emoji">⚙️</span>
-                            <span>Herramientas</span>
                             <ChevronDownIcon />
                         </button>
                         {openActionMenu === 'herramientas' && (
