@@ -2,11 +2,15 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import jsPDF from 'jspdf';
-import type { ClinicalRecord, PatientField, GoogleUserProfile, DriveFolder } from './types';
+import type { ClinicalRecord, GoogleUserProfile, DriveFolder } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
 import { validateCriticalFields, formatTimeSince } from './utils/validationUtils';
+import { decodeIdToken } from './utils/googleAuth';
+import { useToast } from './hooks/useToast';
+import { useClinicalRecord } from './hooks/useClinicalRecord';
+import { MAX_RECENT_FILES, SEARCH_CACHE_TTL, DRIVE_CONTENT_FETCH_CONCURRENCY, LOCAL_STORAGE_KEYS } from './appConstants';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -17,43 +21,6 @@ declare global {
         gapi: any;
         google: any;
     }
-}
-
-const decodeIdToken = (idToken?: string): Partial<GoogleUserProfile> => {
-    if (!idToken) return {};
-    try {
-        const payload = idToken.split('.')[1];
-        if (!payload) return {};
-        const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-        const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-        const decoded = JSON.parse(atob(padded));
-        return {
-            name: decoded?.name,
-            email: decoded?.email,
-            picture: decoded?.picture,
-        };
-    } catch (error) {
-        console.warn('No se pudo decodificar el ID token:', error);
-        return {};
-    }
-};
-
-const AUTO_SAVE_INTERVAL = 30000;
-const MAX_HISTORY_ENTRIES = 5;
-const MAX_RECENT_FILES = 5;
-const SEARCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
-const DRIVE_CONTENT_FETCH_CONCURRENCY = 4;
-const LOCAL_STORAGE_KEYS = {
-    draft: 'hhr-local-draft',
-    history: 'hhr-version-history',
-    favorites: 'hhr-drive-favorites',
-    recent: 'hhr-drive-recents',
-};
-
-interface VersionHistoryEntry {
-    id: string;
-    timestamp: number;
-    record: ClinicalRecord;
 }
 
 interface FavoriteFolderEntry {
@@ -76,20 +43,20 @@ interface DriveCacheEntry {
 
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
-    const [record, setRecord] = useState<ClinicalRecord>({
-        version: 'v14',
-        templateId: '2',
-        title: '',
-        patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS)),
-        sections: JSON.parse(JSON.stringify(DEFAULT_SECTIONS)),
-        medico: '',
-        especialidad: '',
-    });
-    const [lastLocalSave, setLastLocalSave] = useState<number | null>(null);
-    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-    const [versionHistory, setVersionHistory] = useState<VersionHistoryEntry[]>([]);
-    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-    const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error'; } | null>(null);
+    const { toast, showToast } = useToast();
+    const {
+        record,
+        setRecord,
+        lastLocalSave,
+        hasUnsavedChanges,
+        setHasUnsavedChanges,
+        versionHistory,
+        isHistoryModalOpen,
+        setIsHistoryModalOpen,
+        saveDraft,
+        handleRestoreHistoryEntry,
+        markRecordAsReplaced,
+    } = useClinicalRecord({ onToast: showToast });
     const [nowTick, setNowTick] = useState(Date.now());
     const [driveSearchTerm, setDriveSearchTerm] = useState('');
     const [driveDateFrom, setDriveDateFrom] = useState('');
@@ -100,8 +67,6 @@ const App: React.FC = () => {
     const importInputRef = useRef<HTMLInputElement>(null);
     const scriptLoadRef = useRef(false);
     const driveCacheRef = useRef(new Map<string, DriveCacheEntry>());
-    const skipUnsavedRef = useRef(true);
-    const toastTimeoutRef = useRef<number | null>(null);
 
     // Google Auth State
     const [isSignedIn, setIsSignedIn] = useState(false);
@@ -143,23 +108,6 @@ const App: React.FC = () => {
         'openid'
     ].join(' ');
 
-    const showToast = useCallback((message: string, type: 'success' | 'warning' | 'error' = 'success') => {
-        setToast({ message, type });
-        if (toastTimeoutRef.current) {
-            window.clearTimeout(toastTimeoutRef.current);
-        }
-        toastTimeoutRef.current = window.setTimeout(() => {
-            setToast(null);
-            toastTimeoutRef.current = null;
-        }, 4000);
-    }, []);
-
-    useEffect(() => () => {
-        if (toastTimeoutRef.current) {
-            window.clearTimeout(toastTimeoutRef.current);
-        }
-    }, []);
-
     useEffect(() => {
         document.body.dataset.theme = 'light';
     }, []);
@@ -171,32 +119,6 @@ const App: React.FC = () => {
     
     useEffect(() => {
         if (typeof window === 'undefined') return;
-        try {
-            const draftRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.draft);
-            if (draftRaw) {
-                const parsed = JSON.parse(draftRaw) as { timestamp?: number; record?: ClinicalRecord };
-                if (parsed?.record) {
-                    skipUnsavedRef.current = true;
-                    setRecord(parsed.record);
-                    if (parsed.timestamp) setLastLocalSave(parsed.timestamp);
-                    setHasUnsavedChanges(false);
-                    showToast('Borrador recuperado automáticamente.', 'success');
-                }
-            }
-        } catch (error) {
-            console.warn('No se pudo restaurar el borrador local:', error);
-        }
-
-        try {
-            const historyRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.history);
-            if (historyRaw) {
-                const parsedHistory = JSON.parse(historyRaw) as VersionHistoryEntry[];
-                setVersionHistory(parsedHistory.slice(0, MAX_HISTORY_ENTRIES));
-            }
-        } catch (error) {
-            console.warn('No se pudo leer el historial local:', error);
-        }
-
         try {
             const favoritesRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.favorites);
             if (favoritesRaw) {
@@ -216,7 +138,7 @@ const App: React.FC = () => {
         } catch (error) {
             console.warn('No se pudo leer la lista de documentos recientes:', error);
         }
-    }, [showToast]);
+    }, []);
 
     // Load settings from localStorage on initial render
     useEffect(() => {
@@ -225,56 +147,6 @@ const App: React.FC = () => {
         if (savedApiKey) setApiKey(savedApiKey);
         if (savedClientId) setClientId(savedClientId);
     }, []);
-
-    const getRecordSnapshot = useCallback(() => {
-        return JSON.parse(JSON.stringify(record)) as ClinicalRecord;
-    }, [record]);
-
-    const pushHistory = useCallback((snapshot: ClinicalRecord, timestamp: number) => {
-        setVersionHistory(prev => {
-            const newEntry: VersionHistoryEntry = {
-                id: `${timestamp}`,
-                timestamp,
-                record: snapshot,
-            };
-            const newHistory = [newEntry, ...prev.filter(entry => entry.id !== newEntry.id)].slice(0, MAX_HISTORY_ENTRIES);
-            if (typeof window !== 'undefined') {
-                window.localStorage.setItem(LOCAL_STORAGE_KEYS.history, JSON.stringify(newHistory));
-            }
-            return newHistory;
-        });
-    }, []);
-
-    const saveDraft = useCallback((reason: 'auto' | 'manual' | 'import', overrideRecord?: ClinicalRecord) => {
-        if (typeof window === 'undefined') return;
-        const snapshot = overrideRecord
-            ? (JSON.parse(JSON.stringify(overrideRecord)) as ClinicalRecord)
-            : getRecordSnapshot();
-        const timestamp = Date.now();
-        window.localStorage.setItem(LOCAL_STORAGE_KEYS.draft, JSON.stringify({ timestamp, record: snapshot }));
-        setLastLocalSave(timestamp);
-        setHasUnsavedChanges(false);
-        pushHistory(snapshot, timestamp);
-        if (reason === 'manual') {
-            showToast('Borrador guardado localmente.');
-        }
-    }, [getRecordSnapshot, pushHistory, showToast]);
-
-    useEffect(() => {
-        if (skipUnsavedRef.current) {
-            skipUnsavedRef.current = false;
-            return;
-        }
-        setHasUnsavedChanges(true);
-    }, [record, showToast]);
-
-    useEffect(() => {
-        if (!hasUnsavedChanges) return;
-        const interval = window.setInterval(() => {
-            saveDraft('auto');
-        }, AUTO_SAVE_INTERVAL);
-        return () => window.clearInterval(interval);
-    }, [hasUnsavedChanges, saveDraft]);
 
     const handleManualSave = useCallback(() => {
         if (!hasUnsavedChanges) {
@@ -687,20 +559,6 @@ const App: React.FC = () => {
         });
     }, []);
 
-    const handleRestoreHistoryEntry = useCallback((entry: VersionHistoryEntry) => {
-        if (!window.confirm('¿Desea restaurar esta versión anterior? Se reemplazarán los datos actuales.')) return;
-        const snapshot = JSON.parse(JSON.stringify(entry.record)) as ClinicalRecord;
-        skipUnsavedRef.current = true;
-        setRecord(snapshot);
-        setHasUnsavedChanges(false);
-        setLastLocalSave(entry.timestamp);
-        if (typeof window !== 'undefined') {
-            window.localStorage.setItem(LOCAL_STORAGE_KEYS.draft, JSON.stringify({ timestamp: entry.timestamp, record: snapshot }));
-        }
-        showToast('Versión restaurada desde el historial.');
-        setIsHistoryModalOpen(false);
-    }, [showToast]);
-
     const formatDriveDate = useCallback((value?: string) => {
         if (!value) return 'Sin fecha';
         try {
@@ -799,7 +657,7 @@ const App: React.FC = () => {
             });
             const importedRecord = JSON.parse(response.body);
             if (importedRecord.version && importedRecord.patientFields && importedRecord.sections) {
-                skipUnsavedRef.current = true;
+                markRecordAsReplaced();
                 setRecord(importedRecord);
                 setHasUnsavedChanges(false);
                 saveDraft('import');
@@ -1067,7 +925,7 @@ const App: React.FC = () => {
         const template = TEMPLATES[record.templateId];
         if (!template) return;
         let newTitle = (template.id === '2') ? `Evolución médica (${formatDateDMY(getReportDate())}) - Hospital Hanga Roa` : template.title;
-        skipUnsavedRef.current = true;
+        markRecordAsReplaced();
         setRecord(r => ({ ...r, title: newTitle }));
     }, [record.templateId, getReportDate]);
     
@@ -1141,12 +999,12 @@ const App: React.FC = () => {
                 medico: '',
                 especialidad: ''
             };
-            skipUnsavedRef.current = true;
+            markRecordAsReplaced();
             setRecord(blankRecord);
             setHasUnsavedChanges(true);
             showToast('Formulario restablecido.', 'warning');
         }
-    }, [showToast]);
+    }, [markRecordAsReplaced, showToast]);
 
     const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -1156,7 +1014,7 @@ const App: React.FC = () => {
             try {
                 const importedRecord = JSON.parse(e.target?.result as string);
                 if (importedRecord.version && importedRecord.patientFields && importedRecord.sections) {
-                    skipUnsavedRef.current = true;
+                    markRecordAsReplaced();
                     setRecord(importedRecord);
                     setHasUnsavedChanges(false);
                     saveDraft('import', importedRecord);
