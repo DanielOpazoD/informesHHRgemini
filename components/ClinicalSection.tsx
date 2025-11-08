@@ -1,51 +1,69 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { ClinicalSectionData } from '../types';
 
 interface ClinicalSectionProps {
     section: ClinicalSectionData;
     index: number;
-    isEditing: boolean;
+    isStructureEditing: boolean;
+    isAdvancedEditing: boolean;
     onSectionContentChange: (index: number, content: string) => void;
     onSectionTitleChange: (index: number, title: string) => void;
     onRemoveSection: (index: number) => void;
 }
 
 const ClinicalSection: React.FC<ClinicalSectionProps> = ({
-    section, index, isEditing, onSectionContentChange, onSectionTitleChange, onRemoveSection
+    section,
+    index,
+    isStructureEditing,
+    isAdvancedEditing,
+    onSectionContentChange,
+    onSectionTitleChange,
+    onRemoveSection,
 }) => {
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-    const adjustHeight = useCallback(() => {
-        const textarea = textareaRef.current;
-        if (textarea) {
-            textarea.style.height = 'auto'; // Reset height before calculating scroll height
-            textarea.style.height = `${textarea.scrollHeight}px`;
-        }
-    }, []);
+    const contentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // Adjust when content changes (e.g., from file import)
-        setTimeout(adjustHeight, 0); 
-    }, [section.content, adjustHeight]);
+        if (!contentRef.current) return;
+        const target = contentRef.current;
+        const nextContent = section.content || '';
+        if (target.innerHTML !== nextContent) {
+            target.innerHTML = nextContent;
+        }
+    }, [section.content]);
+
+    const emitContent = () => {
+        if (!contentRef.current) return;
+        const html = contentRef.current.innerHTML;
+        if (html !== section.content) {
+            onSectionContentChange(index, html);
+        }
+    };
 
     return (
-        <div className="sec" data-section>
-            <button className="sec-del" onClick={() => onRemoveSection(index)}>×</button>
+        <div className={`sec ${isAdvancedEditing ? 'advanced-note-active' : ''}`} data-section>
+            {isStructureEditing && (
+                <button className="sec-del" onClick={() => onRemoveSection(index)} aria-label="Eliminar sección">
+                    ×
+                </button>
+            )}
             <div
                 className="subtitle"
-                contentEditable={isEditing}
+                contentEditable={isStructureEditing}
                 suppressContentEditableWarning
                 onBlur={e => onSectionTitleChange(index, e.currentTarget.innerText)}
             >
                 {section.title}
             </div>
-            <textarea
-                ref={textareaRef}
-                className="txt"
-                value={section.content}
-                onChange={e => onSectionContentChange(index, e.target.value)}
-                onInput={adjustHeight}
-            ></textarea>
+            <div
+                ref={contentRef}
+                className={`txt note-area ${isAdvancedEditing ? 'advanced-mode' : ''}`}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={emitContent}
+                onBlur={emitContent}
+                data-note
+                dangerouslySetInnerHTML={{ __html: section.content || '' }}
+            />
         </div>
     );
 };

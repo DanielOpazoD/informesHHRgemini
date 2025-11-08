@@ -6,8 +6,10 @@ interface HeaderProps {
     templateId: string;
     onTemplateChange: (id: string) => void;
     onPrint: () => void;
-    isEditing: boolean;
-    onToggleEdit: () => void;
+    isStructureEditing: boolean;
+    onToggleStructureEdit: () => void;
+    isAdvancedEditing: boolean;
+    onToggleAdvancedEditing: () => void;
     isSignedIn: boolean;
     isGisReady: boolean;
     isGapiReady: boolean;
@@ -82,6 +84,14 @@ const EditIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="m3 17.25 3.75-.75L17.81 5.19a1.5 1.5 0 0 0-2.12-2.12L4.62 14.38 3.87 18.13Z" />
         <path d="M14.5 4.5 19.5 9.5" />
+    </svg>
+);
+
+const PencilIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m4 20 3-8 9-9a2 2 0 0 1 2.83 2.83l-9 9Z" />
+        <path d="m14 6 4 4" />
+        <path d="M3 21h6" />
     </svg>
 );
 
@@ -185,8 +195,10 @@ const Header: React.FC<HeaderProps> = ({
     templateId,
     onTemplateChange,
     onPrint,
-    isEditing,
-    onToggleEdit,
+    isStructureEditing,
+    onToggleStructureEdit,
+    isAdvancedEditing,
+    onToggleAdvancedEditing,
     isSignedIn,
     isGisReady,
     isGapiReady,
@@ -378,6 +390,16 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
                 </div>
                 <div className="topbar-actions">
+                    <button
+                        type="button"
+                        className={`action-btn advanced-edit-toggle ${isAdvancedEditing ? 'is-active' : ''}`}
+                        onClick={onToggleAdvancedEditing}
+                        aria-pressed={isAdvancedEditing}
+                        title={isAdvancedEditing ? 'Cerrar edición avanzada' : 'Abrir edición avanzada'}
+                    >
+                        <PencilIcon />
+                        <span className="sr-only">Modo edición avanzada</span>
+                    </button>
                     <div className={`action-group ${openActionMenu === 'archivo' ? 'open' : ''}`} ref={archivoMenuRef}>
                         <button
                             type="button"
@@ -395,10 +417,10 @@ const Header: React.FC<HeaderProps> = ({
                                 <button
                                     type="button"
                                     id="toggleEdit"
-                                    onClick={() => handleDropdownAction(onToggleEdit)}
+                                    onClick={() => handleDropdownAction(onToggleStructureEdit)}
                                 >
                                     <EditIcon />
-                                    <span>{isEditing ? 'Finalizar edición' : 'Editar'}</span>
+                                    <span>{isStructureEditing ? 'Finalizar edición estructura' : 'Editar estructura'}</span>
                                 </button>
                                 <button
                                     type="button"
