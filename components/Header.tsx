@@ -458,20 +458,6 @@ const Header: React.FC<HeaderProps> = ({
                                     <FolderOpenIcon />
                                     <span>Abrir desde Drive</span>
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleDropdownAction(() => openExternalLink('https://drive.google.com'))}
-                                >
-                                    <LaunchIcon />
-                                    <span>Ir a Google Drive</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleDropdownAction(() => openExternalLink('https://mail.google.com'))}
-                                >
-                                    <GmailIcon />
-                                    <span>Abrir Gmail</span>
-                                </button>
                             </div>
                         )}
                     </div>
@@ -534,29 +520,18 @@ const Header: React.FC<HeaderProps> = ({
                                 <button
                                     type="button"
                                     className="user-menu-option"
-                                    onClick={() => handleMenuAction(onSaveToDrive)}
-                                    disabled={isSaving}
+                                    onClick={() => handleMenuAction(() => openExternalLink('https://drive.google.com'))}
                                 >
-                                    <DriveIcon />
-                                    <span>{isSaving ? 'Guardando…' : 'Guardar en Drive'}</span>
+                                    <LaunchIcon />
+                                    <span>Ir a Google Drive</span>
                                 </button>
                                 <button
                                     type="button"
                                     className="user-menu-option"
-                                    onClick={() => handleMenuAction(onOpenFromDrive)}
-                                    disabled={driveOptionDisabled}
-                                    title={driveOptionDisabled ? 'Cargando Google Picker…' : undefined}
+                                    onClick={() => handleMenuAction(() => openExternalLink('https://mail.google.com'))}
                                 >
-                                    <FolderOpenIcon />
-                                    <span>Abrir desde Drive</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="user-menu-option"
-                                    onClick={() => handleMenuAction(onDownloadJson)}
-                                >
-                                    <DownloadIcon />
-                                    <span>Descargar JSON</span>
+                                    <GmailIcon />
+                                    <span>Abrir Gmail</span>
                                 </button>
                                 <div className="user-menu-divider" />
                                 <button
