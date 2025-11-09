@@ -42,7 +42,6 @@ interface DriveCacheEntry {
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAdvancedEditing, setIsAdvancedEditing] = useState(false);
-    const [noteFontScale, setNoteFontScale] = useState(1);
     const [sheetZoom, setSheetZoom] = useState(1);
     const lastSelectionRef = useRef<Range | null>(null);
     const lastEditableRef = useRef<HTMLElement | null>(null);
@@ -114,14 +113,6 @@ const App: React.FC = () => {
     useEffect(() => {
         document.body.dataset.theme = 'light';
     }, []);
-
-    useEffect(() => {
-        if (typeof document === 'undefined') return;
-        document.body.style.setProperty('--note-font-scale', noteFontScale.toString());
-        return () => {
-            document.body.style.removeProperty('--note-font-scale');
-        };
-    }, [noteFontScale]);
 
     useEffect(() => {
         if (typeof document === 'undefined') return;
@@ -1044,22 +1035,6 @@ const App: React.FC = () => {
     };
 
     const handleToolbarCommand = useCallback((command: string) => {
-        if (command === 'font-increase') {
-            setNoteFontScale(prev => {
-                const next = Math.min(1.5, +(prev + 0.1).toFixed(2));
-                return next;
-            });
-            return;
-        }
-
-        if (command === 'font-decrease') {
-            setNoteFontScale(prev => {
-                const next = Math.max(0.7, +(prev - 0.1).toFixed(2));
-                return next;
-            });
-            return;
-        }
-
         if (command === 'zoom-in') {
             setSheetZoom(prev => {
                 const next = Math.min(1.5, +(prev + 0.1).toFixed(2));

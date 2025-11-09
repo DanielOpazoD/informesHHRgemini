@@ -444,25 +444,6 @@ const Header: React.FC<HeaderProps> = ({
                             <button
                                 type="button"
                                 onMouseDown={preventToolbarMouseDown}
-                                onClick={() => onToolbarCommand('font-decrease')}
-                                aria-label="Reducir tamaño de fuente"
-                                title="Reducir tamaño de fuente"
-                            >
-                                <span className="toolbar-icon">A-</span>
-                            </button>
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => onToolbarCommand('font-increase')}
-                                aria-label="Aumentar tamaño de fuente"
-                                title="Aumentar tamaño de fuente"
-                            >
-                                <span className="toolbar-icon">A+</span>
-                            </button>
-                            <span className="toolbar-divider" aria-hidden="true" />
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
                                 onClick={() => onToolbarCommand('zoom-out')}
                                 aria-label="Alejar (zoom)"
                                 title="Alejar (zoom)"
