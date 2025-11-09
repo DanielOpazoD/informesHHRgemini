@@ -10,6 +10,7 @@ interface HeaderProps {
     onToggleEdit: () => void;
     isAdvancedEditing: boolean;
     onToggleAdvancedEditing: () => void;
+    onToolbarCommand: (command: string) => void;
     isSignedIn: boolean;
     isGisReady: boolean;
     isGapiReady: boolean;
@@ -198,6 +199,7 @@ const Header: React.FC<HeaderProps> = ({
     onToggleEdit,
     isAdvancedEditing,
     onToggleAdvancedEditing,
+    onToolbarCommand,
     isSignedIn,
     isGisReady,
     isGapiReady,
@@ -305,6 +307,9 @@ const Header: React.FC<HeaderProps> = ({
     const displayEmail = userEmail || fallbackName || 'Correo no disponible';
 
     const toggleMenu = () => setIsMenuOpen(current => !current);
+    const preventToolbarMouseDown = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+    };
     const toggleAppLauncher = () => {
         setIsLauncherOpen(current => {
             const next = !current;
@@ -387,6 +392,85 @@ const Header: React.FC<HeaderProps> = ({
                             {!hasUnsavedChanges && lastSaveTime && <div className="status-meta">Último guardado: {lastSaveTime}</div>}
                         </div>
                     </div>
+                    {isAdvancedEditing && (
+                        <div className="editor-toolbar" role="toolbar" aria-label="Herramientas de edición avanzada">
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('bold')}
+                                aria-label="Aplicar negrita"
+                                title="Negrita"
+                            >
+                                <span className="toolbar-icon">B</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('underline')}
+                                aria-label="Aplicar subrayado"
+                                title="Subrayado"
+                            >
+                                <span className="toolbar-icon toolbar-underline">S</span>
+                            </button>
+                            <span className="toolbar-divider" aria-hidden="true" />
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('outdent')}
+                                aria-label="Reducir sangría"
+                                title="Reducir sangría"
+                            >
+                                <span className="toolbar-icon">⇤</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('indent')}
+                                aria-label="Aumentar sangría"
+                                title="Aumentar sangría"
+                            >
+                                <span className="toolbar-icon">⇥</span>
+                            </button>
+                            <span className="toolbar-divider" aria-hidden="true" />
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('insertUnorderedList')}
+                                aria-label="Lista con viñetas"
+                                title="Lista con viñetas"
+                            >
+                                <span className="toolbar-icon">•</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('insertOrderedList')}
+                                aria-label="Lista numerada"
+                                title="Lista numerada"
+                            >
+                                <span className="toolbar-icon">1.</span>
+                            </button>
+                            <span className="toolbar-divider" aria-hidden="true" />
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('undo')}
+                                aria-label="Deshacer"
+                                title="Deshacer"
+                            >
+                                <span className="toolbar-icon">↺</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('redo')}
+                                aria-label="Rehacer"
+                                title="Rehacer"
+                            >
+                                <span className="toolbar-icon">↻</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
                 <div className="topbar-actions">
                     <div className={`action-group ${openActionMenu === 'archivo' ? 'open' : ''}`} ref={archivoMenuRef}>
@@ -451,7 +535,7 @@ const Header: React.FC<HeaderProps> = ({
                         title={isAdvancedEditing ? 'Desactivar edición avanzada' : 'Activar edición avanzada'}
                     >
                         <PenIcon />
-                        <span>Modo avanzado</span>
+                        <span>Editar</span>
                     </button>
                     <div className={`action-group ${openActionMenu === 'drive' ? 'open' : ''}`} ref={driveMenuRef}>
                         <button

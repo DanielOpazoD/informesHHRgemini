@@ -42,6 +42,8 @@ interface DriveCacheEntry {
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAdvancedEditing, setIsAdvancedEditing] = useState(false);
+    const lastSelectionRef = useRef<Range | null>(null);
+    const lastEditableRef = useRef<HTMLElement | null>(null);
     const { toast, showToast } = useToast();
     const {
         record,
@@ -118,6 +120,40 @@ const App: React.FC = () => {
             document.body.classList.remove('advanced-editing-active');
         };
     }, [isAdvancedEditing]);
+
+    useEffect(() => {
+        const handleFocusIn = (event: FocusEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (!target) return;
+            const editable = target.closest('.note-area[contenteditable]') as HTMLElement | null;
+            if (!editable) return;
+            lastEditableRef.current = editable;
+            const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0) {
+                lastSelectionRef.current = selection.getRangeAt(0).cloneRange();
+            }
+        };
+
+        const handleSelectionChange = () => {
+            const selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0) return;
+            const focusNode = selection.focusNode;
+            if (!focusNode) return;
+            const focusElement = focusNode instanceof HTMLElement ? focusNode : focusNode.parentElement;
+            if (!focusElement) return;
+            const editable = focusElement.closest('.note-area[contenteditable]') as HTMLElement | null;
+            if (!editable) return;
+            lastEditableRef.current = editable;
+            lastSelectionRef.current = selection.getRangeAt(0).cloneRange();
+        };
+
+        document.addEventListener('focusin', handleFocusIn);
+        document.addEventListener('selectionchange', handleSelectionChange);
+        return () => {
+            document.removeEventListener('focusin', handleFocusIn);
+            document.removeEventListener('selectionchange', handleSelectionChange);
+        };
+    }, []);
 
     useEffect(() => {
         const timer = window.setInterval(() => setNowTick(Date.now()), 60000);
@@ -999,33 +1035,61 @@ const App: React.FC = () => {
 
     const handleToolbarCommand = useCallback((command: string) => {
         const activeElement = document.activeElement as HTMLElement | null;
-        const selection = window.getSelection();
-
         let editable: HTMLElement | null = null;
 
-        if (activeElement?.isContentEditable) {
+        if (lastEditableRef.current && document.contains(lastEditableRef.current)) {
+            editable = lastEditableRef.current;
+        } else if (activeElement?.isContentEditable) {
             editable = activeElement;
         } else if (activeElement) {
             editable = activeElement.closest('[contenteditable]') as HTMLElement | null;
         }
 
-        if (!editable && selection?.focusNode) {
-            const focusNode = selection.focusNode;
-            editable = (focusNode instanceof HTMLElement ? focusNode : focusNode.parentElement)?.closest('[contenteditable]') as HTMLElement | null;
+        if (!editable) {
+            const selection = window.getSelection();
+            const focusNode = selection?.focusNode;
+            const focusElement = focusNode instanceof HTMLElement ? focusNode : focusNode?.parentElement;
+            editable = focusElement?.closest('[contenteditable]') as HTMLElement | null;
         }
 
         if (!editable) return;
 
-        editable.focus();
+        editable.focus({ preventScroll: true });
+
+        const selection = window.getSelection();
+        if (selection) {
+            const storedRange = lastSelectionRef.current;
+            if (storedRange) {
+                const range = storedRange.cloneRange();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                lastSelectionRef.current = range;
+            } else if (editable.childNodes.length > 0) {
+                const range = document.createRange();
+                range.selectNodeContents(editable);
+                range.collapse(false);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                lastSelectionRef.current = range.cloneRange();
+            }
+        }
+
         try {
             document.execCommand(command, false);
         } catch (error) {
             console.warn(`Comando no soportado: ${command}`, error);
         }
-    }, []);
 
-    const preventToolbarMouseDown = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
-        event.preventDefault();
+        const updatedSelection = window.getSelection();
+        if (updatedSelection && updatedSelection.rangeCount > 0) {
+            lastSelectionRef.current = updatedSelection.getRangeAt(0).cloneRange();
+            const focusNode = updatedSelection.focusNode;
+            const focusElement = focusNode instanceof HTMLElement ? focusNode : focusNode?.parentElement;
+            const updatedEditable = focusElement?.closest('.note-area[contenteditable]') as HTMLElement | null;
+            if (updatedEditable) {
+                lastEditableRef.current = updatedEditable;
+            }
+        }
     }, []);
 
     const handleSectionTitleChange = (index: number, title: string) => {
@@ -1150,6 +1214,7 @@ const App: React.FC = () => {
                 onToggleEdit={() => setIsEditing(!isEditing)}
                 isAdvancedEditing={isAdvancedEditing}
                 onToggleAdvancedEditing={() => setIsAdvancedEditing(prev => !prev)}
+                onToolbarCommand={handleToolbarCommand}
                 isSignedIn={isSignedIn}
                 isGisReady={isGisReady}
                 isGapiReady={isGapiReady}
@@ -1269,85 +1334,6 @@ const App: React.FC = () => {
                     </div>
                     <div className="title" contentEditable={isEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>{record.title}</div>
                     <PatientInfo isEditing={isEditing} patientFields={record.patientFields} onPatientFieldChange={handlePatientFieldChange} onPatientLabelChange={handlePatientLabelChange} onRemovePatientField={handleRemovePatientField} />
-                    {isAdvancedEditing && (
-                        <div className="editor-toolbar" role="toolbar" aria-label="Herramientas de edición avanzada">
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => handleToolbarCommand('bold')}
-                                aria-label="Aplicar negrita"
-                                title="Negrita"
-                            >
-                                <span className="toolbar-icon">B</span>
-                            </button>
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => handleToolbarCommand('underline')}
-                                aria-label="Aplicar subrayado"
-                                title="Subrayado"
-                            >
-                                <span className="toolbar-icon toolbar-underline">S</span>
-                            </button>
-                            <span className="toolbar-divider" aria-hidden="true" />
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => handleToolbarCommand('outdent')}
-                                aria-label="Reducir sangría"
-                                title="Reducir sangría"
-                            >
-                                <span className="toolbar-icon">⇤</span>
-                            </button>
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => handleToolbarCommand('indent')}
-                                aria-label="Aumentar sangría"
-                                title="Aumentar sangría"
-                            >
-                                <span className="toolbar-icon">⇥</span>
-                            </button>
-                            <span className="toolbar-divider" aria-hidden="true" />
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => handleToolbarCommand('insertUnorderedList')}
-                                aria-label="Lista con viñetas"
-                                title="Lista con viñetas"
-                            >
-                                <span className="toolbar-icon">•</span>
-                            </button>
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => handleToolbarCommand('insertOrderedList')}
-                                aria-label="Lista numerada"
-                                title="Lista numerada"
-                            >
-                                <span className="toolbar-icon">1.</span>
-                            </button>
-                            <span className="toolbar-divider" aria-hidden="true" />
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => handleToolbarCommand('undo')}
-                                aria-label="Deshacer"
-                                title="Deshacer"
-                            >
-                                <span className="toolbar-icon">↺</span>
-                            </button>
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => handleToolbarCommand('redo')}
-                                aria-label="Rehacer"
-                                title="Rehacer"
-                            >
-                                <span className="toolbar-icon">↻</span>
-                            </button>
-                        </div>
-                    )}
                     <div id="sectionsContainer">{record.sections.map((section, index) => (
                         <ClinicalSection
                             key={index}
