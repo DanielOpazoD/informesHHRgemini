@@ -406,6 +406,15 @@ const Header: React.FC<HeaderProps> = ({
                             <button
                                 type="button"
                                 onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('italic')}
+                                aria-label="Aplicar cursiva"
+                                title="Cursiva"
+                            >
+                                <span className="toolbar-icon toolbar-italic">I</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
                                 onClick={() => onToolbarCommand('underline')}
                                 aria-label="Aplicar subrayado"
                                 title="Subrayado"
@@ -435,39 +444,39 @@ const Header: React.FC<HeaderProps> = ({
                             <button
                                 type="button"
                                 onMouseDown={preventToolbarMouseDown}
-                                onClick={() => onToolbarCommand('insertUnorderedList')}
-                                aria-label="Lista con viñetas"
-                                title="Lista con viñetas"
+                                onClick={() => onToolbarCommand('fontDecrease')}
+                                aria-label="Reducir tamaño de fuente"
+                                title="Reducir tamaño de fuente"
                             >
-                                <span className="toolbar-icon">•</span>
+                                <span className="toolbar-icon toolbar-font-control">A−</span>
                             </button>
                             <button
                                 type="button"
                                 onMouseDown={preventToolbarMouseDown}
-                                onClick={() => onToolbarCommand('insertOrderedList')}
-                                aria-label="Lista numerada"
-                                title="Lista numerada"
+                                onClick={() => onToolbarCommand('fontIncrease')}
+                                aria-label="Aumentar tamaño de fuente"
+                                title="Aumentar tamaño de fuente"
                             >
-                                <span className="toolbar-icon">1.</span>
+                                <span className="toolbar-icon toolbar-font-control">A+</span>
                             </button>
                             <span className="toolbar-divider" aria-hidden="true" />
                             <button
                                 type="button"
                                 onMouseDown={preventToolbarMouseDown}
-                                onClick={() => onToolbarCommand('undo')}
-                                aria-label="Deshacer"
-                                title="Deshacer"
+                                onClick={() => onToolbarCommand('zoomOut')}
+                                aria-label="Alejar planilla"
+                                title="Reducir zoom de la planilla"
                             >
-                                <span className="toolbar-icon">↺</span>
+                                <span className="toolbar-icon toolbar-zoom-control">Z−</span>
                             </button>
                             <button
                                 type="button"
                                 onMouseDown={preventToolbarMouseDown}
-                                onClick={() => onToolbarCommand('redo')}
-                                aria-label="Rehacer"
-                                title="Rehacer"
+                                onClick={() => onToolbarCommand('zoomIn')}
+                                aria-label="Acercar planilla"
+                                title="Aumentar zoom de la planilla"
                             >
-                                <span className="toolbar-icon">↻</span>
+                                <span className="toolbar-icon toolbar-zoom-control">Z+</span>
                             </button>
                         </div>
                     )}

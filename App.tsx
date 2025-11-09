@@ -39,9 +39,18 @@ interface DriveCacheEntry {
     timestamp: number;
 }
 
+const NOTE_FONT_SCALE_STEP = 0.1;
+const NOTE_FONT_SCALE_MIN = 0.8;
+const NOTE_FONT_SCALE_MAX = 1.6;
+const NOTE_ZOOM_STEP = 0.1;
+const NOTE_ZOOM_MIN = 0.8;
+const NOTE_ZOOM_MAX = 1.6;
+
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAdvancedEditing, setIsAdvancedEditing] = useState(false);
+    const [noteFontScale, setNoteFontScale] = useState(1);
+    const [noteZoom, setNoteZoom] = useState(1);
     const lastSelectionRef = useRef<Range | null>(null);
     const lastEditableRef = useRef<HTMLElement | null>(null);
     const { toast, showToast } = useToast();
@@ -101,6 +110,11 @@ const App: React.FC = () => {
     const [newFolderName, setNewFolderName] = useState('');
     const [fileNameInput, setFileNameInput] = useState('');
     const [isDriveLoading, setIsDriveLoading] = useState(false);
+
+    const sectionContainerStyle = useMemo(() => ({
+        '--note-font-scale': noteFontScale.toFixed(2),
+        '--note-zoom-scale': noteZoom.toFixed(2),
+    }) as React.CSSProperties, [noteFontScale, noteZoom]);
     
     const SCOPES = [
         'https://www.googleapis.com/auth/drive',
@@ -1034,6 +1048,44 @@ const App: React.FC = () => {
     };
 
     const handleToolbarCommand = useCallback((command: string) => {
+        if (command === 'fontIncrease') {
+            setNoteFontScale(prev => {
+                const next = Math.min(NOTE_FONT_SCALE_MAX, parseFloat((prev + NOTE_FONT_SCALE_STEP).toFixed(2)));
+                return Number.isNaN(next) ? prev : next;
+            });
+            return;
+        }
+
+        if (command === 'fontDecrease') {
+            setNoteFontScale(prev => {
+                const next = Math.max(NOTE_FONT_SCALE_MIN, parseFloat((prev - NOTE_FONT_SCALE_STEP).toFixed(2)));
+                return Number.isNaN(next) ? prev : next;
+            });
+            return;
+        }
+
+        if (command === 'zoomIn') {
+            setNoteZoom(prev => {
+                const next = Math.min(NOTE_ZOOM_MAX, parseFloat((prev + NOTE_ZOOM_STEP).toFixed(2)));
+                return Number.isNaN(next) ? prev : next;
+            });
+            return;
+        }
+
+        if (command === 'zoomOut') {
+            setNoteZoom(prev => {
+                const next = Math.max(NOTE_ZOOM_MIN, parseFloat((prev - NOTE_ZOOM_STEP).toFixed(2)));
+                return Number.isNaN(next) ? prev : next;
+            });
+            return;
+        }
+
+        const supportedCommands = new Set(['bold', 'italic', 'underline', 'outdent', 'indent']);
+
+        if (!supportedCommands.has(command)) {
+            return;
+        }
+
         const activeElement = document.activeElement as HTMLElement | null;
         let editable: HTMLElement | null = null;
 
@@ -1334,7 +1386,7 @@ const App: React.FC = () => {
                     </div>
                     <div className="title" contentEditable={isEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>{record.title}</div>
                     <PatientInfo isEditing={isEditing} patientFields={record.patientFields} onPatientFieldChange={handlePatientFieldChange} onPatientLabelChange={handlePatientLabelChange} onRemovePatientField={handleRemovePatientField} />
-                    <div id="sectionsContainer">{record.sections.map((section, index) => (
+                    <div id="sectionsContainer" style={sectionContainerStyle}>{record.sections.map((section, index) => (
                         <ClinicalSection
                             key={index}
                             section={section}
