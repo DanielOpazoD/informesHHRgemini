@@ -8,6 +8,9 @@ interface HeaderProps {
     onPrint: () => void;
     isEditing: boolean;
     onToggleEdit: () => void;
+    isAdvancedEditing: boolean;
+    onToggleAdvancedEditing: () => void;
+    onToolbarCommand: (command: string) => void;
     isSignedIn: boolean;
     isGisReady: boolean;
     isGapiReady: boolean;
@@ -82,6 +85,13 @@ const EditIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="m3 17.25 3.75-.75L17.81 5.19a1.5 1.5 0 0 0-2.12-2.12L4.62 14.38 3.87 18.13Z" />
         <path d="M14.5 4.5 19.5 9.5" />
+    </svg>
+);
+
+const PenIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m5 20 1.5-5.5L17.5 3.5a2 2 0 1 1 3 3L9.5 17.5Z" />
+        <path d="M4 21h5" />
     </svg>
 );
 
@@ -187,6 +197,9 @@ const Header: React.FC<HeaderProps> = ({
     onPrint,
     isEditing,
     onToggleEdit,
+    isAdvancedEditing,
+    onToggleAdvancedEditing,
+    onToolbarCommand,
     isSignedIn,
     isGisReady,
     isGapiReady,
@@ -294,6 +307,9 @@ const Header: React.FC<HeaderProps> = ({
     const displayEmail = userEmail || fallbackName || 'Correo no disponible';
 
     const toggleMenu = () => setIsMenuOpen(current => !current);
+    const preventToolbarMouseDown = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+    };
     const toggleAppLauncher = () => {
         setIsLauncherOpen(current => {
             const next = !current;
@@ -376,6 +392,94 @@ const Header: React.FC<HeaderProps> = ({
                             {!hasUnsavedChanges && lastSaveTime && <div className="status-meta">Último guardado: {lastSaveTime}</div>}
                         </div>
                     </div>
+                    {isAdvancedEditing && (
+                        <div className="editor-toolbar" role="toolbar" aria-label="Herramientas de edición avanzada">
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('bold')}
+                                aria-label="Aplicar negrita"
+                                title="Negrita"
+                            >
+                                <span className="toolbar-icon">B</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('italic')}
+                                aria-label="Aplicar cursiva"
+                                title="Cursiva"
+                            >
+                                <span className="toolbar-icon toolbar-italic">I</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('underline')}
+                                aria-label="Aplicar subrayado"
+                                title="Subrayado"
+                            >
+                                <span className="toolbar-icon toolbar-underline">S</span>
+                            </button>
+                            <span className="toolbar-divider" aria-hidden="true" />
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('outdent')}
+                                aria-label="Reducir sangría"
+                                title="Reducir sangría"
+                            >
+                                <span className="toolbar-icon">⇤</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('indent')}
+                                aria-label="Aumentar sangría"
+                                title="Aumentar sangría"
+                            >
+                                <span className="toolbar-icon">⇥</span>
+                            </button>
+                            <span className="toolbar-divider" aria-hidden="true" />
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('font-decrease')}
+                                aria-label="Reducir tamaño de fuente"
+                                title="Reducir tamaño de fuente"
+                            >
+                                <span className="toolbar-icon">A-</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('font-increase')}
+                                aria-label="Aumentar tamaño de fuente"
+                                title="Aumentar tamaño de fuente"
+                            >
+                                <span className="toolbar-icon">A+</span>
+                            </button>
+                            <span className="toolbar-divider" aria-hidden="true" />
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('zoom-out')}
+                                aria-label="Alejar (zoom)"
+                                title="Alejar (zoom)"
+                            >
+                                <span className="toolbar-icon">−</span>
+                            </button>
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                onClick={() => onToolbarCommand('zoom-in')}
+                                aria-label="Acercar (zoom)"
+                                title="Acercar (zoom)"
+                            >
+                                <span className="toolbar-icon">+</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
                 <div className="topbar-actions">
                     <div className={`action-group ${openActionMenu === 'archivo' ? 'open' : ''}`} ref={archivoMenuRef}>
@@ -398,7 +502,7 @@ const Header: React.FC<HeaderProps> = ({
                                     onClick={() => handleDropdownAction(onToggleEdit)}
                                 >
                                     <EditIcon />
-                                    <span>{isEditing ? 'Finalizar edición' : 'Editar'}</span>
+                                    <span>{isEditing ? 'Bloquear estructura' : 'Editar estructura'}</span>
                                 </button>
                                 <button
                                     type="button"
@@ -431,6 +535,17 @@ const Header: React.FC<HeaderProps> = ({
                             </div>
                         )}
                     </div>
+                    <button
+                        type="button"
+                        className={`action-btn ${isAdvancedEditing ? 'active is-active' : ''}`}
+                        onClick={onToggleAdvancedEditing}
+                        aria-pressed={isAdvancedEditing}
+                        aria-label={isAdvancedEditing ? 'Desactivar edición avanzada' : 'Activar edición avanzada'}
+                        title={isAdvancedEditing ? 'Desactivar edición avanzada' : 'Activar edición avanzada'}
+                    >
+                        <PenIcon />
+                        <span>Editar</span>
+                    </button>
                     <div className={`action-group ${openActionMenu === 'drive' ? 'open' : ''}`} ref={driveMenuRef}>
                         <button
                             type="button"
