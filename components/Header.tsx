@@ -444,7 +444,7 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
                     <button
                         type="button"
-                        className={`action-btn ${isAdvancedEditing ? 'active' : ''}`}
+                        className={`action-btn ${isAdvancedEditing ? 'active is-active' : ''}`}
                         onClick={onToggleAdvancedEditing}
                         aria-pressed={isAdvancedEditing}
                         aria-label={isAdvancedEditing ? 'Desactivar edición avanzada' : 'Activar edición avanzada'}

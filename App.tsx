@@ -112,6 +112,14 @@ const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        if (typeof document === 'undefined') return;
+        document.body.classList.toggle('advanced-editing-active', isAdvancedEditing);
+        return () => {
+            document.body.classList.remove('advanced-editing-active');
+        };
+    }, [isAdvancedEditing]);
+
+    useEffect(() => {
         const timer = window.setInterval(() => setNowTick(Date.now()), 60000);
         return () => window.clearInterval(timer);
     }, []);
@@ -991,12 +999,26 @@ const App: React.FC = () => {
 
     const handleToolbarCommand = useCallback((command: string) => {
         const activeElement = document.activeElement as HTMLElement | null;
-        if (!activeElement) return;
-        const editable = activeElement.closest('[contenteditable="true"]') as HTMLElement | null;
+        const selection = window.getSelection();
+
+        let editable: HTMLElement | null = null;
+
+        if (activeElement?.isContentEditable) {
+            editable = activeElement;
+        } else if (activeElement) {
+            editable = activeElement.closest('[contenteditable]') as HTMLElement | null;
+        }
+
+        if (!editable && selection?.focusNode) {
+            const focusNode = selection.focusNode;
+            editable = (focusNode instanceof HTMLElement ? focusNode : focusNode.parentElement)?.closest('[contenteditable]') as HTMLElement | null;
+        }
+
         if (!editable) return;
+
         editable.focus();
         try {
-            document.execCommand(command);
+            document.execCommand(command, false);
         } catch (error) {
             console.warn(`Comando no soportado: ${command}`, error);
         }
