@@ -1,35 +1,51 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import type { ClinicalSectionData } from '../types';
 
 interface ClinicalSectionProps {
     section: ClinicalSectionData;
     index: number;
     isEditing: boolean;
+    isAdvancedEditing: boolean;
     onSectionContentChange: (index: number, content: string) => void;
     onSectionTitleChange: (index: number, title: string) => void;
     onRemoveSection: (index: number) => void;
 }
 
 const ClinicalSection: React.FC<ClinicalSectionProps> = ({
-    section, index, isEditing, onSectionContentChange, onSectionTitleChange, onRemoveSection
+    section,
+    index,
+    isEditing,
+    isAdvancedEditing,
+    onSectionContentChange,
+    onSectionTitleChange,
+    onRemoveSection
 }) => {
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const noteRef = useRef<HTMLDivElement>(null);
+    const [isFocused, setIsFocused] = useState(false);
 
-    const adjustHeight = useCallback(() => {
-        const textarea = textareaRef.current;
-        if (textarea) {
-            textarea.style.height = 'auto'; // Reset height before calculating scroll height
-            textarea.style.height = `${textarea.scrollHeight}px`;
+    const syncContent = useCallback(() => {
+        const node = noteRef.current;
+        if (!node) return;
+        if (node.innerHTML !== (section.content || '')) {
+            node.innerHTML = section.content || '';
         }
-    }, []);
+    }, [section.content]);
 
     useEffect(() => {
-        // Adjust when content changes (e.g., from file import)
-        setTimeout(adjustHeight, 0); 
-    }, [section.content, adjustHeight]);
+        syncContent();
+    }, [syncContent]);
+
+    const handleInput = useCallback(() => {
+        const node = noteRef.current;
+        if (!node) return;
+        onSectionContentChange(index, node.innerHTML);
+    }, [index, onSectionContentChange]);
 
     return (
-        <div className="sec" data-section>
+        <div
+            className={`sec ${isAdvancedEditing && isFocused ? 'advanced-note-active' : ''}`}
+            data-section
+        >
             <button className="sec-del" onClick={() => onRemoveSection(index)}>×</button>
             <div
                 className="subtitle"
@@ -39,13 +55,24 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
             >
                 {section.title}
             </div>
-            <textarea
-                ref={textareaRef}
-                className="txt"
-                value={section.content}
-                onChange={e => onSectionContentChange(index, e.target.value)}
-                onInput={adjustHeight}
-            ></textarea>
+            <div
+                ref={noteRef}
+                className={`txt note-area ${isAdvancedEditing ? 'advanced-mode' : ''} ${isAdvancedEditing && isFocused ? 'is-focused' : ''}`.trim()}
+                contentEditable
+                suppressContentEditableWarning
+                role="textbox"
+                aria-multiline="true"
+                aria-label={`Contenido de ${section.title || 'sección clínica'}`}
+                onInput={handleInput}
+                onBlur={event => {
+                    setIsFocused(false);
+                    onSectionContentChange(index, event.currentTarget.innerHTML);
+                }}
+                onFocus={() => {
+                    setIsFocused(true);
+                    syncContent();
+                }}
+            />
         </div>
     );
 };
