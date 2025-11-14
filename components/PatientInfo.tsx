@@ -21,18 +21,30 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
                     {patientFields.filter(f => !f.isCustom).map((field) => {
                         const originalIndex = patientFields.findIndex(pf => pf === field);
                         return (
-                            <div key={field.id || originalIndex} className="patient-field-row">
+                            <div key={field.id || originalIndex} className="patient-field-row patient-field-row-default">
                                 <div className="lbl" contentEditable={isEditing} suppressContentEditableWarning onBlur={e => onPatientLabelChange(originalIndex, e.currentTarget.innerText)}>{field.label}</div>
-                                <input
-                                    type={field.type}
-                                    className="inp"
-                                    id={field.id}
-                                    value={field.value}
-                                    onChange={e => onPatientFieldChange(originalIndex, e.target.value)}
-                                    placeholder={field.placeholder}
-                                    readOnly={field.readonly}
-                                    style={field.readonly ? { background: '#f9f9f9', cursor: 'default' } : {}}
-                                />
+                                <div className="patient-field-input">
+                                    <input
+                                        type={field.type}
+                                        className="inp"
+                                        id={field.id}
+                                        value={field.value}
+                                        onChange={e => onPatientFieldChange(originalIndex, e.target.value)}
+                                        placeholder={field.placeholder}
+                                        readOnly={field.readonly}
+                                        style={field.readonly ? { background: '#f9f9f9', cursor: 'default' } : {}}
+                                    />
+                                    {isEditing && (
+                                        <button
+                                            type="button"
+                                            className="row-del"
+                                            aria-label={`Eliminar ${field.label}`}
+                                            onClick={() => onRemovePatientField(originalIndex)}
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         )
                     })}
@@ -43,7 +55,9 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
                         <div className="row patient-field-row mt-2" key={`custom-${originalIndex}`}>
                             <div className="lbl" contentEditable={isEditing} suppressContentEditableWarning onBlur={e => onPatientLabelChange(originalIndex, e.currentTarget.innerText)}>{field.label}</div>
                             <input className="inp" type={field.type} value={field.value} onChange={e => onPatientFieldChange(originalIndex, e.target.value)} />
-                            <button className="row-del" onClick={() => onRemovePatientField(originalIndex)}>×</button>
+                            {isEditing && (
+                                <button type="button" className="row-del" aria-label={`Eliminar ${field.label}`} onClick={() => onRemovePatientField(originalIndex)}>×</button>
+                            )}
                         </div>
                     )
                 })}
