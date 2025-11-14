@@ -1059,6 +1059,24 @@
 
     .row .row-del { display: none; }
 
+    #patientGrid .patient-field-row {
+      position: relative;
+    }
+
+    .patient-field-row-default .patient-field-input {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .patient-field-row-default .patient-field-input .inp {
+      flex: 1;
+    }
+
+    .patient-field-row-default .patient-field-input .row-del {
+      flex-shrink: 0;
+    }
+
     .edit-panel {
       position: fixed;
       right: 12px;
