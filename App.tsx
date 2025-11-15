@@ -39,6 +39,22 @@ interface DriveCacheEntry {
     timestamp: number;
 }
 
+const DEFAULT_TEMPLATE_ID = '2';
+
+const createTemplateBaseline = (templateId: string): ClinicalRecord => {
+    const selectedTemplateId = TEMPLATES[templateId] ? templateId : DEFAULT_TEMPLATE_ID;
+    const template = TEMPLATES[selectedTemplateId];
+    return {
+        version: 'v14',
+        templateId: selectedTemplateId,
+        title: template?.title || 'Registro Clínico',
+        patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS)),
+        sections: JSON.parse(JSON.stringify(DEFAULT_SECTIONS)),
+        medico: '',
+        especialidad: ''
+    };
+};
+
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAdvancedEditing, setIsAdvancedEditing] = useState(false);
@@ -1140,21 +1156,13 @@ const App: React.FC = () => {
     
     const restoreAll = useCallback(() => {
         if (window.confirm('¿Está seguro de que desea restaurar todo el formulario? Se perderán los datos no guardados.')) {
-            const blankRecord: ClinicalRecord = {
-                version: 'v14',
-                templateId: '2',
-                title: TEMPLATES['2'].title,
-                patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS)),
-                sections: JSON.parse(JSON.stringify(DEFAULT_SECTIONS)),
-                medico: '',
-                especialidad: ''
-            };
+            const blankRecord = createTemplateBaseline(record.templateId);
             markRecordAsReplaced();
             setRecord(blankRecord);
             setHasUnsavedChanges(true);
             showToast('Formulario restablecido.', 'warning');
         }
-    }, [markRecordAsReplaced, showToast]);
+    }, [markRecordAsReplaced, record.templateId, setHasUnsavedChanges, showToast]);
 
     const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -1382,6 +1390,10 @@ const App: React.FC = () => {
                     ))}</div>
                     <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
                 </div>
+            </div>
+            <div className="sheet-reset-panel">
+                <button className="btn" type="button" onClick={restoreAll}>Restablecer planilla</button>
+                <small>Restablece los campos y secciones originales de la plantilla actual.</small>
             </div>
         </>
     );
