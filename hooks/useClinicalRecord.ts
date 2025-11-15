@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from '../constants';
 import type { ClinicalRecord, VersionHistoryEntry } from '../types';
 import { AUTO_SAVE_INTERVAL, LOCAL_STORAGE_KEYS, MAX_HISTORY_ENTRIES } from '../appConstants';
+import { useConfirmDialog } from './useConfirmDialog';
 
 type ToastType = 'success' | 'warning' | 'error';
 
@@ -10,6 +11,7 @@ interface UseClinicalRecordOptions {
 }
 
 export const useClinicalRecord = ({ onToast }: UseClinicalRecordOptions) => {
+    const { confirm } = useConfirmDialog();
     const [record, setRecord] = useState<ClinicalRecord>({
         version: 'v14',
         templateId: '2',
@@ -109,18 +111,27 @@ export const useClinicalRecord = ({ onToast }: UseClinicalRecordOptions) => {
     }, [hasUnsavedChanges, saveDraft]);
 
     const handleRestoreHistoryEntry = useCallback((entry: VersionHistoryEntry) => {
-        if (!window.confirm('¿Desea restaurar esta versión anterior? Se reemplazarán los datos actuales.')) return;
-        const snapshot = JSON.parse(JSON.stringify(entry.record)) as ClinicalRecord;
-        markRecordAsReplaced();
-        setRecord(snapshot);
-        setHasUnsavedChanges(false);
-        setLastLocalSave(entry.timestamp);
-        if (typeof window !== 'undefined') {
-            window.localStorage.setItem(LOCAL_STORAGE_KEYS.draft, JSON.stringify({ timestamp: entry.timestamp, record: snapshot }));
-        }
-        onToast('Versión restaurada desde el historial.');
-        setIsHistoryModalOpen(false);
-    }, [markRecordAsReplaced, onToast]);
+        void (async () => {
+            const confirmed = await confirm({
+                title: 'Restaurar versión anterior',
+                message: '¿Desea restaurar esta versión? Se reemplazarán los datos actuales.',
+                confirmLabel: 'Restaurar',
+                cancelLabel: 'Cancelar',
+                tone: 'warning',
+            });
+            if (!confirmed) return;
+            const snapshot = JSON.parse(JSON.stringify(entry.record)) as ClinicalRecord;
+            markRecordAsReplaced();
+            setRecord(snapshot);
+            setHasUnsavedChanges(false);
+            setLastLocalSave(entry.timestamp);
+            if (typeof window !== 'undefined') {
+                window.localStorage.setItem(LOCAL_STORAGE_KEYS.draft, JSON.stringify({ timestamp: entry.timestamp, record: snapshot }));
+            }
+            onToast('Versión restaurada desde el historial.');
+            setIsHistoryModalOpen(false);
+        })();
+    }, [confirm, markRecordAsReplaced, onToast]);
 
     return {
         record,
