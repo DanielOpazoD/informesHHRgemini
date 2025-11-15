@@ -1273,6 +1273,7 @@ const App: React.FC = () => {
                 lastSaveTime={lastSaveTime}
                 hasUnsavedChanges={hasUnsavedChanges}
                 onOpenHistory={() => setIsHistoryModalOpen(true)}
+                onRestoreTemplate={restoreAll}
             />
             
             {/* --- Modals --- */}
@@ -1390,10 +1391,6 @@ const App: React.FC = () => {
                     ))}</div>
                     <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
                 </div>
-            </div>
-            <div className="sheet-reset-panel">
-                <button className="btn" type="button" onClick={restoreAll}>Restablecer planilla</button>
-                <small>Restablece los campos y secciones originales de la plantilla actual.</small>
             </div>
         </>
     );
