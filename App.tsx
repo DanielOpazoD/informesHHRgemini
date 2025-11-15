@@ -16,6 +16,7 @@ import { validateCriticalFields, formatTimeSince } from './utils/validationUtils
 import { decodeIdToken } from './utils/googleAuth';
 import { useToast } from './hooks/useToast';
 import { useClinicalRecord } from './hooks/useClinicalRecord';
+import { useConfirmDialog } from './hooks/useConfirmDialog';
 import { MAX_RECENT_FILES, SEARCH_CACHE_TTL, DRIVE_CONTENT_FETCH_CONCURRENCY, LOCAL_STORAGE_KEYS } from './appConstants';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
@@ -39,6 +40,22 @@ interface DriveCacheEntry {
     timestamp: number;
 }
 
+const DEFAULT_TEMPLATE_ID = '2';
+
+const createTemplateBaseline = (templateId: string): ClinicalRecord => {
+    const selectedTemplateId = TEMPLATES[templateId] ? templateId : DEFAULT_TEMPLATE_ID;
+    const template = TEMPLATES[selectedTemplateId];
+    return {
+        version: 'v14',
+        templateId: selectedTemplateId,
+        title: template?.title || 'Registro Clínico',
+        patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS)),
+        sections: JSON.parse(JSON.stringify(DEFAULT_SECTIONS)),
+        medico: '',
+        especialidad: ''
+    };
+};
+
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAdvancedEditing, setIsAdvancedEditing] = useState(false);
@@ -46,6 +63,7 @@ const App: React.FC = () => {
     const lastSelectionRef = useRef<Range | null>(null);
     const lastEditableRef = useRef<HTMLElement | null>(null);
     const { toast, showToast } = useToast();
+    const { confirm } = useConfirmDialog();
     const {
         record,
         setRecord,
@@ -358,14 +376,22 @@ const App: React.FC = () => {
     };
 
     const handleClearSettings = () => {
-        if (window.confirm('¿Está seguro de que desea eliminar las credenciales guardadas?')) {
+        void (async () => {
+            const confirmed = await confirm({
+                title: 'Eliminar credenciales',
+                message: '¿Está seguro de que desea eliminar las credenciales guardadas? Esta acción no se puede deshacer.',
+                confirmLabel: 'Eliminar',
+                cancelLabel: 'Cancelar',
+                tone: 'danger',
+            });
+            if (!confirmed) return;
             localStorage.removeItem('googleApiKey');
             localStorage.removeItem('googleClientId');
             setApiKey('');
             setClientId('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
             showToast('Credenciales eliminadas. Recargue la página para aplicar los cambios.', 'warning');
             closeSettingsModal();
-        }
+        })();
     };
 
     // --- Drive API & Modals Logic ---
@@ -1117,7 +1143,20 @@ const App: React.FC = () => {
 
     const handleTemplateChange = (id: string) => {
         const template = TEMPLATES[id];
-        setRecord(r => ({...r, templateId: id, sections: JSON.parse(JSON.stringify(DEFAULT_SECTIONS)), title: template.title}));
+        if (!template) return;
+
+        setRecord(r => {
+            const currentTemplate = TEMPLATES[r.templateId];
+            const trimmedTitle = r.title?.trim() || '';
+            const wasUsingDefaultTitle = trimmedTitle === (currentTemplate?.title || '');
+            const nextTitle = wasUsingDefaultTitle ? template.title : r.title;
+
+            return {
+                ...r,
+                templateId: id,
+                title: nextTitle,
+            };
+        });
     };
     
     const handleAddSection = () => setRecord(r => ({...r, sections: [...r.sections, { title: 'Sección personalizada', content: '' }]}));
@@ -1126,22 +1165,22 @@ const App: React.FC = () => {
     const handleRemovePatientField = (index: number) => setRecord(r => ({...r, patientFields: r.patientFields.filter((_, i) => i !== index)}));
     
     const restoreAll = useCallback(() => {
-        if (window.confirm('¿Está seguro de que desea restaurar todo el formulario? Se perderán los datos no guardados.')) {
-            const blankRecord: ClinicalRecord = {
-                version: 'v14',
-                templateId: '2',
-                title: TEMPLATES['2'].title,
-                patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS)),
-                sections: JSON.parse(JSON.stringify(DEFAULT_SECTIONS)),
-                medico: '',
-                especialidad: ''
-            };
+        void (async () => {
+            const confirmed = await confirm({
+                title: 'Restablecer planilla',
+                message: '¿Desea restaurar todo el formulario? Se perderán los datos no guardados.',
+                confirmLabel: 'Restablecer',
+                cancelLabel: 'Cancelar',
+                tone: 'warning',
+            });
+            if (!confirmed) return;
+            const blankRecord = createTemplateBaseline(record.templateId);
             markRecordAsReplaced();
             setRecord(blankRecord);
             setHasUnsavedChanges(true);
             showToast('Formulario restablecido.', 'warning');
-        }
-    }, [markRecordAsReplaced, showToast]);
+        })();
+    }, [confirm, markRecordAsReplaced, record.templateId, setHasUnsavedChanges, showToast]);
 
     const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -1187,17 +1226,25 @@ const App: React.FC = () => {
     }, [record, showToast]);
 
     const handlePrint = useCallback(() => {
-        const errors = validateCriticalFields(record);
-        if (errors.length) {
-            const proceed = window.confirm(`Se detectaron advertencias antes de imprimir:\n- ${errors.join('\n- ')}\n\n¿Desea continuar de todas formas?`);
-            if (!proceed) return;
-        }
-        const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
-        const originalTitle = document.title;
-        document.title = suggestedFilename(record.templateId, patientName);
-        window.print();
-        setTimeout(() => { document.title = originalTitle; }, 1000);
-    }, [record]);
+        void (async () => {
+            const errors = validateCriticalFields(record);
+            if (errors.length) {
+                const proceed = await confirm({
+                    title: 'Advertencias antes de imprimir',
+                    message: `Se detectaron advertencias antes de imprimir:\n- ${errors.join('\n- ')}\n\n¿Desea continuar de todas formas?`,
+                    confirmLabel: 'Imprimir de todas formas',
+                    cancelLabel: 'Revisar',
+                    tone: 'warning',
+                });
+                if (!proceed) return;
+            }
+            const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
+            const originalTitle = document.title;
+            document.title = suggestedFilename(record.templateId, patientName);
+            window.print();
+            setTimeout(() => { document.title = originalTitle; }, 1000);
+        })();
+    }, [confirm, record]);
 
     useEffect(() => {
         const handleShortcut = (event: KeyboardEvent) => {
@@ -1252,6 +1299,7 @@ const App: React.FC = () => {
                 lastSaveTime={lastSaveTime}
                 hasUnsavedChanges={hasUnsavedChanges}
                 onOpenHistory={() => setIsHistoryModalOpen(true)}
+                onRestoreTemplate={restoreAll}
             />
             
             {/* --- Modals --- */}

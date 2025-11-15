@@ -31,6 +31,7 @@ interface HeaderProps {
     lastSaveTime: string;
     hasUnsavedChanges: boolean;
     onOpenHistory: () => void;
+    onRestoreTemplate: () => void;
 }
 
 const GridIcon = () => (
@@ -181,6 +182,15 @@ const SaveIcon = () => (
     </svg>
 );
 
+const RefreshIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12a9 9 0 0 0-9-9 9.3 9.3 0 0 0-6.51 2.7" />
+        <path d="M3 12a9 9 0 0 0 9 9 9.3 9.3 0 0 0 6.51-2.7" />
+        <path d="M3 5v6h6" />
+        <path d="M21 19v-6h-6" />
+    </svg>
+);
+
 const HistoryIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 3v6h6" />
@@ -219,7 +229,8 @@ const Header: React.FC<HeaderProps> = ({
     saveStatusLabel,
     lastSaveTime,
     hasUnsavedChanges,
-    onOpenHistory
+    onOpenHistory,
+    onRestoreTemplate
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isLauncherOpen, setIsLauncherOpen] = useState(false);
@@ -512,6 +523,13 @@ const Header: React.FC<HeaderProps> = ({
                                 >
                                     <UploadIcon />
                                     <span>Importar</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDropdownAction(onRestoreTemplate)}
+                                >
+                                    <RefreshIcon />
+                                    <span>Restablecer planilla</span>
                                 </button>
                             </div>
                         )}
