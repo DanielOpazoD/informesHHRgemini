@@ -1117,7 +1117,20 @@ const App: React.FC = () => {
 
     const handleTemplateChange = (id: string) => {
         const template = TEMPLATES[id];
-        setRecord(r => ({...r, templateId: id, sections: JSON.parse(JSON.stringify(DEFAULT_SECTIONS)), title: template.title}));
+        if (!template) return;
+
+        setRecord(r => {
+            const currentTemplate = TEMPLATES[r.templateId];
+            const trimmedTitle = r.title?.trim() || '';
+            const wasUsingDefaultTitle = trimmedTitle === (currentTemplate?.title || '');
+            const nextTitle = wasUsingDefaultTitle ? template.title : r.title;
+
+            return {
+                ...r,
+                templateId: id,
+                title: nextTitle,
+            };
+        });
     };
     
     const handleAddSection = () => setRecord(r => ({...r, sections: [...r.sections, { title: 'Sección personalizada', content: '' }]}));

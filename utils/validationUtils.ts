@@ -31,26 +31,30 @@ const parseDate = (value: string) => {
 
 export const validateCriticalFields = (record: ClinicalRecord): string[] => {
     const errors: string[] = [];
+    const hasField = (id: string) => record.patientFields.some(field => field.id === id);
+
     const name = findFieldValue(record.patientFields, 'nombre');
     const rut = findFieldValue(record.patientFields, 'rut');
     const birth = findFieldValue(record.patientFields, 'fecnac');
     const admission = findFieldValue(record.patientFields, 'fing');
     const report = findFieldValue(record.patientFields, 'finf');
 
-    if (!name) errors.push('Ingrese el nombre del paciente.');
-    if (!rut) {
-        errors.push('Ingrese el RUT del paciente.');
-    } else if (!isValidRut(rut)) {
-        errors.push('El RUT ingresado no es válido.');
+    if (hasField('nombre') && !name) errors.push('Ingrese el nombre del paciente.');
+    if (hasField('rut')) {
+        if (!rut) {
+            errors.push('Ingrese el RUT del paciente.');
+        } else if (!isValidRut(rut)) {
+            errors.push('El RUT ingresado no es válido.');
+        }
     }
 
-    const birthDate = parseDate(birth);
-    const admissionDate = parseDate(admission);
-    const reportDate = parseDate(report);
+    const birthDate = hasField('fecnac') ? parseDate(birth) : null;
+    const admissionDate = hasField('fing') ? parseDate(admission) : null;
+    const reportDate = hasField('finf') ? parseDate(report) : null;
 
-    if (!birthDate) errors.push('Ingrese una fecha de nacimiento válida.');
-    if (!admissionDate) errors.push('Ingrese una fecha de ingreso válida.');
-    if (!reportDate) errors.push('Ingrese una fecha de informe válida.');
+    if (hasField('fecnac') && !birthDate) errors.push('Ingrese una fecha de nacimiento válida.');
+    if (hasField('fing') && !admissionDate) errors.push('Ingrese una fecha de ingreso válida.');
+    if (hasField('finf') && !reportDate) errors.push('Ingrese una fecha de informe válida.');
 
     if (birthDate && admissionDate && birthDate > admissionDate) {
         errors.push('La fecha de ingreso debe ser posterior a la fecha de nacimiento.');
