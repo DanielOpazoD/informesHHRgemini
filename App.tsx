@@ -56,6 +56,8 @@ const createTemplateBaseline = (templateId: string): ClinicalRecord => {
     };
 };
 
+const ENV_GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAdvancedEditing, setIsAdvancedEditing] = useState(false);
@@ -96,11 +98,12 @@ const App: React.FC = () => {
     
     // API & Settings State
     const [apiKey, setApiKey] = useState('');
+    const [aiApiKey, setAiApiKey] = useState('');
     const [clientId, setClientId] = useState('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
     const [isGapiReady, setIsGapiReady] = useState(false);
     const [isGisReady, setIsGisReady] = useState(false);
     const [isPickerApiReady, setIsPickerApiReady] = useState(false);
-    
+
     // Modals State
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
@@ -109,7 +112,9 @@ const App: React.FC = () => {
     // Settings Modal Temp State
     const [tempApiKey, setTempApiKey] = useState('');
     const [tempClientId, setTempClientId] = useState('');
+    const [tempAiApiKey, setTempAiApiKey] = useState('');
     const [showApiKey, setShowApiKey] = useState(false);
+    const [showAiApiKey, setShowAiApiKey] = useState(false);
 
     // Drive Modals State
     const [saveFormat, setSaveFormat] = useState<'json' | 'pdf' | 'both'>('json');
@@ -206,8 +211,10 @@ const App: React.FC = () => {
     useEffect(() => {
         const savedApiKey = localStorage.getItem('googleApiKey');
         const savedClientId = localStorage.getItem('googleClientId');
+        const savedAiKey = localStorage.getItem('geminiApiKey');
         if (savedApiKey) setApiKey(savedApiKey);
         if (savedClientId) setClientId(savedClientId);
+        if (savedAiKey) setAiApiKey(savedAiKey);
     }, []);
 
     const handleManualSave = useCallback(() => {
@@ -238,6 +245,8 @@ const App: React.FC = () => {
         const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
         return suggestedFilename(record.templateId, patientName);
     }, [record.patientFields, record.templateId]);
+
+    const resolvedAiApiKey = useMemo(() => aiApiKey || ENV_GEMINI_API_KEY, [aiApiKey]);
 
     useEffect(() => {
         if (scriptLoadRef.current) return;
@@ -346,12 +355,14 @@ const App: React.FC = () => {
     const openSettingsModal = () => {
         setTempApiKey(apiKey);
         setTempClientId(clientId);
+        setTempAiApiKey(aiApiKey || ENV_GEMINI_API_KEY);
         setIsSettingsModalOpen(true);
     };
 
     const closeSettingsModal = () => {
         setIsSettingsModalOpen(false);
         setShowApiKey(false);
+        setShowAiApiKey(false);
     };
 
     const handleSaveSettings = () => {
@@ -362,7 +373,7 @@ const App: React.FC = () => {
             localStorage.removeItem('googleApiKey');
             setApiKey('');
         }
-        
+
         if (tempClientId.trim()) {
             localStorage.setItem('googleClientId', tempClientId.trim());
             setClientId(tempClientId.trim());
@@ -370,7 +381,15 @@ const App: React.FC = () => {
             localStorage.removeItem('googleClientId');
             setClientId('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
         }
-        
+
+        if (tempAiApiKey.trim()) {
+            localStorage.setItem('geminiApiKey', tempAiApiKey.trim());
+            setAiApiKey(tempAiApiKey.trim());
+        } else {
+            localStorage.removeItem('geminiApiKey');
+            setAiApiKey('');
+        }
+
         showToast('Configuración guardada. Para que todos los cambios surtan efecto, por favor, recargue la página.');
         closeSettingsModal();
     };
@@ -387,8 +406,10 @@ const App: React.FC = () => {
             if (!confirmed) return;
             localStorage.removeItem('googleApiKey');
             localStorage.removeItem('googleClientId');
+            localStorage.removeItem('geminiApiKey');
             setApiKey('');
             setClientId('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
+            setAiApiKey('');
             showToast('Credenciales eliminadas. Recargue la página para aplicar los cambios.', 'warning');
             closeSettingsModal();
         })();
@@ -1307,11 +1328,15 @@ const App: React.FC = () => {
                 isOpen={isSettingsModalOpen}
                 tempApiKey={tempApiKey}
                 tempClientId={tempClientId}
+                tempAiApiKey={tempAiApiKey}
                 showApiKey={showApiKey}
+                showAiApiKey={showAiApiKey}
                 onClose={closeSettingsModal}
                 onToggleShowApiKey={() => setShowApiKey(prev => !prev)}
+                onToggleShowAiApiKey={() => setShowAiApiKey(prev => !prev)}
                 onTempApiKeyChange={setTempApiKey}
                 onTempClientIdChange={setTempClientId}
+                onTempAiApiKeyChange={setTempAiApiKey}
                 onSave={handleSaveSettings}
                 onClearCredentials={handleClearSettings}
             />
@@ -1410,6 +1435,7 @@ const App: React.FC = () => {
                             index={index}
                             isEditing={isEditing}
                             isAdvancedEditing={isAdvancedEditing}
+                            aiApiKey={resolvedAiApiKey}
                             onSectionContentChange={handleSectionContentChange}
                             onSectionTitleChange={handleSectionTitleChange}
                             onRemoveSection={handleRemoveSection}
