@@ -18,6 +18,7 @@ import { useToast } from './hooks/useToast';
 import { useClinicalRecord } from './hooks/useClinicalRecord';
 import { useConfirmDialog } from './hooks/useConfirmDialog';
 import { MAX_RECENT_FILES, SEARCH_CACHE_TTL, DRIVE_CONTENT_FETCH_CONCURRENCY, LOCAL_STORAGE_KEYS } from './appConstants';
+import { getEnvGeminiApiKey } from './utils/env';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -56,7 +57,7 @@ const createTemplateBaseline = (templateId: string): ClinicalRecord => {
     };
 };
 
-const ENV_GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+const ENV_GEMINI_API_KEY = getEnvGeminiApiKey();
 
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
