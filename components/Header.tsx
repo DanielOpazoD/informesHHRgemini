@@ -10,6 +10,8 @@ interface HeaderProps {
     onToggleEdit: () => void;
     isAdvancedEditing: boolean;
     onToggleAdvancedEditing: () => void;
+    isAiAssistantVisible: boolean;
+    onToggleAiAssistant: () => void;
     onToolbarCommand: (command: string) => void;
     isSignedIn: boolean;
     isGisReady: boolean;
@@ -209,6 +211,8 @@ const Header: React.FC<HeaderProps> = ({
     onToggleEdit,
     isAdvancedEditing,
     onToggleAdvancedEditing,
+    isAiAssistantVisible,
+    onToggleAiAssistant,
     onToolbarCommand,
     isSignedIn,
     isGisReady,
@@ -469,6 +473,18 @@ const Header: React.FC<HeaderProps> = ({
                                 title="Acercar (zoom)"
                             >
                                 <span className="toolbar-icon">+</span>
+                            </button>
+                            <span className="toolbar-divider" aria-hidden="true" />
+                            <button
+                                type="button"
+                                onMouseDown={preventToolbarMouseDown}
+                                className={isAiAssistantVisible ? 'is-active' : ''}
+                                onClick={onToggleAiAssistant}
+                                aria-pressed={isAiAssistantVisible}
+                                aria-label={isAiAssistantVisible ? 'Ocultar IA en secciones' : 'Mostrar IA en secciones'}
+                                title={isAiAssistantVisible ? 'Ocultar asistente de IA' : 'Mostrar asistente de IA'}
+                            >
+                                <span className="toolbar-icon" role="img" aria-hidden="true">🤖</span>
                             </button>
                         </div>
                     )}

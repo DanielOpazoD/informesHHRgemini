@@ -4,11 +4,15 @@ interface SettingsModalProps {
     isOpen: boolean;
     tempApiKey: string;
     tempClientId: string;
+    tempAiApiKey: string;
     showApiKey: boolean;
+    showAiApiKey: boolean;
     onClose: () => void;
     onToggleShowApiKey: () => void;
+    onToggleShowAiApiKey: () => void;
     onTempApiKeyChange: (value: string) => void;
     onTempClientIdChange: (value: string) => void;
+    onTempAiApiKeyChange: (value: string) => void;
     onSave: () => void;
     onClearCredentials: () => void;
 }
@@ -17,11 +21,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     isOpen,
     tempApiKey,
     tempClientId,
+    tempAiApiKey,
     showApiKey,
+    showAiApiKey,
     onClose,
     onToggleShowApiKey,
+    onToggleShowAiApiKey,
     onTempApiKeyChange,
     onTempClientIdChange,
+    onTempAiApiKeyChange,
     onSave,
     onClearCredentials,
 }) => {
@@ -72,6 +80,36 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         onChange={e => onTempClientIdChange(e.target.value)}
                         placeholder="123-abc.apps.googleusercontent.com"
                     />
+                </div>
+                <div style={{ background: '#eff6ff', padding: '8px', borderRadius: '4px', fontSize: '12px' }}>
+                    <strong>🤖 Asistente IA:</strong> Ingrese una clave de Gemini para habilitar las herramientas de redacción inteligente en el editor avanzado.
+                </div>
+                <div>
+                    <div className="lbl">Gemini API Key</div>
+                    <div className="flex gap-2">
+                        <input
+                            type={showAiApiKey ? 'text' : 'password'}
+                            className="inp flex-grow"
+                            value={tempAiApiKey}
+                            onChange={e => onTempAiApiKeyChange(e.target.value)}
+                            placeholder="AIza..."
+                        />
+                        <button className="btn" style={{ padding: '6px' }} onClick={onToggleShowAiApiKey}>
+                            {showAiApiKey ? '🙈' : '👁️'}
+                        </button>
+                    </div>
+                    <small className="text-xs text-gray-500">
+                        Necesitas acceso a{' '}
+                        <a
+                            href="https://ai.google.dev/gemini-api/docs/api-key"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 underline"
+                        >
+                            una Gemini API Key
+                        </a>{' '}
+                        para usar las herramientas de IA directamente desde el navegador.
+                    </small>
                 </div>
                 <div style={{ background: '#fef3c7', padding: '8px', borderRadius: '4px', fontSize: '12px' }}>
                     <strong>⚠️ Privacidad:</strong> Las credenciales se guardan solo en su navegador. Nunca se envían a ningún servidor externo.

@@ -1,11 +1,14 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import type { ClinicalSectionData } from '../types';
+import AIAssistant from './AIAssistant';
 
 interface ClinicalSectionProps {
     section: ClinicalSectionData;
     index: number;
     isEditing: boolean;
     isAdvancedEditing: boolean;
+    showAiTools: boolean;
+    aiApiKey?: string;
     onSectionContentChange: (index: number, content: string) => void;
     onSectionTitleChange: (index: number, title: string) => void;
     onRemoveSection: (index: number) => void;
@@ -16,6 +19,8 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     index,
     isEditing,
     isAdvancedEditing,
+    showAiTools,
+    aiApiKey,
     onSectionContentChange,
     onSectionTitleChange,
     onRemoveSection
@@ -55,6 +60,13 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
             >
                 {section.title}
             </div>
+            {isAdvancedEditing && showAiTools && (
+                <AIAssistant
+                    sectionContent={section.content || ''}
+                    apiKey={aiApiKey}
+                    onSuggestion={text => onSectionContentChange(index, text)}
+                />
+            )}
             <div
                 ref={noteRef}
                 className={`txt note-area ${isAdvancedEditing ? 'advanced-mode' : ''} ${isAdvancedEditing && isFocused ? 'is-focused' : ''}`.trim()}
