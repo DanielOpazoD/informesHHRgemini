@@ -69,6 +69,24 @@ const extractGeminiText = (response: any): string => {
         .trim();
 };
 
+const normalizeApiError = (message: string): string => {
+    const normalized = message.toLowerCase();
+
+    if (normalized.includes('quota') || normalized.includes('rate')) {
+        return 'Se alcanzó el límite por minuto de la API de Gemini. Espera un momento o habilita facturación en Google AI Studio para solicitar más cuota.';
+    }
+
+    if (normalized.includes('permission') || normalized.includes('project')) {
+        return 'La clave no tiene permisos para usar este modelo. Revisa que el proyecto tenga habilitado Google AI Studio.';
+    }
+
+    if (normalized.includes('api key not valid')) {
+        return 'La clave de API no es válida. Cópiala nuevamente desde Google AI Studio > API Keys.';
+    }
+
+    return message;
+};
+
 const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, onSuggestion }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -130,7 +148,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, onSug
 
             onSuggestion(plainTextToHtml(improvedText));
         } catch (err) {
-            setError((err as Error).message);
+            setError(normalizeApiError((err as Error).message));
         } finally {
             setIsProcessing(false);
         }

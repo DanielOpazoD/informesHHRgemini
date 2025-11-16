@@ -27,3 +27,5 @@ El modo de edición avanzada ahora incluye un asistente de IA que puede mejorar,
 2. O bien, abre **Configuración → IA** dentro de la aplicación e ingresa tu clave de la API de Gemini; la clave solo se guarda en tu navegador.
 
 Una vez configurada la clave, habilita la edición avanzada y pulsa el botón 🤖 IA en cada sección para recibir sugerencias de redacción.
+
+> ℹ️ **Límites gratuitos de Gemini**: las claves nuevas creadas desde Google AI Studio comienzan con una cuota pequeña (por ejemplo, ~15 solicitudes por minuto). Si ves el error `Quota exceeded for quota metric 'Generate Content API requests per minute'`, significa que alcanzaste ese límite temporal. Espera un minuto y vuelve a intentarlo o habilita la facturación del proyecto para poder solicitar un aumento de cuota desde el panel de Google AI Studio.
