@@ -26,6 +26,16 @@ El modo de edición avanzada ahora incluye un asistente de IA que puede mejorar,
 1. Define la variable de entorno `GEMINI_API_KEY` antes de iniciar la app (por ejemplo en `.env.local`).
 2. O bien, abre **Configuración → IA** dentro de la aplicación e ingresa tu clave de la API de Gemini; la clave solo se guarda en tu navegador.
 
-Una vez configurada la clave, habilita la edición avanzada y pulsa el botón 🤖 IA en cada sección para recibir sugerencias de redacción.
+Una vez configurada la clave, habilita la edición avanzada y usa el botón 🤖 de la barra de edición superior para desplegar/ocultar las herramientas de IA en todas las secciones al mismo tiempo.
 
 > ℹ️ **Límites gratuitos de Gemini**: las claves nuevas creadas desde Google AI Studio comienzan con una cuota pequeña (por ejemplo, ~15 solicitudes por minuto). Si ves el error `Quota exceeded for quota metric 'Generate Content API requests per minute'`, significa que alcanzaste ese límite temporal. Espera un minuto y vuelve a intentarlo o habilita la facturación del proyecto para poder solicitar un aumento de cuota desde el panel de Google AI Studio.
+
+### Verificar tu clave rápidamente
+
+Incluimos un script mínimo para probar que la clave y el endpoint correcto (`/v1/models/gemini-1.5-flash:generateContent`) funcionan:
+
+```bash
+GEMINI_API_KEY="tu-clave" npx tsx test-gemini.ts
+```
+
+Si todo está OK, verás el mensaje `Hola, funciono correctamente`. Si hay errores de cuota o de permisos, el script mostrará la respuesta completa de la API para ayudarte a diagnosticarlos.

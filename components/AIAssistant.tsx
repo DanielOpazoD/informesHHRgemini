@@ -26,7 +26,7 @@ const ACTION_CONFIG: Record<AiAction, { label: string; prompt: string }> = {
     },
 };
 
-const GEMINI_MODEL = 'gemini-1.5-flash-latest';
+const GEMINI_MODEL = 'gemini-1.5-flash';
 
 const htmlToPlainText = (html: string): string => {
     if (!html) return '';
@@ -113,7 +113,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, onSug
 
         try {
             const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+                `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
                 {
                     method: 'POST',
                     headers: {

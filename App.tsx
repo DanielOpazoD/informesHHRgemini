@@ -61,6 +61,7 @@ const ENV_GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY || 
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAdvancedEditing, setIsAdvancedEditing] = useState(false);
+    const [isAiAssistantVisible, setIsAiAssistantVisible] = useState(false);
     const [sheetZoom, setSheetZoom] = useState(1);
     const lastSelectionRef = useRef<Range | null>(null);
     const lastEditableRef = useRef<HTMLElement | null>(null);
@@ -140,6 +141,9 @@ const App: React.FC = () => {
     useEffect(() => {
         if (typeof document === 'undefined') return;
         document.body.classList.toggle('advanced-editing-active', isAdvancedEditing);
+        if (!isAdvancedEditing) {
+            setIsAiAssistantVisible(false);
+        }
         return () => {
             document.body.classList.remove('advanced-editing-active');
         };
@@ -1299,6 +1303,8 @@ const App: React.FC = () => {
                 onToggleEdit={() => setIsEditing(!isEditing)}
                 isAdvancedEditing={isAdvancedEditing}
                 onToggleAdvancedEditing={() => setIsAdvancedEditing(prev => !prev)}
+                isAiAssistantVisible={isAiAssistantVisible}
+                onToggleAiAssistant={() => setIsAiAssistantVisible(prev => !prev)}
                 onToolbarCommand={handleToolbarCommand}
                 isSignedIn={isSignedIn}
                 isGisReady={isGisReady}
@@ -1435,6 +1441,7 @@ const App: React.FC = () => {
                             index={index}
                             isEditing={isEditing}
                             isAdvancedEditing={isAdvancedEditing}
+                            showAiTools={isAiAssistantVisible}
                             aiApiKey={resolvedAiApiKey}
                             onSectionContentChange={handleSectionContentChange}
                             onSectionTitleChange={handleSectionTitleChange}

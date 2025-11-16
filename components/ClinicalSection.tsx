@@ -7,6 +7,7 @@ interface ClinicalSectionProps {
     index: number;
     isEditing: boolean;
     isAdvancedEditing: boolean;
+    showAiTools: boolean;
     aiApiKey?: string;
     onSectionContentChange: (index: number, content: string) => void;
     onSectionTitleChange: (index: number, title: string) => void;
@@ -18,6 +19,7 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     index,
     isEditing,
     isAdvancedEditing,
+    showAiTools,
     aiApiKey,
     onSectionContentChange,
     onSectionTitleChange,
@@ -25,13 +27,6 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
 }) => {
     const noteRef = useRef<HTMLDivElement>(null);
     const [isFocused, setIsFocused] = useState(false);
-    const [showAIAssistant, setShowAIAssistant] = useState(false);
-
-    useEffect(() => {
-        if (!isAdvancedEditing) {
-            setShowAIAssistant(false);
-        }
-    }, [isAdvancedEditing]);
 
     const syncContent = useCallback(() => {
         const node = noteRef.current;
@@ -57,18 +52,6 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
             data-section
         >
             <button className="sec-del" onClick={() => onRemoveSection(index)}>×</button>
-            {isAdvancedEditing && (
-                <button
-                    type="button"
-                    className={`ai-toggle-btn ${showAIAssistant ? 'is-active' : ''}`}
-                    onClick={() => setShowAIAssistant(prev => !prev)}
-                    aria-pressed={showAIAssistant}
-                    aria-label={showAIAssistant ? 'Ocultar asistente de IA' : 'Mostrar asistente de IA'}
-                >
-                    🤖
-                    <span className="ai-toggle-label">IA</span>
-                </button>
-            )}
             <div
                 className="subtitle"
                 contentEditable={isEditing}
@@ -77,7 +60,7 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
             >
                 {section.title}
             </div>
-            {isAdvancedEditing && showAIAssistant && (
+            {isAdvancedEditing && showAiTools && (
                 <AIAssistant
                     sectionContent={section.content || ''}
                     apiKey={aiApiKey}
