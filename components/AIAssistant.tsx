@@ -1,8 +1,13 @@
 import React, { useMemo, useState } from 'react';
+import { DEFAULT_GEMINI_MODEL } from '../appConstants';
+import { generateGeminiContent } from '../utils/geminiClient';
+import { normalizeGeminiModelName } from '../utils/env';
 
 interface AIAssistantProps {
     sectionContent: string;
     apiKey?: string;
+    projectId?: string;
+    model?: string;
     onSuggestion: (text: string) => void;
 }
 
@@ -26,7 +31,7 @@ const ACTION_CONFIG: Record<AiAction, { label: string; prompt: string }> = {
     },
 };
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const MAX_GEMINI_RETRIES = 2;
 
 const htmlToPlainText = (html: string): string => {
     if (!html) return '';
@@ -69,25 +74,60 @@ const extractGeminiText = (response: any): string => {
         .trim();
 };
 
+const withTechnicalDetails = (friendly: string, original: string) => {
+    if (!original || friendly === original) return friendly;
+    return `${friendly}\n\nDetalle técnico: ${original}`;
+};
+
 const normalizeApiError = (message: string): string => {
     const normalized = message.toLowerCase();
 
     if (normalized.includes('quota') || normalized.includes('rate')) {
-        return 'Se alcanzó el límite por minuto de la API de Gemini. Espera un momento o habilita facturación en Google AI Studio para solicitar más cuota.';
+        return withTechnicalDetails(
+            'Se alcanzó el límite por minuto de la API de Gemini. Espera un momento o habilita facturación en Google AI Studio para solicitar más cuota.',
+            message,
+        );
+    }
+
+    if (
+        normalized.includes('caller does not have required permission to use project') ||
+        normalized.includes('serviceusage.serviceusageconsumer')
+    ) {
+        return withTechnicalDetails(
+            'Tu cuenta de Google Cloud no tiene el rol serviceusage.serviceUsageConsumer sobre ese proyecto. Asígnalo en la ' +
+                'Consola IAM o deja vacío el campo "Proyecto de Google Cloud" para usar la cuota propia de AI Studio.',
+            message,
+        );
+    }
+
+    if (
+        normalized.includes('not found for api version') ||
+        normalized.includes('not supported for generatecontent')
+    ) {
+        return withTechnicalDetails(
+            'El modelo configurado no está disponible para esta versión de la API. Cambia el campo "Modelo de Gemini" en Configuración → IA (ej.: gemini-pro).',
+            message,
+        );
     }
 
     if (normalized.includes('permission') || normalized.includes('project')) {
-        return 'La clave no tiene permisos para usar este modelo. Revisa que el proyecto tenga habilitado Google AI Studio.';
+        return withTechnicalDetails(
+            'La clave no tiene permisos para usar este modelo. Revisa que el proyecto tenga habilitado Google AI Studio.',
+            message,
+        );
     }
 
     if (normalized.includes('api key not valid')) {
-        return 'La clave de API no es válida. Cópiala nuevamente desde Google AI Studio > API Keys.';
+        return withTechnicalDetails(
+            'La clave de API no es válida. Cópiala nuevamente desde Google AI Studio > API Keys.',
+            message,
+        );
     }
 
     return message;
 };
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, onSuggestion }) => {
+const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, projectId, model, onSuggestion }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastAction, setLastAction] = useState<AiAction | null>(null);
@@ -96,6 +136,11 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, onSug
 
     const missingApiKey = !apiKey;
     const isContentEmpty = plainTextContent.length === 0;
+
+    const resolvedModel = useMemo(() => {
+        const normalized = normalizeGeminiModelName(model);
+        return normalized || DEFAULT_GEMINI_MODEL;
+    }, [model]);
 
     const handleAction = async (action: AiAction) => {
         if (missingApiKey) {
@@ -112,34 +157,22 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, onSug
         setLastAction(action);
 
         try {
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        contents: [
+            const data = await generateGeminiContent({
+                apiKey,
+                model: resolvedModel,
+                maxRetries: MAX_GEMINI_RETRIES,
+                projectId,
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [
                             {
-                                role: 'user',
-                                parts: [
-                                    {
-                                        text: `${ACTION_CONFIG[action].prompt}\n\n${plainTextContent}`,
-                                    },
-                                ],
+                                text: `${ACTION_CONFIG[action].prompt}\n\n${plainTextContent}`,
                             },
                         ],
-                    }),
-                }
-            );
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                const message = data?.error?.message || 'La API devolvió un error desconocido.';
-                throw new Error(message);
-            }
+                    },
+                ],
+            });
 
             const improvedText = extractGeminiText(data);
             if (!improvedText) {

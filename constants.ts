@@ -13,7 +13,7 @@ export const TEMPLATES: Record<string, Template> = Object.freeze({
 // FIX: Removed Object.freeze to resolve readonly type mismatch. The constants are used to initialize mutable state.
 export const DEFAULT_PATIENT_FIELDS: PatientField[] = [
     { id: 'nombre', label: 'Nombre', value: '', type: 'text', placeholder: 'Nombre Apellido' },
-    { id: 'rut', label: 'Rut', value: '', type: 'text' },
+    { id: 'rut', label: 'Rut', value: '', type: 'text', documentType: 'rut' },
     { id: 'fecnac', label: 'Fecha de nacimiento', value: '', type: 'date' },
     { id: 'edad', label: 'Edad', value: '', type: 'text', placeholder: 'años', readonly: true },
     { id: 'fing', label: 'Fecha de ingreso', value: '', type: 'date' },
