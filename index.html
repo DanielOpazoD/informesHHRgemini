@@ -1210,18 +1210,19 @@
     }
 
     .patient-field-row-default {
-      display: flex;
-      align-items: flex-end;
-      gap: 8px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      column-gap: 8px;
       min-width: 0;
     }
 
     .patient-field-row-default .lbl {
-      min-width: 70px;
-      white-space: nowrap;
       font-weight: 600;
       cursor: text;
-      flex-shrink: 0;
+      line-height: 1.2;
+      align-self: center;
+      min-width: 0;
     }
 
     .patient-field-row-default .patient-field-input {
@@ -1237,13 +1238,21 @@
       min-width: 0;
     }
 
+    .patient-field-row-default.patient-field-row-compact {
+      grid-template-columns: auto auto;
+    }
+
     .patient-field-row-default.patient-field-row-compact .patient-field-input {
       flex: 0 0 auto;
     }
 
     .patient-field-row-default.patient-field-row-compact .patient-field-input .inp,
     .patient-field-row-default .patient-field-input .inp-compact {
-      max-width: 160px;
+      max-width: 140px;
+    }
+
+    .patient-field-row-default[data-field-id="edad"] .patient-field-input .inp {
+      max-width: 80px;
     }
 
     .patient-field-row-default .patient-field-input .row-del {
