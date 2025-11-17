@@ -8,10 +8,16 @@ interface PatientInfoProps {
     onPatientFieldChange: (index: number, value: string) => void;
     onPatientLabelChange: (index: number, label: string) => void;
     onRemovePatientField: (index: number) => void;
+    onDocumentTypeChange: (index: number, type: 'rut' | 'pasaporte') => void;
 }
 
 const PatientInfo: React.FC<PatientInfoProps> = ({
-    isEditing, patientFields, onPatientFieldChange, onPatientLabelChange, onRemovePatientField
+    isEditing,
+    patientFields,
+    onPatientFieldChange,
+    onPatientLabelChange,
+    onRemovePatientField,
+    onDocumentTypeChange,
 }) => {
     return (
         <div className="sec" id="sec-datos">
@@ -22,7 +28,30 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
                         const originalIndex = patientFields.findIndex(pf => pf === field);
                         return (
                             <div key={field.id || originalIndex} className="patient-field-row patient-field-row-default">
-                                <div className="lbl" contentEditable={isEditing} suppressContentEditableWarning onBlur={e => onPatientLabelChange(originalIndex, e.currentTarget.innerText)}>{field.label}</div>
+                                <div className="flex flex-col gap-1">
+                                    <div
+                                        className="lbl"
+                                        contentEditable={isEditing}
+                                        suppressContentEditableWarning
+                                        onBlur={e => onPatientLabelChange(originalIndex, e.currentTarget.innerText)}
+                                    >
+                                        {field.label}
+                                    </div>
+                                    {field.documentType && (
+                                        <label className="text-xs font-medium text-gray-600 flex items-center gap-2">
+                                            Documento:
+                                            <select
+                                                className="inp"
+                                                style={{ padding: '2px 6px', height: '28px', fontSize: '12px', width: 'auto' }}
+                                                value={field.documentType || 'rut'}
+                                                onChange={e => onDocumentTypeChange(originalIndex, e.target.value as 'rut' | 'pasaporte')}
+                                            >
+                                                <option value="rut">RUT</option>
+                                                <option value="pasaporte">Pasaporte</option>
+                                            </select>
+                                        </label>
+                                    )}
+                                </div>
                                 <div className="patient-field-input">
                                     <input
                                         type={field.type}
