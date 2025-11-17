@@ -1202,6 +1202,46 @@
       position: relative;
     }
 
+    .patient-field-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      min-height: 24px;
+    }
+
+    .patient-doc-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+
+    .patient-doc-toggle-label {
+      font-weight: 600;
+    }
+
+    .patient-doc-select {
+      border: none;
+      border-bottom: 1px dotted #d1d5db;
+      background: transparent;
+      font-size: 11px;
+      color: #374151;
+      padding: 0 4px;
+      min-height: 20px;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .patient-doc-select:focus {
+      outline: none;
+      border-bottom-color: #2563eb;
+    }
+
     .patient-field-row-default .patient-field-input {
       display: flex;
       align-items: center;

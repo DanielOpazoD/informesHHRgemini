@@ -28,7 +28,7 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
                         const originalIndex = patientFields.findIndex(pf => pf === field);
                         return (
                             <div key={field.id || originalIndex} className="patient-field-row patient-field-row-default">
-                                <div className="flex flex-col gap-1">
+                                <div className="patient-field-header">
                                     <div
                                         className="lbl"
                                         contentEditable={isEditing}
@@ -38,11 +38,11 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
                                         {field.label}
                                     </div>
                                     {field.documentType && (
-                                        <label className="text-xs font-medium text-gray-600 flex items-center gap-2">
-                                            Documento:
+                                        <label className="patient-doc-toggle">
+                                            <span className="patient-doc-toggle-label">Doc.</span>
                                             <select
-                                                className="inp"
-                                                style={{ padding: '2px 6px', height: '28px', fontSize: '12px', width: 'auto' }}
+                                                className="patient-doc-select"
+                                                aria-label="Tipo de documento"
                                                 value={field.documentType || 'rut'}
                                                 onChange={e => onDocumentTypeChange(originalIndex, e.target.value as 'rut' | 'pasaporte')}
                                             >

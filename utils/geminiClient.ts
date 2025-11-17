@@ -1,4 +1,4 @@
-const GEMINI_ENDPOINT_BASE = 'https://generativelanguage.googleapis.com/v1/models';
+const GEMINI_ENDPOINT_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const RETRYABLE_STATUS = new Set([429, 500, 503]);
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
