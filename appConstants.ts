@@ -10,3 +10,5 @@ export const LOCAL_STORAGE_KEYS = {
     favorites: 'hhr-drive-favorites',
     recent: 'hhr-drive-recents',
 };
+
+export const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
