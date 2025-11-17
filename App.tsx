@@ -18,7 +18,7 @@ import { useToast } from './hooks/useToast';
 import { useClinicalRecord } from './hooks/useClinicalRecord';
 import { useConfirmDialog } from './hooks/useConfirmDialog';
 import { MAX_RECENT_FILES, SEARCH_CACHE_TTL, DRIVE_CONTENT_FETCH_CONCURRENCY, LOCAL_STORAGE_KEYS } from './appConstants';
-import { getEnvGeminiApiKey, getEnvGeminiProjectId } from './utils/env';
+import { getEnvGeminiApiKey, getEnvGeminiProjectId, getEnvGeminiModel, normalizeGeminiModelId } from './utils/env';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -59,6 +59,7 @@ const createTemplateBaseline = (templateId: string): ClinicalRecord => {
 
 const ENV_GEMINI_API_KEY = getEnvGeminiApiKey();
 const ENV_GEMINI_PROJECT_ID = getEnvGeminiProjectId();
+const ENV_GEMINI_MODEL = getEnvGeminiModel();
 
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
@@ -103,6 +104,7 @@ const App: React.FC = () => {
     const [apiKey, setApiKey] = useState('');
     const [aiApiKey, setAiApiKey] = useState('');
     const [aiProjectId, setAiProjectId] = useState('');
+    const [aiModel, setAiModel] = useState('');
     const [clientId, setClientId] = useState('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
     const [isGapiReady, setIsGapiReady] = useState(false);
     const [isGisReady, setIsGisReady] = useState(false);
@@ -118,6 +120,7 @@ const App: React.FC = () => {
     const [tempClientId, setTempClientId] = useState('');
     const [tempAiApiKey, setTempAiApiKey] = useState('');
     const [tempAiProjectId, setTempAiProjectId] = useState('');
+    const [tempAiModel, setTempAiModel] = useState('');
     const [showApiKey, setShowApiKey] = useState(false);
     const [showAiApiKey, setShowAiApiKey] = useState(false);
 
@@ -221,10 +224,12 @@ const App: React.FC = () => {
         const savedClientId = localStorage.getItem('googleClientId');
         const savedAiKey = localStorage.getItem('geminiApiKey');
         const savedAiProject = localStorage.getItem('geminiProjectId');
+        const savedAiModel = localStorage.getItem('geminiModel');
         if (savedApiKey) setApiKey(savedApiKey);
         if (savedClientId) setClientId(savedClientId);
         if (savedAiKey) setAiApiKey(savedAiKey);
         if (savedAiProject) setAiProjectId(savedAiProject);
+        if (savedAiModel) setAiModel(savedAiModel);
     }, []);
 
     const handleManualSave = useCallback(() => {
@@ -258,6 +263,7 @@ const App: React.FC = () => {
 
     const resolvedAiApiKey = useMemo(() => aiApiKey || ENV_GEMINI_API_KEY, [aiApiKey]);
     const resolvedAiProjectId = useMemo(() => aiProjectId || ENV_GEMINI_PROJECT_ID, [aiProjectId]);
+    const resolvedAiModel = useMemo(() => aiModel || ENV_GEMINI_MODEL || 'gemini-pro', [aiModel]);
 
     useEffect(() => {
         if (scriptLoadRef.current) return;
@@ -368,6 +374,7 @@ const App: React.FC = () => {
         setTempClientId(clientId);
         setTempAiApiKey(aiApiKey || ENV_GEMINI_API_KEY);
         setTempAiProjectId(aiProjectId || ENV_GEMINI_PROJECT_ID);
+        setTempAiModel(aiModel || ENV_GEMINI_MODEL || '');
         setIsSettingsModalOpen(true);
     };
 
@@ -410,6 +417,15 @@ const App: React.FC = () => {
             setAiProjectId('');
         }
 
+        if (tempAiModel.trim()) {
+            const sanitizedModel = normalizeGeminiModelId(tempAiModel);
+            localStorage.setItem('geminiModel', sanitizedModel);
+            setAiModel(sanitizedModel);
+        } else {
+            localStorage.removeItem('geminiModel');
+            setAiModel('');
+        }
+
         showToast('Configuración guardada. Para que todos los cambios surtan efecto, por favor, recargue la página.');
         closeSettingsModal();
     };
@@ -428,10 +444,12 @@ const App: React.FC = () => {
             localStorage.removeItem('googleClientId');
             localStorage.removeItem('geminiApiKey');
             localStorage.removeItem('geminiProjectId');
+            localStorage.removeItem('geminiModel');
             setApiKey('');
             setClientId('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
             setAiApiKey('');
             setAiProjectId('');
+            setAiModel('');
             showToast('Credenciales eliminadas. Recargue la página para aplicar los cambios.', 'warning');
             closeSettingsModal();
         })();
@@ -1360,6 +1378,7 @@ const App: React.FC = () => {
                 tempClientId={tempClientId}
                 tempAiApiKey={tempAiApiKey}
                 tempAiProjectId={tempAiProjectId}
+                tempAiModel={tempAiModel}
                 showApiKey={showApiKey}
                 showAiApiKey={showAiApiKey}
                 onClose={closeSettingsModal}
@@ -1369,6 +1388,7 @@ const App: React.FC = () => {
                 onTempClientIdChange={setTempClientId}
                 onTempAiApiKeyChange={setTempAiApiKey}
                 onTempAiProjectIdChange={setTempAiProjectId}
+                onTempAiModelChange={setTempAiModel}
                 onSave={handleSaveSettings}
                 onClearCredentials={handleClearSettings}
             />
@@ -1477,6 +1497,7 @@ const App: React.FC = () => {
                             showAiTools={isAiAssistantVisible}
                             aiApiKey={resolvedAiApiKey}
                             aiProjectId={resolvedAiProjectId}
+                            aiModel={resolvedAiModel}
                             onSectionContentChange={handleSectionContentChange}
                             onSectionTitleChange={handleSectionTitleChange}
                             onRemoveSection={handleRemoveSection}

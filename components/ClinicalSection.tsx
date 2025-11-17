@@ -10,6 +10,7 @@ interface ClinicalSectionProps {
     showAiTools: boolean;
     aiApiKey?: string;
     aiProjectId?: string;
+    aiModel?: string;
     onSectionContentChange: (index: number, content: string) => void;
     onSectionTitleChange: (index: number, title: string) => void;
     onRemoveSection: (index: number) => void;
@@ -25,7 +26,8 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     aiProjectId,
     onSectionContentChange,
     onSectionTitleChange,
-    onRemoveSection
+    onRemoveSection,
+    aiModel,
 }) => {
     const noteRef = useRef<HTMLDivElement>(null);
     const [isFocused, setIsFocused] = useState(false);
@@ -67,6 +69,7 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
                     sectionContent={section.content || ''}
                     apiKey={aiApiKey}
                     projectId={aiProjectId}
+                    model={aiModel}
                     onSuggestion={text => onSectionContentChange(index, text)}
                 />
             )}

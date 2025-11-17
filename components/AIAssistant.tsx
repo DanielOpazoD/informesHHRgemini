@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { generateGeminiContent } from '../utils/geminiClient';
+import { normalizeGeminiModelId } from '../utils/env';
 
 interface AIAssistantProps {
     sectionContent: string;
     apiKey?: string;
     projectId?: string;
+    model?: string;
     onSuggestion: (text: string) => void;
 }
 
@@ -28,7 +30,7 @@ const ACTION_CONFIG: Record<AiAction, { label: string; prompt: string }> = {
     },
 };
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const DEFAULT_GEMINI_MODEL = 'gemini-pro';
 const MAX_GEMINI_RETRIES = 2;
 
 const htmlToPlainText = (html: string): string => {
@@ -77,12 +79,25 @@ const withTechnicalDetails = (friendly: string, original: string) => {
     return `${friendly}\n\nDetalle técnico: ${original}`;
 };
 
-const normalizeApiError = (message: string): string => {
+const resolveModelId = (rawModel?: string): string => {
+    if (!rawModel) return DEFAULT_GEMINI_MODEL;
+    const sanitized = normalizeGeminiModelId(rawModel);
+    return sanitized || DEFAULT_GEMINI_MODEL;
+};
+
+const normalizeApiError = (message: string, model: string): string => {
     const normalized = message.toLowerCase();
 
     if (normalized.includes('quota') || normalized.includes('rate')) {
         return withTechnicalDetails(
             'Se alcanzó el límite por minuto de la API de Gemini. Espera un momento o habilita facturación en Google AI Studio para solicitar más cuota.',
+            message,
+        );
+    }
+
+    if (normalized.includes('not found') || normalized.includes('not be found') || normalized.includes('not supported')) {
+        return withTechnicalDetails(
+            `El modelo "${model}" no está disponible en tu cuenta o en esta versión de la API. Cambia a un modelo compatible (por ejemplo, gemini-pro) desde Configuración → IA.`,
             message,
         );
     }
@@ -115,12 +130,13 @@ const normalizeApiError = (message: string): string => {
     return message;
 };
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, projectId, onSuggestion }) => {
+const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, projectId, model, onSuggestion }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastAction, setLastAction] = useState<AiAction | null>(null);
 
     const plainTextContent = useMemo(() => htmlToPlainText(sectionContent), [sectionContent]);
+    const resolvedModel = useMemo(() => resolveModelId(model), [model]);
 
     const missingApiKey = !apiKey;
     const isContentEmpty = plainTextContent.length === 0;
@@ -142,7 +158,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, proje
         try {
             const data = await generateGeminiContent({
                 apiKey,
-                model: GEMINI_MODEL,
+                model: resolvedModel,
                 maxRetries: MAX_GEMINI_RETRIES,
                 projectId,
                 contents: [
@@ -164,7 +180,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, proje
 
             onSuggestion(plainTextToHtml(improvedText));
         } catch (err) {
-            setError(normalizeApiError((err as Error).message));
+            setError(normalizeApiError((err as Error).message, resolvedModel));
         } finally {
             setIsProcessing(false);
         }
