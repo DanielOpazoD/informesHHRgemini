@@ -24,7 +24,7 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
         nombre: { gridColumn: 'span 7' },
         rut: { gridColumn: 'span 5' },
         fecnac: { gridColumn: 'span 4' },
-        edad: { gridColumn: 'span 1' },
+        edad: { gridColumn: 'span 2' },
         fing: { gridColumn: 'span 3' },
         finf: { gridColumn: 'span 4' },
     };
