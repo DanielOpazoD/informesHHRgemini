@@ -23,8 +23,8 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
     const defaultFieldLayout: Record<string, React.CSSProperties> = {
         nombre: { gridColumn: 'span 7' },
         rut: { gridColumn: 'span 5' },
-        fecnac: { gridColumn: 'span 3' },
-        edad: { gridColumn: 'span 2' },
+        fecnac: { gridColumn: 'span 4' },
+        edad: { gridColumn: 'span 1' },
         fing: { gridColumn: 'span 3' },
         finf: { gridColumn: 'span 4' },
     };
