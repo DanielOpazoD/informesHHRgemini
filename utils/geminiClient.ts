@@ -1,4 +1,9 @@
-const GEMINI_ENDPOINT_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+import { resolveGeminiRouting } from './geminiModelUtils';
+
+const GEMINI_ENDPOINTS = {
+    v1: 'https://generativelanguage.googleapis.com/v1/models',
+    v1beta: 'https://generativelanguage.googleapis.com/v1beta/models',
+} as const;
 const RETRYABLE_STATUS = new Set([429, 500, 503]);
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -44,7 +49,9 @@ export const generateGeminiContent = async <T = unknown>({
             headers['X-Goog-User-Project'] = trimmedProject;
         }
 
-        const response = await fetch(`${GEMINI_ENDPOINT_BASE}/${model}:generateContent?key=${apiKey}`, {
+        const { modelId, apiVersion } = resolveGeminiRouting(model);
+        const endpointBase = GEMINI_ENDPOINTS[apiVersion];
+        const response = await fetch(`${endpointBase}/${modelId}:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers,
             body: payload,

@@ -1,4 +1,6 @@
-export const normalizeGeminiModelId = (value: string): string => value.replace(/^models\//i, '').trim();
+import { stripModelPrefix } from './geminiModelUtils';
+
+export const normalizeGeminiModelId = (value: string): string => stripModelPrefix(value);
 
 export const getEnvGeminiApiKey = (): string => {
     const metaEnv = typeof import.meta !== 'undefined' ? (import.meta as { env?: Record<string, string> }).env ?? {} : {};

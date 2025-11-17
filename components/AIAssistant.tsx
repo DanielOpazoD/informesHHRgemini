@@ -97,7 +97,7 @@ const normalizeApiError = (message: string, model: string): string => {
 
     if (normalized.includes('not found') || normalized.includes('not be found') || normalized.includes('not supported')) {
         return withTechnicalDetails(
-            `El modelo "${model}" no está disponible en tu cuenta o en esta versión de la API. Cambia a un modelo compatible (por ejemplo, gemini-pro) desde Configuración → IA.`,
+            `El modelo "${model}" no está disponible en tu cuenta o en esta versión de la API. Ajusta el modelo en Configuración → IA y, si es necesario, fuerza la versión agregando @v1 o @v1beta (ej.: gemini-1.5-flash@v1beta).`,
             message,
         );
     }
