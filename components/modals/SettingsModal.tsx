@@ -126,7 +126,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                     <small className="text-xs text-gray-500">
                         Si tu clave proviene de Google Cloud Console, indica aquí el <strong>número del proyecto</strong> para que
-                        la app envíe el encabezado <code>X-Goog-User-Project</code> requerido por la cuota facturable.
+                        la app envíe el encabezado <code>X-Goog-User-Project</code> requerido por la cuota facturable. Tu cuenta
+                        debe tener el rol <code>serviceusage.serviceUsageConsumer</code>; si no lo tienes, deja este campo vacío.
                     </small>
                 </div>
                 <div style={{ background: '#fef3c7', padding: '8px', borderRadius: '4px', fontSize: '12px' }}>

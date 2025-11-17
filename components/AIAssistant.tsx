@@ -87,6 +87,17 @@ const normalizeApiError = (message: string): string => {
         );
     }
 
+    if (
+        normalized.includes('caller does not have required permission to use project') ||
+        normalized.includes('serviceusage.serviceusageconsumer')
+    ) {
+        return withTechnicalDetails(
+            'Tu cuenta de Google Cloud no tiene el rol serviceusage.serviceUsageConsumer sobre ese proyecto. Asígnalo en la ' +
+                'Consola IAM o deja vacío el campo "Proyecto de Google Cloud" para usar la cuota propia de AI Studio.',
+            message,
+        );
+    }
+
     if (normalized.includes('permission') || normalized.includes('project')) {
         return withTechnicalDetails(
             'La clave no tiene permisos para usar este modelo. Revisa que el proyecto tenga habilitado Google AI Studio.',
