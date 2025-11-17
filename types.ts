@@ -17,6 +17,7 @@ export interface PatientField {
     placeholder?: string;
     readonly?: boolean;
     isCustom?: boolean;
+    documentType?: 'rut' | 'pasaporte';
 }
 
 // FIX: Added ClinicalField and ClinicalSection interfaces to resolve import error in components/ClinicalSection.tsx.
