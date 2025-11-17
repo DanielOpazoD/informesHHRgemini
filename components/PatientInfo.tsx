@@ -8,7 +8,6 @@ interface PatientInfoProps {
     onPatientFieldChange: (index: number, value: string) => void;
     onPatientLabelChange: (index: number, label: string) => void;
     onRemovePatientField: (index: number) => void;
-    onDocumentTypeChange: (index: number, type: 'rut' | 'pasaporte') => void;
 }
 
 const PatientInfo: React.FC<PatientInfoProps> = ({
@@ -17,8 +16,9 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
     onPatientFieldChange,
     onPatientLabelChange,
     onRemovePatientField,
-    onDocumentTypeChange,
 }) => {
+    const isLabelEditable = (fieldId?: string) => isEditing || fieldId === 'rut';
+
     return (
         <div className="sec" id="sec-datos">
             <div className="subtitle" contentEditable={isEditing} suppressContentEditableWarning>Información del Paciente</div>
@@ -28,29 +28,13 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
                         const originalIndex = patientFields.findIndex(pf => pf === field);
                         return (
                             <div key={field.id || originalIndex} className="patient-field-row patient-field-row-default">
-                                <div className="patient-field-header">
-                                    <div
-                                        className="lbl"
-                                        contentEditable={isEditing}
-                                        suppressContentEditableWarning
-                                        onBlur={e => onPatientLabelChange(originalIndex, e.currentTarget.innerText)}
-                                    >
-                                        {field.label}
-                                    </div>
-                                    {field.documentType && (
-                                        <label className="patient-doc-toggle">
-                                            <span className="patient-doc-toggle-label">Doc.</span>
-                                            <select
-                                                className="patient-doc-select"
-                                                aria-label="Tipo de documento"
-                                                value={field.documentType || 'rut'}
-                                                onChange={e => onDocumentTypeChange(originalIndex, e.target.value as 'rut' | 'pasaporte')}
-                                            >
-                                                <option value="rut">RUT</option>
-                                                <option value="pasaporte">Pasaporte</option>
-                                            </select>
-                                        </label>
-                                    )}
+                                <div
+                                    className="lbl"
+                                    contentEditable={isLabelEditable(field.id)}
+                                    suppressContentEditableWarning
+                                    onBlur={e => onPatientLabelChange(originalIndex, e.currentTarget.innerText)}
+                                >
+                                    {field.label}
                                 </div>
                                 <div className="patient-field-input">
                                     <input
@@ -82,7 +66,14 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
                     const originalIndex = patientFields.findIndex(pf => pf === field);
                     return (
                         <div className="row patient-field-row mt-2" key={`custom-${originalIndex}`}>
-                            <div className="lbl" contentEditable={isEditing} suppressContentEditableWarning onBlur={e => onPatientLabelChange(originalIndex, e.currentTarget.innerText)}>{field.label}</div>
+                            <div
+                                className="lbl"
+                                contentEditable={isLabelEditable(field.id)}
+                                suppressContentEditableWarning
+                                onBlur={e => onPatientLabelChange(originalIndex, e.currentTarget.innerText)}
+                            >
+                                {field.label}
+                            </div>
                             <input className="inp" type={field.type} value={field.value} onChange={e => onPatientFieldChange(originalIndex, e.target.value)} />
                             {isEditing && (
                                 <button type="button" className="row-del" aria-label={`Eliminar ${field.label}`} onClick={() => onRemovePatientField(originalIndex)}>×</button>

@@ -1115,12 +1115,6 @@ const App: React.FC = () => {
         setRecord(r => ({ ...r, patientFields: newFields }));
     }
 
-    const handlePatientDocumentTypeChange = (index: number, type: 'rut' | 'pasaporte') => {
-        const newFields = [...record.patientFields];
-        newFields[index] = { ...newFields[index], documentType: type };
-        setRecord(r => ({ ...r, patientFields: newFields }));
-    };
-
     const handleSectionContentChange = (index: number, content: string) => {
         const newSections = [...record.sections];
         newSections[index] = { ...newSections[index], content };
@@ -1485,7 +1479,6 @@ const App: React.FC = () => {
                         onPatientFieldChange={handlePatientFieldChange}
                         onPatientLabelChange={handlePatientLabelChange}
                         onRemovePatientField={handleRemovePatientField}
-                        onDocumentTypeChange={handlePatientDocumentTypeChange}
                     />
                     <div id="sectionsContainer">{record.sections.map((section, index) => (
                         <ClinicalSection

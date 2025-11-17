@@ -1,25 +1,5 @@
 import type { ClinicalRecord, PatientField } from '../types';
 
-const normalizeRut = (rut: string) => {
-    return rut.replace(/[^0-9kK]/g, '').toUpperCase();
-};
-
-export const isValidRut = (rut: string): boolean => {
-    const clean = normalizeRut(rut);
-    if (clean.length < 2) return false;
-    const body = clean.slice(0, -1);
-    const dv = clean.slice(-1);
-    let sum = 0;
-    let multiplier = 2;
-    for (let i = body.length - 1; i >= 0; i -= 1) {
-        sum += parseInt(body[i], 10) * multiplier;
-        multiplier = multiplier === 7 ? 2 : multiplier + 1;
-    }
-    const remainder = 11 - (sum % 11);
-    const expected = remainder === 11 ? '0' : remainder === 10 ? 'K' : String(remainder);
-    return expected === dv;
-};
-
 const findFieldValue = (fields: PatientField[], id: string) =>
     fields.find(field => field.id === id)?.value?.trim() || '';
 
@@ -36,18 +16,13 @@ export const validateCriticalFields = (record: ClinicalRecord): string[] => {
     const name = findFieldValue(record.patientFields, 'nombre');
     const rutField = record.patientFields.find(field => field.id === 'rut');
     const rut = rutField?.value?.trim() || '';
-    const documentType = rutField?.documentType || 'rut';
     const birth = findFieldValue(record.patientFields, 'fecnac');
     const admission = findFieldValue(record.patientFields, 'fing');
     const report = findFieldValue(record.patientFields, 'finf');
 
     if (hasField('nombre') && !name) errors.push('Ingrese el nombre del paciente.');
-    if (hasField('rut')) {
-        if (!rut) {
-            errors.push('Ingrese el documento de identidad del paciente (RUT o pasaporte).');
-        } else if (documentType !== 'pasaporte' && !isValidRut(rut)) {
-            errors.push('El RUT ingresado no es válido.');
-        }
+    if (hasField('rut') && !rut) {
+        errors.push('Ingrese el RUT del paciente.');
     }
 
     const birthDate = hasField('fecnac') ? parseDate(birth) : null;
