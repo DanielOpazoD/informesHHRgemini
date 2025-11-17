@@ -5,6 +5,8 @@ interface SettingsModalProps {
     tempApiKey: string;
     tempClientId: string;
     tempAiApiKey: string;
+    tempAiProjectId: string;
+    tempAiModel: string;
     showApiKey: boolean;
     showAiApiKey: boolean;
     onClose: () => void;
@@ -13,6 +15,8 @@ interface SettingsModalProps {
     onTempApiKeyChange: (value: string) => void;
     onTempClientIdChange: (value: string) => void;
     onTempAiApiKeyChange: (value: string) => void;
+    onTempAiProjectIdChange: (value: string) => void;
+    onTempAiModelChange: (value: string) => void;
     onSave: () => void;
     onClearCredentials: () => void;
 }
@@ -22,6 +26,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     tempApiKey,
     tempClientId,
     tempAiApiKey,
+    tempAiProjectId,
+    tempAiModel,
     showApiKey,
     showAiApiKey,
     onClose,
@@ -30,6 +36,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     onTempApiKeyChange,
     onTempClientIdChange,
     onTempAiApiKeyChange,
+    onTempAiProjectIdChange,
+    onTempAiModelChange,
     onSave,
     onClearCredentials,
 }) => {
@@ -109,6 +117,34 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             una Gemini API Key
                         </a>{' '}
                         para usar las herramientas de IA directamente desde el navegador.
+                    </small>
+                </div>
+                <div>
+                    <div className="lbl">Proyecto de Google Cloud para Gemini (opcional)</div>
+                    <input
+                        type="text"
+                        className="inp"
+                        value={tempAiProjectId}
+                        onChange={e => onTempAiProjectIdChange(e.target.value)}
+                        placeholder="1056053283940"
+                    />
+                    <small className="text-xs text-gray-500">
+                        Si tu clave proviene de Google Cloud Console, indica aquí el <strong>número del proyecto</strong> para que
+                        la app envíe el encabezado <code>X-Goog-User-Project</code> requerido por la cuota facturable. Tu cuenta
+                        debe tener el rol <code>serviceusage.serviceUsageConsumer</code>; si no lo tienes, deja este campo vacío.
+                    </small>
+                </div>
+                <div>
+                    <div className="lbl">Modelo de Gemini (opcional)</div>
+                    <input
+                        type="text"
+                        className="inp"
+                        value={tempAiModel}
+                        onChange={e => onTempAiModelChange(e.target.value)}
+                        placeholder="gemini-pro"
+                    />
+                    <small className="text-xs text-gray-500">
+                        Déjalo en blanco para usar el modelo recomendado (<code>gemini-pro</code>). También puedes ingresar otros modelos compatibles, por ejemplo <code>gemini-1.5-flash</code> si tu cuenta tiene acceso.
                     </small>
                 </div>
                 <div style={{ background: '#fef3c7', padding: '8px', borderRadius: '4px', fontSize: '12px' }}>

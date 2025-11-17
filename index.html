@@ -1208,6 +1208,24 @@
       gap: 6px;
     }
 
+    .patient-field-row-default .patient-field-label-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-height: 24px;
+    }
+
+    .patient-field-row-default .patient-doc-type-selector {
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 11px;
+      height: 22px;
+      padding: 0 18px 0 6px;
+      background: #f9fafb;
+      color: #374151;
+    }
+
     .patient-field-row-default .patient-field-input .inp {
       flex: 1;
     }
@@ -1497,12 +1515,6 @@
         height: auto;
       }
       *::-webkit-scrollbar { display: none !important; }
-      @page {
-        margin: 12mm 15mm;
-        size: letter portrait;
-        orphans: 3;
-        widows: 3;
-      }
     }
 
     @media (max-width: 1024px) {
