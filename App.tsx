@@ -18,7 +18,7 @@ import { useToast } from './hooks/useToast';
 import { useClinicalRecord } from './hooks/useClinicalRecord';
 import { useConfirmDialog } from './hooks/useConfirmDialog';
 import { MAX_RECENT_FILES, SEARCH_CACHE_TTL, DRIVE_CONTENT_FETCH_CONCURRENCY, LOCAL_STORAGE_KEYS } from './appConstants';
-import { getEnvGeminiApiKey } from './utils/env';
+import { getEnvGeminiApiKey, getEnvGeminiProjectId } from './utils/env';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -58,6 +58,7 @@ const createTemplateBaseline = (templateId: string): ClinicalRecord => {
 };
 
 const ENV_GEMINI_API_KEY = getEnvGeminiApiKey();
+const ENV_GEMINI_PROJECT_ID = getEnvGeminiProjectId();
 
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
@@ -101,6 +102,7 @@ const App: React.FC = () => {
     // API & Settings State
     const [apiKey, setApiKey] = useState('');
     const [aiApiKey, setAiApiKey] = useState('');
+    const [aiProjectId, setAiProjectId] = useState('');
     const [clientId, setClientId] = useState('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
     const [isGapiReady, setIsGapiReady] = useState(false);
     const [isGisReady, setIsGisReady] = useState(false);
@@ -115,6 +117,7 @@ const App: React.FC = () => {
     const [tempApiKey, setTempApiKey] = useState('');
     const [tempClientId, setTempClientId] = useState('');
     const [tempAiApiKey, setTempAiApiKey] = useState('');
+    const [tempAiProjectId, setTempAiProjectId] = useState('');
     const [showApiKey, setShowApiKey] = useState(false);
     const [showAiApiKey, setShowAiApiKey] = useState(false);
 
@@ -217,9 +220,11 @@ const App: React.FC = () => {
         const savedApiKey = localStorage.getItem('googleApiKey');
         const savedClientId = localStorage.getItem('googleClientId');
         const savedAiKey = localStorage.getItem('geminiApiKey');
+        const savedAiProject = localStorage.getItem('geminiProjectId');
         if (savedApiKey) setApiKey(savedApiKey);
         if (savedClientId) setClientId(savedClientId);
         if (savedAiKey) setAiApiKey(savedAiKey);
+        if (savedAiProject) setAiProjectId(savedAiProject);
     }, []);
 
     const handleManualSave = useCallback(() => {
@@ -252,6 +257,7 @@ const App: React.FC = () => {
     }, [record.patientFields, record.templateId]);
 
     const resolvedAiApiKey = useMemo(() => aiApiKey || ENV_GEMINI_API_KEY, [aiApiKey]);
+    const resolvedAiProjectId = useMemo(() => aiProjectId || ENV_GEMINI_PROJECT_ID, [aiProjectId]);
 
     useEffect(() => {
         if (scriptLoadRef.current) return;
@@ -361,6 +367,7 @@ const App: React.FC = () => {
         setTempApiKey(apiKey);
         setTempClientId(clientId);
         setTempAiApiKey(aiApiKey || ENV_GEMINI_API_KEY);
+        setTempAiProjectId(aiProjectId || ENV_GEMINI_PROJECT_ID);
         setIsSettingsModalOpen(true);
     };
 
@@ -395,6 +402,14 @@ const App: React.FC = () => {
             setAiApiKey('');
         }
 
+        if (tempAiProjectId.trim()) {
+            localStorage.setItem('geminiProjectId', tempAiProjectId.trim());
+            setAiProjectId(tempAiProjectId.trim());
+        } else {
+            localStorage.removeItem('geminiProjectId');
+            setAiProjectId('');
+        }
+
         showToast('Configuración guardada. Para que todos los cambios surtan efecto, por favor, recargue la página.');
         closeSettingsModal();
     };
@@ -412,9 +427,11 @@ const App: React.FC = () => {
             localStorage.removeItem('googleApiKey');
             localStorage.removeItem('googleClientId');
             localStorage.removeItem('geminiApiKey');
+            localStorage.removeItem('geminiProjectId');
             setApiKey('');
             setClientId('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
             setAiApiKey('');
+            setAiProjectId('');
             showToast('Credenciales eliminadas. Recargue la página para aplicar los cambios.', 'warning');
             closeSettingsModal();
         })();
@@ -1080,6 +1097,12 @@ const App: React.FC = () => {
         setRecord(r => ({ ...r, patientFields: newFields }));
     }
 
+    const handlePatientDocumentTypeChange = (index: number, type: 'rut' | 'pasaporte') => {
+        const newFields = [...record.patientFields];
+        newFields[index] = { ...newFields[index], documentType: type };
+        setRecord(r => ({ ...r, patientFields: newFields }));
+    };
+
     const handleSectionContentChange = (index: number, content: string) => {
         const newSections = [...record.sections];
         newSections[index] = { ...newSections[index], content };
@@ -1336,6 +1359,7 @@ const App: React.FC = () => {
                 tempApiKey={tempApiKey}
                 tempClientId={tempClientId}
                 tempAiApiKey={tempAiApiKey}
+                tempAiProjectId={tempAiProjectId}
                 showApiKey={showApiKey}
                 showAiApiKey={showAiApiKey}
                 onClose={closeSettingsModal}
@@ -1344,6 +1368,7 @@ const App: React.FC = () => {
                 onTempApiKeyChange={setTempApiKey}
                 onTempClientIdChange={setTempClientId}
                 onTempAiApiKeyChange={setTempAiApiKey}
+                onTempAiProjectIdChange={setTempAiProjectId}
                 onSave={handleSaveSettings}
                 onClearCredentials={handleClearSettings}
             />
@@ -1434,7 +1459,14 @@ const App: React.FC = () => {
                         <hr /><button onClick={restoreAll} className="btn" type="button">Restaurar todo</button>
                     </div>
                     <div className="title" contentEditable={isEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>{record.title}</div>
-                    <PatientInfo isEditing={isEditing} patientFields={record.patientFields} onPatientFieldChange={handlePatientFieldChange} onPatientLabelChange={handlePatientLabelChange} onRemovePatientField={handleRemovePatientField} />
+                    <PatientInfo
+                        isEditing={isEditing}
+                        patientFields={record.patientFields}
+                        onPatientFieldChange={handlePatientFieldChange}
+                        onPatientLabelChange={handlePatientLabelChange}
+                        onRemovePatientField={handleRemovePatientField}
+                        onDocumentTypeChange={handlePatientDocumentTypeChange}
+                    />
                     <div id="sectionsContainer">{record.sections.map((section, index) => (
                         <ClinicalSection
                             key={index}
@@ -1444,6 +1476,7 @@ const App: React.FC = () => {
                             isAdvancedEditing={isAdvancedEditing}
                             showAiTools={isAiAssistantVisible}
                             aiApiKey={resolvedAiApiKey}
+                            aiProjectId={resolvedAiProjectId}
                             onSectionContentChange={handleSectionContentChange}
                             onSectionTitleChange={handleSectionTitleChange}
                             onRemoveSection={handleRemoveSection}

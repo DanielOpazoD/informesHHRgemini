@@ -7,3 +7,13 @@ export const getEnvGeminiApiKey = (): string => {
 
     return metaKey || processKey || '';
 };
+
+export const getEnvGeminiProjectId = (): string => {
+    const metaEnv = typeof import.meta !== 'undefined' ? (import.meta as { env?: Record<string, string> }).env ?? {} : {};
+    const metaProject = metaEnv.VITE_GEMINI_PROJECT_ID || metaEnv.GEMINI_PROJECT_ID || '';
+
+    const processEnv = typeof process !== 'undefined' ? process.env ?? {} : {};
+    const processProject = processEnv.GEMINI_PROJECT_ID || processEnv.GOOGLE_CLOUD_PROJECT || processEnv.PROJECT_NUMBER || '';
+
+    return metaProject || processProject || '';
+};

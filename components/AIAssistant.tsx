@@ -4,6 +4,7 @@ import { generateGeminiContent } from '../utils/geminiClient';
 interface AIAssistantProps {
     sectionContent: string;
     apiKey?: string;
+    projectId?: string;
     onSuggestion: (text: string) => void;
 }
 
@@ -71,25 +72,39 @@ const extractGeminiText = (response: any): string => {
         .trim();
 };
 
+const withTechnicalDetails = (friendly: string, original: string) => {
+    if (!original || friendly === original) return friendly;
+    return `${friendly}\n\nDetalle técnico: ${original}`;
+};
+
 const normalizeApiError = (message: string): string => {
     const normalized = message.toLowerCase();
 
     if (normalized.includes('quota') || normalized.includes('rate')) {
-        return 'Se alcanzó el límite por minuto de la API de Gemini. Espera un momento o habilita facturación en Google AI Studio para solicitar más cuota.';
+        return withTechnicalDetails(
+            'Se alcanzó el límite por minuto de la API de Gemini. Espera un momento o habilita facturación en Google AI Studio para solicitar más cuota.',
+            message,
+        );
     }
 
     if (normalized.includes('permission') || normalized.includes('project')) {
-        return 'La clave no tiene permisos para usar este modelo. Revisa que el proyecto tenga habilitado Google AI Studio.';
+        return withTechnicalDetails(
+            'La clave no tiene permisos para usar este modelo. Revisa que el proyecto tenga habilitado Google AI Studio.',
+            message,
+        );
     }
 
     if (normalized.includes('api key not valid')) {
-        return 'La clave de API no es válida. Cópiala nuevamente desde Google AI Studio > API Keys.';
+        return withTechnicalDetails(
+            'La clave de API no es válida. Cópiala nuevamente desde Google AI Studio > API Keys.',
+            message,
+        );
     }
 
     return message;
 };
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, onSuggestion }) => {
+const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, projectId, onSuggestion }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastAction, setLastAction] = useState<AiAction | null>(null);
@@ -118,6 +133,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, onSug
                 apiKey,
                 model: GEMINI_MODEL,
                 maxRetries: MAX_GEMINI_RETRIES,
+                projectId,
                 contents: [
                     {
                         role: 'user',

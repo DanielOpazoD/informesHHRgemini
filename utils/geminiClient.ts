@@ -11,6 +11,7 @@ export interface GeminiGenerateRequest {
         parts: Array<{ text: string }>;
     }>;
     maxRetries?: number;
+    projectId?: string;
 }
 
 interface GeminiApiError {
@@ -24,6 +25,7 @@ export const generateGeminiContent = async <T = unknown>({
     model,
     contents,
     maxRetries = 2,
+    projectId,
 }: GeminiGenerateRequest): Promise<T> => {
     if (!apiKey) {
         throw new Error('Missing Gemini API key');
@@ -33,11 +35,18 @@ export const generateGeminiContent = async <T = unknown>({
     let attempt = 0;
 
     while (attempt <= maxRetries) {
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+        };
+
+        const trimmedProject = projectId?.trim();
+        if (trimmedProject) {
+            headers['X-Goog-User-Project'] = trimmedProject;
+        }
+
         const response = await fetch(`${GEMINI_ENDPOINT_BASE}/${model}:generateContent?key=${apiKey}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers,
             body: payload,
         });
 

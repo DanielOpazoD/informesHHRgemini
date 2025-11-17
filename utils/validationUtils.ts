@@ -34,7 +34,9 @@ export const validateCriticalFields = (record: ClinicalRecord): string[] => {
     const hasField = (id: string) => record.patientFields.some(field => field.id === id);
 
     const name = findFieldValue(record.patientFields, 'nombre');
-    const rut = findFieldValue(record.patientFields, 'rut');
+    const rutField = record.patientFields.find(field => field.id === 'rut');
+    const rut = rutField?.value?.trim() || '';
+    const documentType = rutField?.documentType || 'rut';
     const birth = findFieldValue(record.patientFields, 'fecnac');
     const admission = findFieldValue(record.patientFields, 'fing');
     const report = findFieldValue(record.patientFields, 'finf');
@@ -42,8 +44,8 @@ export const validateCriticalFields = (record: ClinicalRecord): string[] => {
     if (hasField('nombre') && !name) errors.push('Ingrese el nombre del paciente.');
     if (hasField('rut')) {
         if (!rut) {
-            errors.push('Ingrese el RUT del paciente.');
-        } else if (!isValidRut(rut)) {
+            errors.push('Ingrese el documento de identidad del paciente (RUT o pasaporte).');
+        } else if (documentType !== 'pasaporte' && !isValidRut(rut)) {
             errors.push('El RUT ingresado no es válido.');
         }
     }
