@@ -19,15 +19,41 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
 }) => {
     const isLabelEditable = (fieldId?: string) => isEditing || fieldId === 'rut';
 
+    const compactFields = new Set(['fecnac', 'fing', 'finf']);
+    const defaultFieldLayout: Record<string, React.CSSProperties> = {
+        nombre: { gridColumn: 'span 7' },
+        rut: { gridColumn: 'span 5' },
+        fecnac: { gridColumn: 'span 3' },
+        edad: { gridColumn: 'span 2' },
+        fing: { gridColumn: 'span 3' },
+        finf: { gridColumn: 'span 4' },
+    };
+
     return (
         <div className="sec" id="sec-datos">
             <div className="subtitle" contentEditable={isEditing} suppressContentEditableWarning>Información del Paciente</div>
             <div id="patientGrid">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px 12px', marginBottom: '8px' }}>
+                <div className="patient-default-grid">
                     {patientFields.filter(f => !f.isCustom).map((field) => {
                         const originalIndex = patientFields.findIndex(pf => pf === field);
+                        const fieldId = field.id || '';
+                        const layoutStyle = defaultFieldLayout[fieldId] || {};
+                        const rowClassNames = [
+                            'patient-field-row',
+                            'patient-field-row-default',
+                        ];
+
+                        if (compactFields.has(fieldId)) {
+                            rowClassNames.push('patient-field-row-compact');
+                        }
+
                         return (
-                            <div key={field.id || originalIndex} className="patient-field-row patient-field-row-default">
+                            <div
+                                key={field.id || originalIndex}
+                                className={rowClassNames.join(' ')}
+                                style={layoutStyle}
+                                data-field-id={fieldId}
+                            >
                                 <div
                                     className="lbl"
                                     contentEditable={isLabelEditable(field.id)}
@@ -39,7 +65,7 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
                                 <div className="patient-field-input">
                                     <input
                                         type={field.type}
-                                        className="inp"
+                                        className={`inp${compactFields.has(fieldId) ? ' inp-compact' : ''}`}
                                         id={field.id}
                                         value={field.value}
                                         onChange={e => onPatientFieldChange(originalIndex, e.target.value)}

@@ -1202,10 +1202,18 @@
       position: relative;
     }
 
+    .patient-default-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 8px 12px;
+      margin-bottom: 8px;
+    }
+
     .patient-field-row-default {
       display: flex;
-      align-items: center;
+      align-items: flex-end;
       gap: 8px;
+      min-width: 0;
     }
 
     .patient-field-row-default .lbl {
@@ -1213,16 +1221,29 @@
       white-space: nowrap;
       font-weight: 600;
       cursor: text;
+      flex-shrink: 0;
     }
 
     .patient-field-row-default .patient-field-input {
       display: flex;
       align-items: center;
       gap: 6px;
+      flex: 1;
+      min-width: 0;
     }
 
     .patient-field-row-default .patient-field-input .inp {
       flex: 1;
+      min-width: 0;
+    }
+
+    .patient-field-row-default.patient-field-row-compact .patient-field-input {
+      flex: 0 0 auto;
+    }
+
+    .patient-field-row-default.patient-field-row-compact .patient-field-input .inp,
+    .patient-field-row-default .patient-field-input .inp-compact {
+      max-width: 160px;
     }
 
     .patient-field-row-default .patient-field-input .row-del {
