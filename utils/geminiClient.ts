@@ -1,4 +1,5 @@
-import { resolveGeminiRouting } from './geminiModelUtils';
+import { getAlternateGeminiVersion, resolveGeminiRouting } from './geminiModelUtils';
+import type { GeminiApiVersion } from './geminiModelUtils';
 
 const GEMINI_ENDPOINTS = {
     v1: 'https://generativelanguage.googleapis.com/v1/models',
@@ -38,6 +39,9 @@ export const generateGeminiContent = async <T = unknown>({
 
     const payload = JSON.stringify({ contents });
     let attempt = 0;
+    const { modelId, apiVersion } = resolveGeminiRouting(model);
+    let forcedVersion: GeminiApiVersion | undefined;
+    let hasTriedAlternateVersion = false;
 
     while (attempt <= maxRetries) {
         const headers: Record<string, string> = {
@@ -49,8 +53,8 @@ export const generateGeminiContent = async <T = unknown>({
             headers['X-Goog-User-Project'] = trimmedProject;
         }
 
-        const { modelId, apiVersion } = resolveGeminiRouting(model);
-        const endpointBase = GEMINI_ENDPOINTS[apiVersion];
+        const versionToUse = forcedVersion || apiVersion;
+        const endpointBase = GEMINI_ENDPOINTS[versionToUse];
         const response = await fetch(`${endpointBase}/${modelId}:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers,
@@ -63,6 +67,17 @@ export const generateGeminiContent = async <T = unknown>({
 
         const data = (await response.json().catch(() => ({}))) as GeminiApiError;
         const message = data?.error?.message || 'La API devolvió un error desconocido.';
+
+        const normalizedMessage = message.toLowerCase();
+        const versionMismatch =
+            normalizedMessage.includes('is not found for api version') ||
+            normalizedMessage.includes('is not supported for generatecontent');
+
+        if (versionMismatch && !hasTriedAlternateVersion) {
+            forcedVersion = getAlternateGeminiVersion(versionToUse);
+            hasTriedAlternateVersion = true;
+            continue;
+        }
 
         if (RETRYABLE_STATUS.has(response.status) && attempt < maxRetries) {
             const retryAfterHeader = response.headers.get('retry-after');

@@ -34,3 +34,6 @@ export const resolveGeminiRouting = (rawModel: string): { modelId: string; apiVe
     const apiVersion = versionHint || inferDefaultGeminiVersion(modelId);
     return { modelId, apiVersion };
 };
+
+export const getAlternateGeminiVersion = (version: GeminiApiVersion): GeminiApiVersion =>
+    version === 'v1' ? 'v1beta' : 'v1';
