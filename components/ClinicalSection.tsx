@@ -9,6 +9,7 @@ interface ClinicalSectionProps {
     isAdvancedEditing: boolean;
     showAiTools: boolean;
     aiApiKey?: string;
+    aiProjectId?: string;
     onSectionContentChange: (index: number, content: string) => void;
     onSectionTitleChange: (index: number, title: string) => void;
     onRemoveSection: (index: number) => void;
@@ -21,6 +22,7 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     isAdvancedEditing,
     showAiTools,
     aiApiKey,
+    aiProjectId,
     onSectionContentChange,
     onSectionTitleChange,
     onRemoveSection
@@ -64,6 +66,7 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
                 <AIAssistant
                     sectionContent={section.content || ''}
                     apiKey={aiApiKey}
+                    projectId={aiProjectId}
                     onSuggestion={text => onSectionContentChange(index, text)}
                 />
             )}

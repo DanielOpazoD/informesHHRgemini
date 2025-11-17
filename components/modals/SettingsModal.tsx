@@ -5,6 +5,7 @@ interface SettingsModalProps {
     tempApiKey: string;
     tempClientId: string;
     tempAiApiKey: string;
+    tempAiProjectId: string;
     showApiKey: boolean;
     showAiApiKey: boolean;
     onClose: () => void;
@@ -13,6 +14,7 @@ interface SettingsModalProps {
     onTempApiKeyChange: (value: string) => void;
     onTempClientIdChange: (value: string) => void;
     onTempAiApiKeyChange: (value: string) => void;
+    onTempAiProjectIdChange: (value: string) => void;
     onSave: () => void;
     onClearCredentials: () => void;
 }
@@ -22,6 +24,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     tempApiKey,
     tempClientId,
     tempAiApiKey,
+    tempAiProjectId,
     showApiKey,
     showAiApiKey,
     onClose,
@@ -30,6 +33,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     onTempApiKeyChange,
     onTempClientIdChange,
     onTempAiApiKeyChange,
+    onTempAiProjectIdChange,
     onSave,
     onClearCredentials,
 }) => {
@@ -109,6 +113,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             una Gemini API Key
                         </a>{' '}
                         para usar las herramientas de IA directamente desde el navegador.
+                    </small>
+                </div>
+                <div>
+                    <div className="lbl">Proyecto de Google Cloud para Gemini (opcional)</div>
+                    <input
+                        type="text"
+                        className="inp"
+                        value={tempAiProjectId}
+                        onChange={e => onTempAiProjectIdChange(e.target.value)}
+                        placeholder="1056053283940"
+                    />
+                    <small className="text-xs text-gray-500">
+                        Si tu clave proviene de Google Cloud Console, indica aquí el <strong>número del proyecto</strong> para que
+                        la app envíe el encabezado <code>X-Goog-User-Project</code> requerido por la cuota facturable.
+                        {' '}Asegúrate de que la identidad asociada a la clave tenga el rol <strong>Service Usage Consumer</strong> en ese proyecto.
                     </small>
                 </div>
                 <div style={{ background: '#fef3c7', padding: '8px', borderRadius: '4px', fontSize: '12px' }}>
