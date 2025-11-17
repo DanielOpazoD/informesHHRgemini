@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { generateGeminiContent } from '../utils/geminiClient';
 
 interface AIAssistantProps {
     sectionContent: string;
@@ -27,6 +28,7 @@ const ACTION_CONFIG: Record<AiAction, { label: string; prompt: string }> = {
 };
 
 const GEMINI_MODEL = 'gemini-1.5-flash';
+const MAX_GEMINI_RETRIES = 2;
 
 const htmlToPlainText = (html: string): string => {
     if (!html) return '';
@@ -112,34 +114,21 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, onSug
         setLastAction(action);
 
         try {
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        contents: [
+            const data = await generateGeminiContent({
+                apiKey,
+                model: GEMINI_MODEL,
+                maxRetries: MAX_GEMINI_RETRIES,
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [
                             {
-                                role: 'user',
-                                parts: [
-                                    {
-                                        text: `${ACTION_CONFIG[action].prompt}\n\n${plainTextContent}`,
-                                    },
-                                ],
+                                text: `${ACTION_CONFIG[action].prompt}\n\n${plainTextContent}`,
                             },
                         ],
-                    }),
-                }
-            );
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                const message = data?.error?.message || 'La API devolvió un error desconocido.';
-                throw new Error(message);
-            }
+                    },
+                ],
+            });
 
             const improvedText = extractGeminiText(data);
             if (!improvedText) {
