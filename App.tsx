@@ -46,13 +46,14 @@ const DEFAULT_TEMPLATE_ID = '2';
 
 const CLINICAL_UPDATE_SECTION_CONTENT = `
 <div class="clinical-update-section">
-    <div class="clinical-update-row">
-        <div class="clinical-update-title"><strong>Título:</strong> ____________________________</div>
+    <div class="clinical-update-header">
+        <div class="clinical-update-title">
+            <strong>Actualización clínica:</strong> ____________________________
+        </div>
         <div class="clinical-update-meta"><strong>Fecha:</strong> ____/____/____</div>
         <div class="clinical-update-meta"><strong>Hora:</strong> ____:____</div>
     </div>
-    <div class="clinical-update-text">
-        <strong>Detalle:</strong>
+    <div class="clinical-update-body">
         <p><br /></p>
     </div>
 </div>

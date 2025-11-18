@@ -412,7 +412,7 @@ const Header: React.FC<HeaderProps> = ({
                         </select>
                         <button
                             type="button"
-                            className="action-btn primary clinical-update-btn"
+                            className="action-btn clinical-update-btn"
                             onClick={onAddClinicalUpdateSection}
                             title="Agregar sección de Actualización clínica"
                         >
