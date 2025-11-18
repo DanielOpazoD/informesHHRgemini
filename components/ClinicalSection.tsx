@@ -14,6 +14,7 @@ interface ClinicalSectionProps {
     onSectionContentChange: (index: number, content: string) => void;
     onSectionTitleChange: (index: number, title: string) => void;
     onRemoveSection: (index: number) => void;
+    onSectionMetaChange: (index: number, updates: Partial<ClinicalSectionData>) => void;
 }
 
 const ClinicalSection: React.FC<ClinicalSectionProps> = ({
@@ -27,10 +28,12 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     onSectionContentChange,
     onSectionTitleChange,
     onRemoveSection,
+    onSectionMetaChange,
     aiModel,
 }) => {
     const noteRef = useRef<HTMLDivElement>(null);
     const [isFocused, setIsFocused] = useState(false);
+    const isClinicalUpdate = section.type === 'clinical-update';
 
     const syncContent = useCallback(() => {
         const node = noteRef.current;
@@ -64,6 +67,26 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
             >
                 {section.title}
             </div>
+            {isClinicalUpdate && (
+                <div className="clinical-update-meta">
+                    <label className="meta-field">
+                        <span>Fecha:</span>
+                        <input
+                            type="date"
+                            value={section.updateDate || ''}
+                            onChange={e => onSectionMetaChange(index, { updateDate: e.target.value })}
+                        />
+                    </label>
+                    <label className="meta-field">
+                        <span>Hora:</span>
+                        <input
+                            type="time"
+                            value={section.updateTime || ''}
+                            onChange={e => onSectionMetaChange(index, { updateTime: e.target.value })}
+                        />
+                    </label>
+                </div>
+            )}
             {isAdvancedEditing && showAiTools && (
                 <AIAssistant
                     sectionContent={section.content || ''}

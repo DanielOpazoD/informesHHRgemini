@@ -5,6 +5,7 @@ import { TEMPLATES } from '../constants';
 interface HeaderProps {
     templateId: string;
     onTemplateChange: (id: string) => void;
+    onAddClinicalUpdateSection: () => void;
     onPrint: () => void;
     isEditing: boolean;
     onToggleEdit: () => void;
@@ -201,11 +202,21 @@ const HistoryIcon = () => (
     </svg>
 );
 
+const ClockPlusIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="7" />
+        <path d="M12 9v4l2.5 1.5" />
+        <path d="M18 6v4" />
+        <path d="M16 8h4" />
+    </svg>
+);
+
 type ActionMenu = 'archivo' | 'drive' | 'herramientas';
 
 const Header: React.FC<HeaderProps> = ({
     templateId,
     onTemplateChange,
+    onAddClinicalUpdateSection,
     onPrint,
     isEditing,
     onToggleEdit,
@@ -399,6 +410,16 @@ const Header: React.FC<HeaderProps> = ({
                                 <option key={t.id} value={t.id}>{t.name}</option>
                             ))}
                         </select>
+                        <button
+                            type="button"
+                            className="action-btn"
+                            onClick={onAddClinicalUpdateSection}
+                            title="Agregar actualización clínica"
+                            aria-label="Agregar sección de actualización clínica"
+                        >
+                            <ClockPlusIcon />
+                            <span>Actualización clínica</span>
+                        </button>
                     </div>
                     <div className={`save-status ${statusState}`}>
                         <span className="status-dot" data-state={statusState} />

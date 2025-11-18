@@ -82,6 +82,21 @@
       color: #e2e8f0;
     }
 
+    body[data-theme='dark'] .clinical-update-meta .meta-field {
+      color: #e2e8f0;
+    }
+
+    body[data-theme='dark'] .clinical-update-meta .meta-field input {
+      background: rgba(15, 23, 42, 0.75);
+      border-color: rgba(148, 163, 184, 0.35);
+      color: #f8fafc;
+    }
+
+    body[data-theme='dark'] .clinical-update-meta .meta-field input:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+    }
+
     body[data-theme='dark'] .editor-toolbar button:hover {
       background: rgba(59, 130, 246, 0.35);
       border-color: #60a5fa;
@@ -416,6 +431,7 @@
 
     .topbar-group-templates {
       flex: 0 0 auto;
+      flex-wrap: wrap;
     }
 
     .topbar-group-actions {
@@ -1186,6 +1202,44 @@
       color: #1f2937;
       margin: 4px 0 3px 0;
       font-size: 12px;
+    }
+
+    .clinical-update-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 6px 0 10px;
+    }
+
+    .clinical-update-meta .meta-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .clinical-update-meta .meta-field span {
+      white-space: nowrap;
+    }
+
+    .clinical-update-meta .meta-field input {
+      border: 1px solid #cbd5e1;
+      border-radius: 9999px;
+      padding: 4px 12px;
+      font-size: 12px;
+      min-height: 32px;
+      background: #fff;
+      color: #0f172a;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .clinical-update-meta .meta-field input:focus {
+      outline: none;
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
     }
 
     .row {
