@@ -5,6 +5,7 @@ import { TEMPLATES } from '../constants';
 interface HeaderProps {
     templateId: string;
     onTemplateChange: (id: string) => void;
+    onAddClinicalUpdateSection: () => void;
     onPrint: () => void;
     isEditing: boolean;
     onToggleEdit: () => void;
@@ -206,6 +207,7 @@ type ActionMenu = 'archivo' | 'drive' | 'herramientas';
 const Header: React.FC<HeaderProps> = ({
     templateId,
     onTemplateChange,
+    onAddClinicalUpdateSection,
     onPrint,
     isEditing,
     onToggleEdit,
@@ -399,6 +401,14 @@ const Header: React.FC<HeaderProps> = ({
                                 <option key={t.id} value={t.id}>{t.name}</option>
                             ))}
                         </select>
+                        <button
+                            type="button"
+                            className="action-btn action-btn-secondary"
+                            onClick={onAddClinicalUpdateSection}
+                            title="Agregar una sección de actualización clínica"
+                        >
+                            <span>Actualización clínica</span>
+                        </button>
                     </div>
                     <div className={`save-status ${statusState}`}>
                         <span className="status-dot" data-state={statusState} />
