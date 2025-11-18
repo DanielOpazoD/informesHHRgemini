@@ -31,9 +31,14 @@ export interface ClinicalSection {
     fields: ClinicalField[];
 }
 
+export type ClinicalSectionKind = 'standard' | 'clinical-update';
+
 export interface ClinicalSectionData {
     title: string;
     content: string;
+    kind?: ClinicalSectionKind;
+    updateDate?: string;
+    updateTime?: string;
 }
 
 export interface ClinicalRecord {
