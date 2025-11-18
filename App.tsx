@@ -45,11 +45,17 @@ interface DriveCacheEntry {
 const DEFAULT_TEMPLATE_ID = '2';
 
 const CLINICAL_UPDATE_SECTION_CONTENT = `
-<p class="clinical-update-inline">
-    <strong>Actualización clínica:</strong>
-    <span class="clinical-update-meta"><strong>Fecha:</strong> ____/____/____</span>
-    <span class="clinical-update-meta"><strong>Hora:</strong> ____:____</span>
-</p>
+<div class="clinical-update-row">
+    <span class="clinical-update-title">Actualización clínica</span>
+    <span class="clinical-update-meta">
+        <strong>Fecha:</strong>
+        <span class="clinical-update-field" data-field="date" data-placeholder="dd/mm/aaaa" contenteditable="true"></span>
+    </span>
+    <span class="clinical-update-meta">
+        <strong>Hora:</strong>
+        <span class="clinical-update-field" data-field="time" data-placeholder="hh:mm" contenteditable="true"></span>
+    </span>
+</div>
 <p><br /></p>
 `;
 
