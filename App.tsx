@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import jsPDF from 'jspdf';
 import type {
     ClinicalRecord,
+    ClinicalSectionData,
     GoogleUserProfile,
     DriveFolder,
     FavoriteFolderEntry,
@@ -1200,7 +1201,13 @@ const App: React.FC = () => {
         const newSections = [...record.sections];
         newSections[index] = { ...newSections[index], title };
         setRecord(r => ({ ...r, sections: newSections }));
-    }
+    };
+
+    const handleSectionMetaChange = (index: number, updates: Partial<ClinicalSectionData>) => {
+        const newSections = [...record.sections];
+        newSections[index] = { ...newSections[index], ...updates };
+        setRecord(r => ({ ...r, sections: newSections }));
+    };
 
     const handleTemplateChange = (id: string) => {
         const template = TEMPLATES[id];
@@ -1221,6 +1228,27 @@ const App: React.FC = () => {
     };
     
     const handleAddSection = () => setRecord(r => ({...r, sections: [...r.sections, { title: 'Sección personalizada', content: '' }]}));
+
+    const handleAddClinicalUpdateSection = () => {
+        const now = new Date();
+        const pad = (value: number) => value.toString().padStart(2, '0');
+        const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        const time = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        setRecord(r => ({
+            ...r,
+            sections: [
+                ...r.sections,
+                {
+                    title: 'Actualización clínica',
+                    content: '',
+                    type: 'clinical-update',
+                    updateDate: today,
+                    updateTime: time,
+                },
+            ],
+        }));
+        showToast('Sección de actualización clínica agregada');
+    };
     const handleRemoveSection = (index: number) => setRecord(r => ({...r, sections: r.sections.filter((_, i) => i !== index)}));
     const handleAddPatientField = () => setRecord(r => ({...r, patientFields: [...r.patientFields, { label: 'Nuevo campo', value: '', type: 'text', isCustom: true }]}));
     const handleRemovePatientField = (index: number) => setRecord(r => ({...r, patientFields: r.patientFields.filter((_, i) => i !== index)}));
@@ -1334,6 +1362,7 @@ const App: React.FC = () => {
             <Header
                 templateId={record.templateId}
                 onTemplateChange={handleTemplateChange}
+                onAddClinicalUpdateSection={handleAddClinicalUpdateSection}
                 onPrint={handlePrint}
                 isEditing={isEditing}
                 onToggleEdit={() => setIsEditing(!isEditing)}
@@ -1494,6 +1523,7 @@ const App: React.FC = () => {
                             onSectionContentChange={handleSectionContentChange}
                             onSectionTitleChange={handleSectionTitleChange}
                             onRemoveSection={handleRemoveSection}
+                            onSectionMetaChange={handleSectionMetaChange}
                         />
                     ))}</div>
                     <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />

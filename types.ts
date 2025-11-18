@@ -34,6 +34,9 @@ export interface ClinicalSection {
 export interface ClinicalSectionData {
     title: string;
     content: string;
+    type?: 'clinical-update';
+    updateDate?: string;
+    updateTime?: string;
 }
 
 export interface ClinicalRecord {
