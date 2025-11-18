@@ -8,6 +8,7 @@ import type {
     DriveFolder,
     FavoriteFolderEntry,
     RecentDriveFile,
+    ClinicalSectionData,
 } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
@@ -42,6 +43,26 @@ interface DriveCacheEntry {
 }
 
 const DEFAULT_TEMPLATE_ID = '2';
+
+const CLINICAL_UPDATE_SECTION_CONTENT = `
+<div class="clinical-update-section">
+    <div class="clinical-update-header">
+        <div class="clinical-update-title">
+            <strong>Actualización clínica:</strong> ____________________________
+        </div>
+        <div class="clinical-update-meta"><strong>Fecha:</strong> ____/____/____</div>
+        <div class="clinical-update-meta"><strong>Hora:</strong> ____:____</div>
+    </div>
+    <div class="clinical-update-body">
+        <p><br /></p>
+    </div>
+</div>
+`;
+
+const createClinicalUpdateSection = (): ClinicalSectionData => ({
+    title: 'Actualización clínica',
+    content: CLINICAL_UPDATE_SECTION_CONTENT,
+});
 
 const createTemplateBaseline = (templateId: string): ClinicalRecord => {
     const selectedTemplateId = TEMPLATES[templateId] ? templateId : DEFAULT_TEMPLATE_ID;
@@ -1221,6 +1242,7 @@ const App: React.FC = () => {
     };
     
     const handleAddSection = () => setRecord(r => ({...r, sections: [...r.sections, { title: 'Sección personalizada', content: '' }]}));
+    const handleAddClinicalUpdateSection = () => setRecord(r => ({...r, sections: [...r.sections, createClinicalUpdateSection()]}));
     const handleRemoveSection = (index: number) => setRecord(r => ({...r, sections: r.sections.filter((_, i) => i !== index)}));
     const handleAddPatientField = () => setRecord(r => ({...r, patientFields: [...r.patientFields, { label: 'Nuevo campo', value: '', type: 'text', isCustom: true }]}));
     const handleRemovePatientField = (index: number) => setRecord(r => ({...r, patientFields: r.patientFields.filter((_, i) => i !== index)}));
@@ -1334,6 +1356,7 @@ const App: React.FC = () => {
             <Header
                 templateId={record.templateId}
                 onTemplateChange={handleTemplateChange}
+                onAddClinicalUpdateSection={handleAddClinicalUpdateSection}
                 onPrint={handlePrint}
                 isEditing={isEditing}
                 onToggleEdit={() => setIsEditing(!isEditing)}
