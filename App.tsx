@@ -8,6 +8,7 @@ import type {
     DriveFolder,
     FavoriteFolderEntry,
     RecentDriveFile,
+    ClinicalSectionData,
 } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
@@ -948,6 +949,14 @@ const App: React.FC = () => {
 
         record.sections.forEach(section => {
             addSectionTitle(section.title);
+            if (section.kind === 'clinical-update') {
+                if (section.updateDate) {
+                    addLabeledValue('Fecha', formatDateDMY(section.updateDate));
+                }
+                if (section.updateTime) {
+                    addLabeledValue('Hora', section.updateTime);
+                }
+            }
             addParagraphs(section.content);
         });
 
@@ -1221,7 +1230,37 @@ const App: React.FC = () => {
     };
     
     const handleAddSection = () => setRecord(r => ({...r, sections: [...r.sections, { title: 'Sección personalizada', content: '' }]}));
+    const handleAddClinicalUpdateSection = useCallback(() => {
+        const now = new Date();
+        const pad = (value: number) => String(value).padStart(2, '0');
+        const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        const currentTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        setRecord(r => ({
+            ...r,
+            sections: [
+                ...r.sections,
+                {
+                    title: 'Actualización clínica',
+                    content: '',
+                    kind: 'clinical-update',
+                    updateDate: today,
+                    updateTime: currentTime,
+                },
+            ],
+        }));
+        showToast('Sección de actualización clínica agregada');
+    }, [setRecord, showToast]);
     const handleRemoveSection = (index: number) => setRecord(r => ({...r, sections: r.sections.filter((_, i) => i !== index)}));
+    const handleUpdateSectionMeta = useCallback((index: number, meta: Partial<ClinicalSectionData>) => {
+        setRecord(r => {
+            const newSections = [...r.sections];
+            if (!newSections[index]) {
+                return r;
+            }
+            newSections[index] = { ...newSections[index], ...meta };
+            return { ...r, sections: newSections };
+        });
+    }, [setRecord]);
     const handleAddPatientField = () => setRecord(r => ({...r, patientFields: [...r.patientFields, { label: 'Nuevo campo', value: '', type: 'text', isCustom: true }]}));
     const handleRemovePatientField = (index: number) => setRecord(r => ({...r, patientFields: r.patientFields.filter((_, i) => i !== index)}));
     
@@ -1334,6 +1373,7 @@ const App: React.FC = () => {
             <Header
                 templateId={record.templateId}
                 onTemplateChange={handleTemplateChange}
+                onAddClinicalUpdateSection={handleAddClinicalUpdateSection}
                 onPrint={handlePrint}
                 isEditing={isEditing}
                 onToggleEdit={() => setIsEditing(!isEditing)}
@@ -1494,6 +1534,7 @@ const App: React.FC = () => {
                             onSectionContentChange={handleSectionContentChange}
                             onSectionTitleChange={handleSectionTitleChange}
                             onRemoveSection={handleRemoveSection}
+                            onUpdateSectionMeta={handleUpdateSectionMeta}
                         />
                     ))}</div>
                     <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
