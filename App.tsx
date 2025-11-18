@@ -45,17 +45,12 @@ interface DriveCacheEntry {
 const DEFAULT_TEMPLATE_ID = '2';
 
 const CLINICAL_UPDATE_SECTION_CONTENT = `
-<div class="clinical-update-section">
-    <div class="clinical-update-row">
-        <strong>Actualización clínica:</strong>
-        <span class="clinical-update-input-line">______________________________</span>
-        <span class="clinical-update-meta"><strong>Fecha:</strong> ____/____/____</span>
-        <span class="clinical-update-meta"><strong>Hora:</strong> ____:____</span>
-    </div>
-    <div class="clinical-update-text">
-        <p><br /></p>
-    </div>
+<div class="clinical-update-line">
+    <strong>Actualización clínica</strong>
+    <span class="clinical-update-meta"><strong>Fecha:</strong> ____/____/____</span>
+    <span class="clinical-update-meta"><strong>Hora:</strong> ____:____</span>
 </div>
+<p><br /></p>
 `;
 
 const createClinicalUpdateSection = (): ClinicalSectionData => ({
