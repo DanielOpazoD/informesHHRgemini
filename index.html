@@ -416,6 +416,29 @@
 
     .topbar-group-templates {
       flex: 0 0 auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .clinical-update-btn {
+      padding: 4px 10px;
+      font-size: calc(var(--fs) - 2px);
+      background: transparent;
+      border-color: transparent;
+      color: var(--topbar-text);
+      box-shadow: none;
+      gap: 4px;
+    }
+
+    .clinical-update-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .clinical-update-btn:hover {
+      background: var(--topbar-select-hover-bg);
+      border-color: transparent;
+      box-shadow: none;
     }
 
     .topbar-group-actions {
@@ -1086,6 +1109,27 @@
       border-color: #94a3b8;
       background: #f1f5f9;
       box-shadow: none;
+    }
+
+    .txt.note-area .clinical-update-inline {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      font-weight: 600;
+      font-size: calc(var(--fs) - 1px);
+    }
+
+    .txt.note-area .clinical-update-inline strong {
+      white-space: nowrap;
+    }
+
+    .txt.note-area .clinical-update-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      font-weight: 500;
     }
 
     .sec.advanced-note-active .subtitle {
