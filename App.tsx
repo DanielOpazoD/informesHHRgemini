@@ -57,6 +57,41 @@ const createTemplateBaseline = (templateId: string): ClinicalRecord => {
     };
 };
 
+const createClinicalUpdateContent = () => {
+    const now = new Date();
+    const dateFormatter = new Intl.DateTimeFormat('es-CL', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    });
+    const timeFormatter = new Intl.DateTimeFormat('es-CL', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    });
+
+    const formattedDate = dateFormatter.format(now);
+    const formattedTime = timeFormatter.format(now);
+
+    return [
+        '<div class="clinical-update-block">',
+        '  <div class="clinical-update-row">',
+        '    <div class="clinical-update-title">',
+        '      <span class="clinical-update-label">Título</span>',
+        '      <span class="clinical-update-value">______________________________</span>',
+        '    </div>',
+        '    <div class="clinical-update-meta">',
+        `      <div><span class="clinical-update-label">Fecha</span><span class="clinical-update-value">${formattedDate}</span></div>`,
+        `      <div><span class="clinical-update-label">Hora</span><span class="clinical-update-value">${formattedTime}</span></div>`,
+        '    </div>',
+        '  </div>',
+        '  <div class="clinical-update-body">',
+        '    <p><br></p>',
+        '  </div>',
+        '</div>',
+    ].join('');
+};
+
 const ENV_GEMINI_API_KEY = getEnvGeminiApiKey();
 const ENV_GEMINI_PROJECT_ID = getEnvGeminiProjectId();
 const ENV_GEMINI_MODEL = getEnvGeminiModel();
@@ -1221,6 +1256,19 @@ const App: React.FC = () => {
     };
     
     const handleAddSection = () => setRecord(r => ({...r, sections: [...r.sections, { title: 'Sección personalizada', content: '' }]}));
+    const handleAddClinicalUpdateSection = useCallback(() => {
+        setRecord(r => ({
+            ...r,
+            sections: [
+                ...r.sections,
+                {
+                    title: 'Actualización clínica',
+                    content: createClinicalUpdateContent(),
+                },
+            ],
+        }));
+        showToast('Se agregó una sección de actualización clínica.');
+    }, [setRecord, showToast]);
     const handleRemoveSection = (index: number) => setRecord(r => ({...r, sections: r.sections.filter((_, i) => i !== index)}));
     const handleAddPatientField = () => setRecord(r => ({...r, patientFields: [...r.patientFields, { label: 'Nuevo campo', value: '', type: 'text', isCustom: true }]}));
     const handleRemovePatientField = (index: number) => setRecord(r => ({...r, patientFields: r.patientFields.filter((_, i) => i !== index)}));
@@ -1334,6 +1382,7 @@ const App: React.FC = () => {
             <Header
                 templateId={record.templateId}
                 onTemplateChange={handleTemplateChange}
+                onAddClinicalUpdateSection={handleAddClinicalUpdateSection}
                 onPrint={handlePrint}
                 isEditing={isEditing}
                 onToggleEdit={() => setIsEditing(!isEditing)}
