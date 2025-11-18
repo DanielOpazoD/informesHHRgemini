@@ -5,6 +5,7 @@ import { TEMPLATES } from '../constants';
 interface HeaderProps {
     templateId: string;
     onTemplateChange: (id: string) => void;
+    onAddClinicalUpdateSection: () => void;
     onPrint: () => void;
     isEditing: boolean;
     onToggleEdit: () => void;
@@ -201,11 +202,21 @@ const HistoryIcon = () => (
     </svg>
 );
 
+const ClinicalUpdateIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="3" width="14" height="18" rx="2" />
+        <path d="M9 3v4h6V3" />
+        <path d="M8 13h3l1.5 3 2-4H16" />
+        <path d="M8 8h8" />
+    </svg>
+);
+
 type ActionMenu = 'archivo' | 'drive' | 'herramientas';
 
 const Header: React.FC<HeaderProps> = ({
     templateId,
     onTemplateChange,
+    onAddClinicalUpdateSection,
     onPrint,
     isEditing,
     onToggleEdit,
@@ -399,6 +410,15 @@ const Header: React.FC<HeaderProps> = ({
                                 <option key={t.id} value={t.id}>{t.name}</option>
                             ))}
                         </select>
+                        <button
+                            type="button"
+                            className="action-btn primary clinical-update-btn"
+                            onClick={onAddClinicalUpdateSection}
+                            title="Agregar sección de Actualización clínica"
+                        >
+                            <ClinicalUpdateIcon />
+                            <span>Actualización clínica</span>
+                        </button>
                     </div>
                     <div className={`save-status ${statusState}`}>
                         <span className="status-dot" data-state={statusState} />
