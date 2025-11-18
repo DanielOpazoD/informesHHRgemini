@@ -1202,14 +1202,61 @@
       position: relative;
     }
 
+    .patient-default-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 8px 12px;
+      margin-bottom: 8px;
+    }
+
+    .patient-field-row-default {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      column-gap: 8px;
+      min-width: 0;
+    }
+
+    .patient-field-row-default .lbl {
+      font-weight: 600;
+      cursor: text;
+      line-height: 1.2;
+      align-self: center;
+      min-width: 0;
+    }
+
     .patient-field-row-default .patient-field-input {
       display: flex;
       align-items: center;
       gap: 6px;
+      flex: 1;
+      min-width: 0;
     }
 
     .patient-field-row-default .patient-field-input .inp {
       flex: 1;
+      min-width: 0;
+    }
+
+    .patient-field-row-default.patient-field-row-compact {
+      grid-template-columns: auto auto;
+    }
+
+    .patient-field-row-default.patient-field-row-compact .patient-field-input {
+      flex: 0 0 auto;
+    }
+
+    .patient-field-row-default.patient-field-row-compact .patient-field-input .inp,
+    .patient-field-row-default .patient-field-input .inp-compact {
+      max-width: 170px;
+    }
+
+    .patient-field-row-default[data-field-id="fecnac"] .patient-field-input .inp {
+      max-width: 190px;
+    }
+
+    .patient-field-row-default[data-field-id="edad"] .patient-field-input .inp {
+      max-width: 110px;
     }
 
     .patient-field-row-default .patient-field-input .row-del {
@@ -1497,12 +1544,6 @@
         height: auto;
       }
       *::-webkit-scrollbar { display: none !important; }
-      @page {
-        margin: 12mm 15mm;
-        size: letter portrait;
-        orphans: 3;
-        widows: 3;
-      }
     }
 
     @media (max-width: 1024px) {

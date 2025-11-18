@@ -1,4 +1,9 @@
+import { resolveGeminiRouting } from './utils/geminiModelUtils';
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY;
+const GEMINI_PROJECT_ID = process.env.GEMINI_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.PROJECT_NUMBER;
+const rawModel = process.env.GEMINI_MODEL || process.env.VITE_GEMINI_MODEL || 'gemini-pro';
+const { modelId: GEMINI_MODEL, apiVersion } = resolveGeminiRouting(rawModel);
 
 if (!GEMINI_API_KEY) {
     console.error('❌ Debes definir la variable de entorno GEMINI_API_KEY antes de ejecutar este script.');
@@ -9,11 +14,19 @@ async function testGemini() {
     console.log('🔍 Probando conexión a Gemini API...\n');
 
     try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (GEMINI_PROJECT_ID) {
+            headers['X-Goog-User-Project'] = GEMINI_PROJECT_ID;
+            console.log(`➡️  Usando cabecera X-Goog-User-Project: ${GEMINI_PROJECT_ID}`);
+        }
+
+        console.log(`➡️  Solicitando modelo: ${GEMINI_MODEL} (API ${apiVersion})`);
+
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/${apiVersion}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     contents: [
                         {

@@ -14,8 +14,8 @@ export const TEMPLATES: Record<string, Template> = Object.freeze({
 export const DEFAULT_PATIENT_FIELDS: PatientField[] = [
     { id: 'nombre', label: 'Nombre', value: '', type: 'text', placeholder: 'Nombre Apellido' },
     { id: 'rut', label: 'Rut', value: '', type: 'text' },
-    { id: 'fecnac', label: 'Fecha de nacimiento', value: '', type: 'date' },
     { id: 'edad', label: 'Edad', value: '', type: 'text', placeholder: 'años', readonly: true },
+    { id: 'fecnac', label: 'Fecha de nacimiento', value: '', type: 'date' },
     { id: 'fing', label: 'Fecha de ingreso', value: '', type: 'date' },
     { id: 'finf', label: 'Fecha del informe', value: '', type: 'date' },
 ];
