@@ -416,6 +416,29 @@
 
     .topbar-group-templates {
       flex: 0 0 auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .clinical-update-btn {
+      padding: 4px 10px;
+      font-size: calc(var(--fs) - 2px);
+      background: transparent;
+      border-color: transparent;
+      color: var(--topbar-text);
+      box-shadow: none;
+      gap: 4px;
+    }
+
+    .clinical-update-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .clinical-update-btn:hover {
+      background: var(--topbar-select-hover-bg);
+      border-color: transparent;
+      box-shadow: none;
     }
 
     .topbar-group-actions {
@@ -1086,6 +1109,63 @@
       border-color: #94a3b8;
       background: #f1f5f9;
       box-shadow: none;
+    }
+
+    .txt.note-area .clinical-update-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 18px;
+      font-size: calc(var(--fs) - 1px);
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .txt.note-area .clinical-update-title {
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .txt.note-area .clinical-update-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    .txt.note-area .clinical-update-field {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      min-width: 110px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 2px 10px;
+      font-weight: 500;
+      background: #fff;
+      color: inherit;
+    }
+
+    body[data-theme='dark'] .txt.note-area .clinical-update-field {
+      border-color: rgba(148, 163, 184, 0.5);
+      background: rgba(15, 23, 42, 0.65);
+    }
+
+    .txt.note-area .clinical-update-field[data-field='time'] {
+      min-width: 80px;
+    }
+
+    .txt.note-area .clinical-update-field:empty:before {
+      content: attr(data-placeholder);
+      color: #94a3b8;
+      font-weight: 400;
+    }
+
+    body[data-theme='dark'] .txt.note-area .clinical-update-field:empty:before {
+      color: rgba(148, 163, 184, 0.9);
     }
 
     .sec.advanced-note-active .subtitle {
