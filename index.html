@@ -416,6 +416,41 @@
 
     .topbar-group-templates {
       flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .template-update-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--topbar-action-border);
+      background: var(--topbar-action-bg);
+      color: var(--topbar-action-text);
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .template-update-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .template-update-btn:hover {
+      background: var(--topbar-action-hover-bg);
+      color: var(--topbar-primary-bg);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+    }
+
+    .template-update-btn:focus-visible {
+      outline: 2px solid var(--topbar-primary-bg);
+      outline-offset: 2px;
     }
 
     .topbar-group-actions {
@@ -1171,6 +1206,52 @@
     .sec {
       margin-top: 6px;
       position: relative;
+    }
+
+    .clinical-update-header {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .clinical-update-header .subtitle {
+      flex: 1 1 180px;
+      margin-bottom: 0;
+    }
+
+    .clinical-update-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    body[data-theme='dark'] .clinical-update-meta {
+      color: #e2e8f0;
+    }
+
+    .clinical-update-meta label {
+      text-transform: none;
+      letter-spacing: 0.2px;
+    }
+
+    .clinical-update-meta .inp {
+      width: auto;
+      min-width: 130px;
+      padding: 4px 10px;
+    }
+
+    .clinical-update-meta .time-input {
+      min-width: 110px;
+    }
+
+    .clinical-update-section .txt.note-area {
+      min-height: 140px;
     }
 
     .title {

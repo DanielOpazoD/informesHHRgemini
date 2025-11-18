@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import type { ClinicalSectionData } from '../types';
 import AIAssistant from './AIAssistant';
 
@@ -14,6 +14,7 @@ interface ClinicalSectionProps {
     onSectionContentChange: (index: number, content: string) => void;
     onSectionTitleChange: (index: number, title: string) => void;
     onRemoveSection: (index: number) => void;
+    onUpdateSectionMeta?: (index: number, meta: Partial<ClinicalSectionData>) => void;
 }
 
 const ClinicalSection: React.FC<ClinicalSectionProps> = ({
@@ -27,10 +28,14 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     onSectionContentChange,
     onSectionTitleChange,
     onRemoveSection,
+    onUpdateSectionMeta,
     aiModel,
 }) => {
     const noteRef = useRef<HTMLDivElement>(null);
     const [isFocused, setIsFocused] = useState(false);
+    const isClinicalUpdate = section.kind === 'clinical-update';
+    const dateInputId = useMemo(() => `clinical-update-date-${index}`, [index]);
+    const timeInputId = useMemo(() => `clinical-update-time-${index}`, [index]);
 
     const syncContent = useCallback(() => {
         const node = noteRef.current;
@@ -50,20 +55,56 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
         onSectionContentChange(index, node.innerHTML);
     }, [index, onSectionContentChange]);
 
+    const handleMetaChange = useCallback(
+        (field: 'updateDate' | 'updateTime', value: string) => {
+            if (!onUpdateSectionMeta) return;
+            onUpdateSectionMeta(index, { [field]: value });
+        },
+        [index, onUpdateSectionMeta]
+    );
+
+    const sectionTitle = (
+        <div
+            className="subtitle"
+            contentEditable={isEditing}
+            suppressContentEditableWarning
+            onBlur={e => onSectionTitleChange(index, e.currentTarget.innerText)}
+        >
+            {section.title}
+        </div>
+    );
+
     return (
         <div
-            className={`sec ${isAdvancedEditing && isFocused ? 'advanced-note-active' : ''}`}
+            className={`sec ${isAdvancedEditing && isFocused ? 'advanced-note-active' : ''} ${isClinicalUpdate ? 'clinical-update-section' : ''}`.trim()}
             data-section
         >
             <button className="sec-del" onClick={() => onRemoveSection(index)}>×</button>
-            <div
-                className="subtitle"
-                contentEditable={isEditing}
-                suppressContentEditableWarning
-                onBlur={e => onSectionTitleChange(index, e.currentTarget.innerText)}
-            >
-                {section.title}
-            </div>
+            {isClinicalUpdate ? (
+                <div className="clinical-update-header">
+                    {sectionTitle}
+                    <div className="clinical-update-meta">
+                        <label htmlFor={dateInputId}>Fecha:</label>
+                        <input
+                            id={dateInputId}
+                            type="date"
+                            className="inp clinical-update-input"
+                            value={section.updateDate || ''}
+                            onChange={event => handleMetaChange('updateDate', event.target.value)}
+                        />
+                        <label htmlFor={timeInputId}>Hora:</label>
+                        <input
+                            id={timeInputId}
+                            type="time"
+                            className="inp clinical-update-input time-input"
+                            value={section.updateTime || ''}
+                            onChange={event => handleMetaChange('updateTime', event.target.value)}
+                        />
+                    </div>
+                </div>
+            ) : (
+                sectionTitle
+            )}
             {isAdvancedEditing && showAiTools && (
                 <AIAssistant
                     sectionContent={section.content || ''}
@@ -80,7 +121,7 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
                 suppressContentEditableWarning
                 role="textbox"
                 aria-multiline="true"
-                aria-label={`Contenido de ${section.title || 'sección clínica'}`}
+                aria-label={`Contenido de ${section.title || 'sección clínica'}${isClinicalUpdate ? ' - actualización clínica' : ''}`}
                 onInput={handleInput}
                 onBlur={event => {
                     setIsFocused(false);
