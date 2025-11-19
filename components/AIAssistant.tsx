@@ -127,7 +127,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     }, [sections, targetSectionId]);
 
     useEffect(() => {
-        if (!chatContainerRef.current) return;
+        if (!chatContainerRef.current || messages.length === 0) return;
         chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: 'smooth' });
     }, [messages]);
 
@@ -295,14 +295,11 @@ Responde preguntas o genera documentos basados en toda la información disponibl
     return (
         <aside className="ai-drawer is-open" style={{ width: panelWidth, flexBasis: panelWidth }}>
             <div className="ai-resize-handle" onMouseDown={handleResizeStart} />
-
-            <div className="ai-drawer-inner" style={{ display: 'flex', flexDirection: 'column', height: '100%', opacity: 1, transform: 'none' }}>
-                <header className="ai-drawer-header py-2" style={{ marginBottom: '8px', flexShrink: 0 }}>
+            <div className="ai-drawer-inner ai-drawer-inner-compact">
+                <header className="ai-drawer-header ai-drawer-header-tight">
                     <div>
-                        <h3 className="ai-drawer-title text-base">Asistente IA</h3>
-                        <p className="ai-drawer-subtitle text-xs text-gray-500">
-                            {mode === 'chat' ? 'Análisis del caso completo' : 'Edición y redacción'}
-                        </p>
+                        <p className="ai-drawer-overline">Asistente IA</p>
+                        <h3 className="ai-drawer-title">{mode === 'chat' ? 'Conversación clínica' : 'Edición y redacción'}</h3>
                     </div>
                     <div className="ai-header-actions gap-1">
                         <button
@@ -319,8 +316,8 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                 </header>
 
                 {showSettings && (
-                    <div className="ai-panel-settings mb-3 animate-fade-in rounded-lg border border-slate-200 bg-white/70 p-3 text-xs">
-                        <label className="font-bold text-gray-700 block mb-1">Perfil Médico</label>
+                    <div className="ai-panel-settings ai-panel-settings-tight animate-fade-in">
+                        <label className="font-bold text-gray-700 block mb-1 text-xs">Perfil Médico</label>
                         <select
                             className="ai-select w-full text-xs mb-2"
                             value={assistantProfile}
@@ -332,20 +329,16 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                             <option value="pediatria">👶 Pediatría (Empático/Seguridad)</option>
                         </select>
 
-                        <label className="flex items-center gap-2 font-semibold text-gray-600 cursor-pointer">
+                        <label className="flex items-center gap-2 font-semibold text-gray-600 cursor-pointer text-xs">
                             <input type="checkbox" checked={allowMarkdown} onChange={event => setAllowMarkdown(event.target.checked)} />
                             Formatear con Markdown
                         </label>
                     </div>
                 )}
 
-                <div className="flex items-center gap-1 mb-3 text-xs font-semibold">
+                <div className="ai-mode-tabs">
                     <button
-                        className={`flex-1 py-1.5 rounded-full border text-[12px] transition-colors ${
-                            mode === 'chat'
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                : 'border-gray-200 text-gray-600 hover:border-blue-200'
-                        }`}
+                        className={`ai-mode-tab ${mode === 'chat' ? 'is-active' : ''}`}
                         onClick={() => {
                             setMode('chat');
                             setMessages([]);
@@ -354,11 +347,7 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                         💬 Conversación
                     </button>
                     <button
-                        className={`flex-1 py-1.5 rounded-full border text-[12px] transition-colors ${
-                            mode === 'edit'
-                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                : 'border-gray-200 text-gray-600 hover:border-indigo-200'
-                        }`}
+                        className={`ai-mode-tab ${mode === 'edit' ? 'is-active' : ''}`}
                         onClick={() => {
                             setMode('edit');
                             setMessages([]);
@@ -369,12 +358,10 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                 </div>
 
                 {mode === 'edit' && (
-                    <div className="mb-3 flex-shrink-0 rounded-lg border border-indigo-100 bg-indigo-50/80 p-2">
-                        <label className="text-[11px] font-semibold text-indigo-900 uppercase tracking-wider mb-1 block">
-                            Editando sección
-                        </label>
+                    <div className="ai-section-target">
+                        <label className="ai-section-target-label">Editando sección</label>
                         <select
-                            className="w-full rounded-md border border-indigo-200 bg-white p-1.5 text-xs focus:ring-1 focus:ring-indigo-400"
+                            className="ai-section-target-select"
                             value={targetSectionId}
                             onChange={event => {
                                 setTargetSectionId(event.target.value);
@@ -390,11 +377,11 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                     </div>
                 )}
 
-                <div className="mb-3 flex flex-wrap gap-1.5">
+                <div className="ai-quick-actions">
                     {(mode === 'chat' ? CHAT_ACTIONS : EDIT_ACTIONS).map(action => (
                         <button
                             key={action.label}
-                            className="flex items-center gap-1 rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 disabled:opacity-60"
+                            className="ai-quick-action-btn"
                             onClick={() => handleSendMessage(action.prompt)}
                             disabled={isLoading || !apiKey}
                         >
@@ -404,14 +391,12 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                     ))}
                 </div>
 
-                <div
-                    ref={chatContainerRef}
-                    className="flex-1 overflow-y-auto min-h-0 mb-3 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3"
-                >
-                    {!apiKey ? (
-                        <div className="text-center p-4 text-gray-500 text-sm bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                            ⚠️ Configura tu API Key de Gemini en el menú ⚙️ para comenzar.
-                        </div>
+                <div className="ai-chat-frame">
+                    <div ref={chatContainerRef} className="ai-chat-scroll">
+                        {!apiKey ? (
+                            <div className="text-center p-4 text-gray-500 text-sm bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                                ⚠️ Configura tu API Key de Gemini en el menú ⚙️ para comenzar.
+                            </div>
                     ) : messages.length === 0 ? (
                         <div className="text-center p-6 text-gray-400 text-sm">
                             <p className="mb-2 text-2xl opacity-50">{mode === 'chat' ? '👋' : '✍️'}</p>
@@ -443,21 +428,24 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                             </div>
                         ))
                     )}
-                    {isLoading && (
-                        <div className="flex items-start">
-                            <div className="bg-gray-100 rounded-2xl rounded-tl-none px-4 py-2 text-gray-500 text-sm animate-pulse">Pensando...</div>
-                        </div>
-                    )}
-                    {error && (
-                        <div className="bg-red-50 text-red-600 text-xs p-2 rounded-lg border border-red-200">Error: {error}</div>
-                    )}
+                        {isLoading && (
+                            <div className="flex items-start">
+                                <div className="bg-gray-100 rounded-2xl rounded-tl-none px-4 py-2 text-gray-500 text-sm animate-pulse">
+                                    Pensando...
+                                </div>
+                            </div>
+                        )}
+                        {error && (
+                            <div className="bg-red-50 text-red-600 text-xs p-2 rounded-lg border border-red-200">Error: {error}</div>
+                        )}
+                    </div>
                 </div>
 
-                <div className="flex-shrink-0 mt-auto pt-1 border-t border-gray-200">
-                    <div className="relative">
+                <div className="ai-composer">
+                    <div className="ai-composer-input-wrapper">
                         <textarea
                             ref={textareaRef}
-                            className="w-full p-2.5 pr-11 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none shadow-sm"
+                            className="ai-composer-input"
                             placeholder={mode === 'chat' ? 'Haz una pregunta sobre el caso...' : 'Ej: Hazlo más conciso, enfatiza la fiebre...'}
                             rows={2}
                             value={inputPrompt}
@@ -471,11 +459,7 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                             disabled={isLoading || !apiKey}
                         />
                         <button
-                            className={`absolute right-1.5 bottom-1.5 p-2 rounded-lg transition-all ${
-                                !inputPrompt.trim() || isLoading
-                                    ? 'text-gray-300 cursor-not-allowed'
-                                    : 'text-blue-600 hover:bg-blue-50 active:bg-blue-100'
-                            }`}
+                            className={`ai-send-btn ${!inputPrompt.trim() || isLoading ? 'is-disabled' : ''}`}
                             onClick={() => handleSendMessage()}
                             disabled={!inputPrompt.trim() || isLoading}
                         >
@@ -484,7 +468,7 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                             </svg>
                         </button>
                     </div>
-                    <div className="text-[10px] text-gray-400 text-center mt-1">Shift + Enter para nueva línea</div>
+                    <div className="ai-composer-hint">Shift + Enter para nueva línea</div>
                 </div>
             </div>
         </aside>

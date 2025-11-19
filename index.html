@@ -1442,10 +1442,11 @@
       overflow: visible;
       transition: flex-basis 0.25s ease, width 0.25s ease;
       pointer-events: none;
-      align-self: stretch;
+      align-self: flex-start;
       position: sticky;
-      top: 86px;
+      top: 16px;
       display: flex;
+      height: calc(100vh - 32px);
     }
 
     .ai-drawer-inner {
@@ -1455,14 +1456,20 @@
       background: #f8fafc;
       border: 1px solid #cbd5f5;
       border-radius: 16px;
-      padding: 18px;
+      padding: 16px;
       box-shadow: 0 18px 40px rgba(15, 23, 42, 0.15);
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 12px;
       width: 100%;
-      max-height: calc(100vh - 120px);
-      overflow-y: auto;
+      height: 100%;
+      max-height: none;
+      overflow: hidden;
+    }
+
+    .ai-drawer-inner.ai-drawer-inner-compact {
+      padding: 12px 14px;
+      gap: 8px;
     }
 
     .ai-drawer.is-open {
@@ -1477,8 +1484,8 @@
     .ai-resize-handle {
       position: absolute;
       left: -8px;
-      top: 18px;
-      bottom: 18px;
+      top: 8px;
+      bottom: 8px;
       width: 12px;
       cursor: col-resize;
       background: transparent;
@@ -1502,16 +1509,26 @@
       gap: 12px;
     }
 
-    .ai-drawer-title {
-      font-size: 18px;
-      font-weight: 700;
-      margin: 0;
+    .ai-drawer-header-tight {
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+      margin-bottom: 2px;
     }
 
-    .ai-drawer-subtitle {
-      margin: 2px 0 0;
-      font-size: 12px;
-      color: #475569;
+    .ai-drawer-overline {
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      margin: 0 0 2px;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .ai-drawer-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 0;
+      color: #0f172a;
     }
 
     .ai-panel-settings {
@@ -1522,6 +1539,12 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+    }
+
+    .ai-panel-settings-tight {
+      padding: 10px;
+      margin-bottom: 4px;
+      gap: 8px;
     }
 
     .ai-profile-selector {
@@ -1599,6 +1622,169 @@
       font-size: 14px;
     }
 
+    .ai-mode-tabs {
+      display: flex;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .ai-mode-tab {
+      flex: 1 1 0;
+      padding: 6px 8px;
+      border-radius: 999px;
+      border: 1px solid #cbd5f5;
+      background: #fff;
+      color: #475569;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .ai-mode-tab.is-active {
+      background: linear-gradient(135deg, #2563eb, #4338ca);
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .ai-section-target {
+      border: 1px solid #dbeafe;
+      background: #eef2ff;
+      border-radius: 10px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+    }
+
+    .ai-section-target-label {
+      text-transform: uppercase;
+      font-size: 10px;
+      color: #3730a3;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+    }
+
+    .ai-section-target-select {
+      border-radius: 8px;
+      border: 1px solid #c7d2fe;
+      padding: 6px 8px;
+      font-size: 12px;
+      background: #fff;
+      color: #1e1b4b;
+    }
+
+    .ai-quick-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .ai-quick-action-btn {
+      flex: 1 1 calc(50% - 6px);
+      min-width: 120px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #cbd5f5;
+      background: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      color: #334155;
+      transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .ai-quick-action-btn:hover:not(:disabled) {
+      border-color: #60a5fa;
+      color: #1d4ed8;
+      box-shadow: 0 4px 8px rgba(59, 130, 246, 0.12);
+    }
+
+    .ai-quick-action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .ai-chat-frame {
+      flex: 1 1 auto;
+      min-height: 0;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      background: #f8fafc;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ai-chat-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ai-composer {
+      margin-top: auto;
+      padding-top: 6px;
+      border-top: 1px solid rgba(148, 163, 184, 0.4);
+    }
+
+    .ai-composer-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .ai-composer-input {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid #cbd5f5;
+      padding: 10px 42px 10px 12px;
+      font-size: 13px;
+      resize: none;
+      min-height: 56px;
+      box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+
+    .ai-composer-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .ai-send-btn {
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      border-radius: 10px;
+      padding: 6px;
+      color: #2563eb;
+      display: inline-flex;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .ai-send-btn:hover:not(.is-disabled) {
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .ai-send-btn.is-disabled {
+      color: #cbd5f5;
+      cursor: not-allowed;
+    }
+
+    .ai-composer-hint {
+      text-align: center;
+      font-size: 10px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+
     .ai-workspace-description {
       margin: 0;
       font-size: 11px;
@@ -1635,33 +1821,6 @@
       width: 14px;
       height: 14px;
       accent-color: #4f46e5;
-    }
-
-    .ai-mode-tabs {
-      display: inline-flex;
-      gap: 8px;
-      border: 1px solid #dbeafe;
-      border-radius: 999px;
-      padding: 4px;
-      background: #fff;
-      width: fit-content;
-    }
-
-    .ai-mode-tab {
-      border: none;
-      border-radius: 999px;
-      padding: 6px 14px;
-      font-size: 12px;
-      font-weight: 600;
-      color: #475569;
-      background: transparent;
-      cursor: pointer;
-    }
-
-    .ai-mode-tab.is-active {
-      background: #4f46e5;
-      color: #fff;
-      box-shadow: 0 6px 12px rgba(79, 70, 229, 0.25);
     }
 
     .ai-context-panel {
