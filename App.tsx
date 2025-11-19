@@ -28,6 +28,7 @@ import SettingsModal from './components/modals/SettingsModal';
 import OpenFromDriveModal from './components/modals/OpenFromDriveModal';
 import SaveToDriveModal from './components/modals/SaveToDriveModal';
 import HistoryModal from './components/modals/HistoryModal';
+import CartolaMedicamentosView from './components/CartolaMedicamentosView';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DriveProvider, useDrive } from './contexts/DriveContext';
 
@@ -46,6 +47,7 @@ interface AppShellProps {
     showToast: (message: string, type?: 'success' | 'warning' | 'error') => void;
     clientId: string;
     setClientId: React.Dispatch<React.SetStateAction<string>>;
+    onOpenCartola: () => void;
 }
 
 const createTemplateBaseline = (templateId: string): ClinicalRecord => {
@@ -67,7 +69,7 @@ const ENV_GEMINI_PROJECT_ID = getEnvGeminiProjectId();
 const ENV_GEMINI_MODEL = getEnvGeminiModel();
 const INITIAL_GEMINI_MODEL = ENV_GEMINI_MODEL || RECOMMENDED_GEMINI_MODEL;
 
-const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClientId }) => {
+const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClientId, onOpenCartola }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAdvancedEditing, setIsAdvancedEditing] = useState(false);
     const [isAiAssistantVisible, setIsAiAssistantVisible] = useState(false);
@@ -1056,6 +1058,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                 hasUnsavedChanges={hasUnsavedChanges}
                 onOpenHistory={() => setIsHistoryModalOpen(true)}
                 onRestoreTemplate={restoreAll}
+                onOpenCartolaApp={onOpenCartola}
             />
             
             {/* --- Modals --- */}
@@ -1216,14 +1219,27 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     );
 };
 
+type ActiveApp = 'clinical' | 'cartola';
+
 const App: React.FC = () => {
     const [clientId, setClientId] = useState('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
+    const [activeApp, setActiveApp] = useState<ActiveApp>('clinical');
     const { toast, showToast } = useToast();
+
+    if (activeApp === 'cartola') {
+        return <CartolaMedicamentosView onBack={() => setActiveApp('clinical')} />;
+    }
 
     return (
         <AuthProvider clientId={clientId} showToast={showToast}>
             <DriveProvider showToast={showToast}>
-                <AppShell toast={toast} showToast={showToast} clientId={clientId} setClientId={setClientId} />
+                <AppShell
+                    toast={toast}
+                    showToast={showToast}
+                    clientId={clientId}
+                    setClientId={setClientId}
+                    onOpenCartola={() => setActiveApp('cartola')}
+                />
             </DriveProvider>
         </AuthProvider>
     );
