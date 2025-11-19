@@ -429,6 +429,17 @@ const Header: React.FC<HeaderProps> = ({
                             {!hasUnsavedChanges && lastSaveTime && <div className="status-meta">Último guardado: {lastSaveTime}</div>}
                         </div>
                     </div>
+                    <button
+                        type="button"
+                        className={`ai-launch-btn ${isAiAssistantVisible ? 'is-active' : ''}`}
+                        onClick={onToggleAiAssistant}
+                        aria-pressed={isAiAssistantVisible}
+                        aria-label={isAiAssistantVisible ? 'Ocultar asistente clínico' : 'Abrir asistente clínico'}
+                        title={isAiAssistantVisible ? 'Ocultar asistente clínico' : 'Abrir asistente clínico'}
+                    >
+                        <span className="ai-launch-icon" aria-hidden="true">🤖</span>
+                        <span className="ai-launch-label">IA asistente</span>
+                    </button>
                     {isAdvancedEditing && (
                         <div className="editor-toolbar" role="toolbar" aria-label="Herramientas de edición avanzada">
                             <button
@@ -497,17 +508,6 @@ const Header: React.FC<HeaderProps> = ({
                                 <span className="toolbar-icon">+</span>
                             </button>
                             <span className="toolbar-divider" aria-hidden="true" />
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                className={isAiAssistantVisible ? 'is-active' : ''}
-                                onClick={onToggleAiAssistant}
-                                aria-pressed={isAiAssistantVisible}
-                                aria-label={isAiAssistantVisible ? 'Ocultar IA en secciones' : 'Mostrar IA en secciones'}
-                                title={isAiAssistantVisible ? 'Ocultar asistente de IA' : 'Mostrar asistente de IA'}
-                            >
-                                <span className="toolbar-icon" role="img" aria-hidden="true">🤖</span>
-                            </button>
                         </div>
                     )}
                 </div>
