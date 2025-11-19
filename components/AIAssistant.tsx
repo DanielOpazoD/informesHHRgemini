@@ -49,6 +49,30 @@ interface AiActionConfig {
     label: string;
     prompt: string;
     scope: AiContextScope;
+    hint?: string;
+}
+
+type AiWorkspaceId = 'quick' | 'deep' | 'insights' | 'collaborative';
+
+interface AiWorkspaceConfig {
+    name: string;
+    description: string;
+    icon: string;
+    actions: AiAction[];
+}
+
+type AssistantProfileId = 'general' | 'emergencies' | 'pediatrics';
+
+interface AssistantProfileConfig {
+    label: string;
+    description: string;
+    persona: string;
+}
+
+interface PromptTemplateConfig {
+    label: string;
+    prompt: string;
+    description: string;
 }
 
 const ACTION_CONFIG: Record<AiAction, AiActionConfig> = {
@@ -57,55 +81,182 @@ const ACTION_CONFIG: Record<AiAction, AiActionConfig> = {
         prompt:
             'Como colega clínico, mejora este texto manteniendo precisión médica, tono profesional y formato conciso. Devuelve solo el texto editado y claramente editable.',
         scope: 'section',
+        hint: 'Corrige redacción y orden clínico sin inventar datos.',
     },
     summarize: {
         label: '📝 Resumir',
         prompt:
             'Resume los hallazgos clínicos clave en viñetas breves y accionables, resaltando datos críticos y manteniendo terminología precisa.',
         scope: 'section',
+        hint: 'Genera bullets clínicos claros para reportes rápidos.',
     },
     expand: {
         label: '📖 Expandir',
         prompt:
             'Expande el texto agregando detalles clínicos claros y ordenados sin inventar datos nuevos. Mantén la redacción editable y específica.',
         scope: 'section',
+        hint: 'Completa el relato con matices diagnósticos y terapéuticos.',
     },
     differential: {
         label: '🩺 Diagnósticos diferenciales',
         prompt:
             'Propón diagnósticos diferenciales priorizados según la información disponible. Justifica cada alternativa brevemente y aclara que son sugerencias no vinculantes.',
         scope: 'section',
+        hint: 'Lista hipótesis priorizadas y su justificación breve.',
     },
     diagnosticPaths: {
         label: '🧪 Caminos diagnósticos',
         prompt:
             'Sugiere abordajes diagnósticos y pruebas complementarias posibles, indicando el objetivo de cada una y en qué escenario aportarían valor.',
         scope: 'section',
+        hint: 'Propone estudios y la pregunta clínica que responden.',
     },
     treatments: {
         label: '💊 Opciones terapéuticas',
         prompt:
             'Propón alternativas terapéuticas escalonadas, advertencias y consideraciones de interacción, aclarando que la decisión final es clínica y editable.',
         scope: 'section',
+        hint: 'Sugiere terapias escalonadas y alertas de interacción.',
     },
     critique: {
         label: '🧐 Cuestionar manejo',
         prompt:
             'Revisa críticamente el manejo descrito, destacando brechas diagnósticas o terapéuticas y preguntas abiertas con tono respetuoso.',
         scope: 'section',
+        hint: 'Detecta vacíos o inconsistencias para revisar con el equipo.',
     },
     companion: {
         label: '🤝 Acompañamiento',
         prompt:
             'Actúa como colega de referencia: ofrece guía iterativa, riesgos a vigilar e ideas para próximos pasos, mostrando empatía profesional.',
         scope: 'section',
+        hint: 'Conversación abierta con foco en próximos pasos.',
     },
     recordInsights: {
         label: '📋 Leer planilla completa',
         prompt:
             'Analiza toda la hoja clínica, resume puntos críticos, diagnósticos diferenciales, alertas de interacción y oportunidades terapéuticas. Devuelve un informe estructurado en viñetas.',
         scope: 'record',
+        hint: 'Informe global para pases de turno o epicrisis.',
     },
+};
+
+const AI_WORKSPACES: Record<AiWorkspaceId, AiWorkspaceConfig> = {
+    quick: {
+        name: 'Mejoras rápidas',
+        description: 'Acciones para limpiar y resumir la sección seleccionada sin salir del flujo de escritura.',
+        icon: '⚡️',
+        actions: ['improve', 'summarize', 'expand'],
+    },
+    deep: {
+        name: 'Análisis profundo',
+        description: 'Explora diferenciales, rutas diagnósticas y terapias antes de definir el plan.',
+        icon: '🧠',
+        actions: ['differential', 'diagnosticPaths', 'treatments', 'critique'],
+    },
+    insights: {
+        name: 'Visión global',
+        description: 'Revisa la planilla completa para obtener alertas y oportunidades clínicas.',
+        icon: '📊',
+        actions: ['recordInsights'],
+    },
+    collaborative: {
+        name: 'Conversación',
+        description: 'Mantén un diálogo clínico asistido y acompaña decisiones iterativas.',
+        icon: '🤝',
+        actions: ['companion', 'recordInsights'],
+    },
+};
+
+const ASSISTANT_PROFILES: Record<AssistantProfileId, AssistantProfileConfig> = {
+    general: {
+        label: '👨‍⚕️ Medicina general',
+        description: 'Equilibrio entre detalle y concisión, tono colaborativo.',
+        persona:
+            'Prioriza redacciones claras, lenguaje profesional estándar y recomendaciones equilibradas propias de medicina general.',
+    },
+    emergencies: {
+        label: '🚑 Urgencias',
+        description: 'Orientado a priorizar riesgos y pasos inmediatos.',
+        persona:
+            'Mantén tono directo y prioriza riesgos vitales, signos de alarma y conductas inmediatas propias de un servicio de urgencias.',
+    },
+    pediatrics: {
+        label: '👶 Pediatría',
+        description: 'Foco en comunicación con familias y seguridad.',
+        persona:
+            'Utiliza lenguaje empático, aclara consideraciones de edad y seguridad farmacológica habituales en pediatría.',
+    },
+};
+
+const CLINICAL_PROMPT_TEMPLATES: Record<string, PromptTemplateConfig[]> = {
+    antecedentes: [
+        {
+            label: '📋 Resumir antecedentes',
+            prompt: 'Resume en 3-4 bullets los antecedentes relevantes, indicando evolución temporal y factores de riesgo.',
+            description: 'Resalta lo imprescindible para el pase clínico.',
+        },
+        {
+            label: '🔍 Identificar vacíos',
+            prompt: 'Indica qué datos faltan en estos antecedentes y qué preguntas dirigirías al paciente.',
+            description: 'Checklist de información pendiente.',
+        },
+        {
+            label: '⚠️ Riesgos',
+            prompt: 'Detecta factores de riesgo mayores y explícales en 2 frases con su impacto clínico.',
+            description: 'Bandas rojas inmediatas.',
+        },
+    ],
+    examen: [
+        {
+            label: '🩺 Objetivar hallazgos',
+            prompt: 'Convierte la descripción del examen físico en bullets orientados a sistemas y resalta hallazgos positivos.',
+            description: 'Formato rápido por sistemas.',
+        },
+        {
+            label: '🎯 Focos del examen',
+            prompt: 'Sugiere maniobras o mediciones adicionales que mejorarían este examen según la sospecha clínica.',
+            description: 'Profundiza el examen dirigido.',
+        },
+    ],
+    plan: [
+        {
+            label: '💊 Revisar plan',
+            prompt: 'Revisa dosis, interacciones y duplicidades del plan terapéutico descrito y sugiere ajustes si corresponde.',
+            description: 'Control de seguridad terapéutica.',
+        },
+        {
+            label: '📅 Seguimiento',
+            prompt: 'Propón un plan de seguimiento con hitos, responsables y criterios de alerta temprana.',
+            description: 'Seguimiento accionable.',
+        },
+        {
+            label: '🎯 Objetivos SMART',
+            prompt: 'Define objetivos SMART para la intervención actual considerando tiempo, métricas y responsables.',
+            description: 'Clarifica metas terapéuticas.',
+        },
+    ],
+    default: [
+        {
+            label: '✨ Pulir sección',
+            prompt: 'Mejora este texto clínico manteniendo datos y estructura, priorizando claridad y orden cronológico.',
+            description: 'Reescritura rápida.',
+        },
+        {
+            label: '🧠 Preguntas guía',
+            prompt: 'Formula preguntas que te ayudarían a profundizar esta sección con el paciente o el equipo.',
+            description: 'Explora ángulos pendientes.',
+        },
+    ],
+};
+
+const getTemplateKeyForSection = (title?: string | null): string => {
+    if (!title) return 'default';
+    const normalized = title.toLowerCase();
+    if (normalized.includes('antecedente') || normalized.includes('historia')) return 'antecedentes';
+    if (normalized.includes('examen') || normalized.includes('evaluación')) return 'examen';
+    if (normalized.includes('plan') || normalized.includes('tratamiento')) return 'plan';
+    return 'default';
 };
 
 const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash-latest';
@@ -246,11 +397,22 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     const [analysisOutput, setAnalysisOutput] = useState<AnalysisOutput | null>(null);
     const [lastSectionAction, setLastSectionAction] = useState<{ action: AiAction; sectionId: string } | null>(null);
     const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceView>('chat');
+    const [selectedAiWorkspace, setSelectedAiWorkspace] = useState<AiWorkspaceId>('quick');
+    const [assistantProfile, setAssistantProfile] = useState<AssistantProfileId>('general');
     const [allowMarkdownFormatting, setAllowMarkdownFormatting] = useState(true);
     const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const chatTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
     const missingApiKey = !apiKey;
+    const assistantProfileEntries = useMemo(
+        () => Object.entries(ASSISTANT_PROFILES) as [AssistantProfileId, AssistantProfileConfig][],
+        [],
+    );
+    const workspaceEntries = useMemo(
+        () => Object.entries(AI_WORKSPACES) as [AiWorkspaceId, AiWorkspaceConfig][],
+        [],
+    );
 
     const fullRecordPlainText = useMemo(() => (fullRecordContent || '').trim(), [fullRecordContent]);
     const conversationStorageKey = useMemo(
@@ -335,6 +497,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
         () => htmlToPlainText(editSection?.content || '').trim(),
         [editSection?.content],
     );
+    const templateKey = useMemo(() => getTemplateKeyForSection(editSection?.title), [editSection?.title]);
+    const templateSuggestions = useMemo(
+        () => CLINICAL_PROMPT_TEMPLATES[templateKey] || CLINICAL_PROMPT_TEMPLATES.default,
+        [templateKey],
+    );
+    const templateSectionName = editSection?.title?.trim() || 'esta sección';
 
     const selectedSections = useMemo(() => {
         if (selectedSectionIds.length === 0) return [];
@@ -401,6 +569,17 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
 
     const hasContextForChat = combinedChatContext.length > 0;
     const hasEditableSection = Boolean(editSection && editSectionPlainText.length > 0);
+    const workspaceDescriptor = useMemo(() => AI_WORKSPACES[selectedAiWorkspace], [selectedAiWorkspace]);
+    const workspaceActionEntries = useMemo(() => {
+        const actions = workspaceDescriptor.actions;
+        return actions
+            .map(action =>
+                ACTION_CONFIG[action]
+                    ? ([action, ACTION_CONFIG[action]] as [AiAction, AiActionConfig])
+                    : null,
+            )
+            .filter(Boolean) as [AiAction, AiActionConfig][];
+    }, [workspaceDescriptor]);
 
     const resolvedModel = useMemo(() => resolveModelId(model), [model]);
 
@@ -415,8 +594,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
         ],
     });
 
-    const personaPrompt =
-        'Actúa como un colega médico digital: ofrece sugerencias útiles, honestas y no vinculantes, indicando riesgos o interacciones cuando corresponda.';
+    const personaPrompt = useMemo(() => {
+        const profile = ASSISTANT_PROFILES[assistantProfile];
+        const basePrompt =
+            'Actúa como un colega médico digital: ofrece sugerencias útiles, honestas y no vinculantes, indicando riesgos o interacciones cuando corresponda.';
+        return `${basePrompt} ${profile.persona}`.trim();
+    }, [assistantProfile]);
 
     const executeGeminiRequest = async (
         contextText: string,
@@ -547,6 +730,14 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
             setIsProcessing(false);
             setActiveAction(null);
         }
+    };
+
+    const handleTemplatePrompt = (prompt: string) => {
+        setActiveWorkspace('chat');
+        setCustomPrompt(prompt);
+        requestAnimationFrame(() => {
+            chatTextareaRef.current?.focus();
+        });
     };
 
     const handleCustomPrompt = async () => {
@@ -752,23 +943,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
         ? { width: panelWidth, flexBasis: panelWidth }
         : { width: 0, flexBasis: 0 };
 
-    const sectionActions = useMemo(
-        () =>
-            Object.entries(ACTION_CONFIG).filter(([, config]) => config.scope === 'section') as [
-                AiAction,
-                AiActionConfig,
-            ][],
-        [],
-    );
-    const recordActions = useMemo(
-        () =>
-            Object.entries(ACTION_CONFIG).filter(([, config]) => config.scope === 'record') as [
-                AiAction,
-                AiActionConfig,
-            ][],
-        [],
-    );
-
     return (
         <aside className={drawerClass.join(' ')} aria-hidden={!isOpen} style={drawerStyle}>
             {isOpen && (
@@ -800,6 +974,44 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                         </button>
                     </div>
                 </div>
+                <section className="ai-panel-settings" aria-label="Preferencias del asistente">
+                    <div className="ai-profile-selector">
+                        <label htmlFor="assistantProfileSelect">Perfil del asistente</label>
+                        <select
+                            id="assistantProfileSelect"
+                            className="ai-select"
+                            value={assistantProfile}
+                            onChange={event => setAssistantProfile(event.target.value as AssistantProfileId)}
+                        >
+                            {assistantProfileEntries.map(([profileId, profile]) => (
+                                <option key={profileId} value={profileId}>
+                                    {profile.label}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="ai-profile-description">
+                            {ASSISTANT_PROFILES[assistantProfile].description}
+                        </p>
+                    </div>
+                    <div className="ai-workspace-selector" role="tablist" aria-label="Espacios de trabajo IA">
+                        {workspaceEntries.map(([workspaceId, workspace]) => (
+                            <button
+                                key={workspaceId}
+                                type="button"
+                                role="tab"
+                                className={`ai-workspace-option ${selectedAiWorkspace === workspaceId ? 'is-active' : ''}`}
+                                aria-selected={selectedAiWorkspace === workspaceId}
+                                onClick={() => setSelectedAiWorkspace(workspaceId)}
+                            >
+                                <span className="ai-workspace-icon" aria-hidden>
+                                    {workspace.icon}
+                                </span>
+                                <span className="ai-workspace-label">{workspace.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                    <p className="ai-workspace-description">{workspaceDescriptor.description}</p>
+                </section>
                 <div className="ai-mode-tabs" role="tablist">
                     <button
                         type="button"
@@ -860,6 +1072,13 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                             ))}
                         </select>
                     </label>
+                    <div className="ai-context-indicators">
+                        <span className="ai-context-pill">🗂️ {selectionLabel}</span>
+                        <span className={`ai-context-pill ${attachedFiles.length ? 'has-data' : ''}`}>
+                            📎 {attachedFiles.length} adjuntos
+                        </span>
+                        <span className="ai-context-pill">⚙️ {workspaceDescriptor.name}</span>
+                    </div>
                     <footer className="ai-context-footer">
                         <span>Contexto actual: {selectionLabel}</span>
                     </footer>
@@ -922,30 +1141,20 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                     <>
                         <div className="ai-assistant-toolbar" role="group" aria-label="Acciones sobre el texto">
                             <div className="ai-action-block">
-                                <p className="ai-action-block-title">Sobre la sección actual</p>
-                                <div className="ai-action-grid">
-                                    {sectionActions.map(([action, config]) => {
-                                        const disabled =
-                                            isProcessing || missingApiKey || !hasEditableSection || sections.length === 0;
-                                        return (
-                                            <button
-                                                key={action}
-                                                type="button"
-                                                className={`ai-action-btn scope-${config.scope}`}
-                                                onClick={() => handleAction(action)}
-                                                disabled={disabled}
-                                            >
-                                                {isProcessing && activeAction === action ? 'Procesando…' : config.label}
-                                            </button>
-                                        );
-                                    })}
+                                <div className="ai-workspace-summary">
+                                    <p className="ai-action-block-title">
+                                        {workspaceDescriptor.icon} {workspaceDescriptor.name}
+                                    </p>
+                                    <p className="ai-workspace-hint">{workspaceDescriptor.description}</p>
                                 </div>
-                            </div>
-                            <div className="ai-action-block">
-                                <p className="ai-action-block-title">Visión de planilla completa</p>
                                 <div className="ai-action-grid">
-                                    {recordActions.map(([action, config]) => {
-                                        const disabled = isProcessing || missingApiKey || !hasRecordContext;
+                                    {workspaceActionEntries.map(([action, config]) => {
+                                        const disabled =
+                                            isProcessing ||
+                                            missingApiKey ||
+                                            (config.scope === 'section'
+                                                ? !hasEditableSection || sections.length === 0
+                                                : !hasRecordContext);
                                         return (
                                             <button
                                                 key={action}
@@ -954,7 +1163,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                                                 onClick={() => handleAction(action)}
                                                 disabled={disabled}
                                             >
-                                                {isProcessing && activeAction === action ? 'Procesando…' : config.label}
+                                                <span className="ai-action-btn-label">
+                                                    {isProcessing && activeAction === action
+                                                        ? 'Procesando…'
+                                                        : config.label}
+                                                </span>
+                                                {config.hint && <span className="ai-action-btn-hint">{config.hint}</span>}
                                             </button>
                                         );
                                     })}
@@ -1068,6 +1282,29 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                                 ))
                             )}
                         </div>
+                        {templateSuggestions.length > 0 && (
+                            <div className="ai-template-panel" aria-label="Plantillas de prompt sugeridas">
+                                <div className="ai-template-header">
+                                    <p className="ai-template-title">Atajos para {templateSectionName.toLowerCase()}</p>
+                                    <p className="ai-template-subtitle">
+                                        Inserta un prompt listo y continúa la conversación sin escribir desde cero.
+                                    </p>
+                                </div>
+                                <div className="ai-template-grid">
+                                    {templateSuggestions.map(template => (
+                                        <button
+                                            key={template.label}
+                                            type="button"
+                                            className="ai-template-btn"
+                                            onClick={() => handleTemplatePrompt(template.prompt)}
+                                        >
+                                            <strong>{template.label}</strong>
+                                            <span>{template.description}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         {missingApiKey && (
                             <p className="ai-assistant-helper">
                                 Configura la clave de Gemini para obtener respuestas y continuar la conversación.
@@ -1079,6 +1316,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                             value={customPrompt}
                             onChange={event => setCustomPrompt(event.target.value)}
                             disabled={(isProcessing && activeAction === 'chat') || missingApiKey}
+                            ref={chatTextareaRef}
                         />
                         <div className="ai-chat-controls">
                             <button
