@@ -3,7 +3,7 @@ import { probeGeminiModelVersion } from './utils/geminiClient';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY;
 const GEMINI_PROJECT_ID =
     process.env.GEMINI_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.PROJECT_NUMBER;
-const rawModel = process.env.GEMINI_MODEL || process.env.VITE_GEMINI_MODEL || 'gemini-1.5-flash';
+const rawModel = process.env.GEMINI_MODEL || process.env.VITE_GEMINI_MODEL || 'gemini-1.5-flash-latest';
 
 if (!GEMINI_API_KEY) {
     console.error('❌ Debes definir la variable de entorno GEMINI_API_KEY antes de ejecutar este script.');

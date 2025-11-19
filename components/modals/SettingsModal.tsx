@@ -141,10 +141,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         className="inp"
                         value={tempAiModel}
                         onChange={e => onTempAiModelChange(e.target.value)}
-                        placeholder="gemini-1.5-flash"
+                        placeholder="gemini-1.5-flash-latest"
                     />
                     <small className="text-xs text-gray-500">
-                        Déjalo en blanco para usar el modelo recomendado (<code>gemini-1.5-flash</code>). También puedes ingresar otros modelos compatibles (p. ej., <code>gemini-pro</code>). Comprobamos automáticamente si ese modelo está disponible en <code>v1</code> o <code>v1beta</code> y probamos ambos antes del primer uso; si necesitas forzar uno específico, agrega <code>@v1</code> o <code>@v1beta</code> al final.
+                        Déjalo en blanco para usar el modelo recomendado (<code>gemini-1.5-flash-latest</code>). También puedes ingresar otros modelos compatibles (p. ej., <code>gemini-pro</code>). Comprobamos automáticamente si ese modelo está disponible en <code>v1</code> o <code>v1beta</code> y probamos ambos antes del primer uso; si necesitas forzar uno específico, agrega <code>@v1</code> o <code>@v1beta</code> al final.
                     </small>
                 </div>
                 <div style={{ background: '#fef3c7', padding: '8px', borderRadius: '4px', fontSize: '12px' }}>

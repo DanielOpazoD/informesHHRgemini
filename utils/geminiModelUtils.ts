@@ -2,8 +2,17 @@ export type GeminiApiVersion = 'v1' | 'v1beta';
 
 const VERSION_SUFFIX_RE = /@(?:(v1|v1beta))$/i;
 const BETA_KEYWORDS = ['1.5', 'flash', 'ultra', 'beta', 'experimental'];
+const MODEL_ALIASES: Record<string, string> = {
+    'gemini-1.5-flash': 'gemini-1.5-flash-latest',
+    'gemini-1.5-pro': 'gemini-1.5-pro-latest',
+};
 
 export const stripModelPrefix = (value: string): string => value.replace(/^models\//i, '').trim();
+
+export const applyGeminiModelAlias = (modelId: string): string => {
+    const alias = MODEL_ALIASES[modelId.toLowerCase()];
+    return alias || modelId;
+};
 
 export const splitModelIdAndVersion = (rawModel: string): { modelId: string; versionHint?: GeminiApiVersion } => {
     const cleaned = stripModelPrefix(rawModel);
@@ -13,9 +22,10 @@ export const splitModelIdAndVersion = (rawModel: string): { modelId: string; ver
         const startIndex = typeof match.index === 'number' ? match.index : cleaned.length - suffixLength;
         const modelId = cleaned.slice(0, startIndex).trim();
         const versionHint = match[1]?.toLowerCase() as GeminiApiVersion | undefined;
-        return { modelId: modelId || cleaned, versionHint };
+        const normalizedModel = applyGeminiModelAlias(modelId || cleaned);
+        return { modelId: normalizedModel, versionHint };
     }
-    return { modelId: cleaned };
+    return { modelId: applyGeminiModelAlias(cleaned) };
 };
 
 export const inferDefaultGeminiVersion = (modelId: string): GeminiApiVersion => {
