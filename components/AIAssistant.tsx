@@ -61,7 +61,7 @@ interface AiWorkspaceConfig {
     actions: AiAction[];
 }
 
-type AssistantProfileId = 'general' | 'emergencies' | 'pediatrics';
+type AssistantProfileId = 'general' | 'emergencies' | 'pediatrics' | 'internalMedicine';
 
 interface AssistantProfileConfig {
     label: string;
@@ -69,11 +69,17 @@ interface AssistantProfileConfig {
     persona: string;
 }
 
-interface PromptTemplateConfig {
+type ConversationToneId = 'neutral' | 'warm' | 'direct';
+type ConversationLengthId = 'concise' | 'balanced' | 'detailed';
+type ConversationNarrativeId = 'structured' | 'continuous' | 'qa';
+
+interface ConversationStyleOption {
     label: string;
-    prompt: string;
     description: string;
+    prompt: string;
 }
+
+const CHAT_SCOPE_LABEL = 'historia clínica completa';
 
 const ACTION_CONFIG: Record<AiAction, AiActionConfig> = {
     improve: {
@@ -187,76 +193,66 @@ const ASSISTANT_PROFILES: Record<AssistantProfileId, AssistantProfileConfig> = {
         persona:
             'Utiliza lenguaje empático, aclara consideraciones de edad y seguridad farmacológica habituales en pediatría.',
     },
+    internalMedicine: {
+        label: '🩺 Medicina interna',
+        description: 'Análisis integrador con mirada sistémica y enfoque fisiopatológico.',
+        persona:
+            'Evalúa la historia clínica como un internista experimentado: correlaciona datos, propone hipótesis fisiopatológicas y destaca decisiones compartidas.',
+    },
 };
 
-const CLINICAL_PROMPT_TEMPLATES: Record<string, PromptTemplateConfig[]> = {
-    antecedentes: [
-        {
-            label: '📋 Resumir antecedentes',
-            prompt: 'Resume en 3-4 bullets los antecedentes relevantes, indicando evolución temporal y factores de riesgo.',
-            description: 'Resalta lo imprescindible para el pase clínico.',
-        },
-        {
-            label: '🔍 Identificar vacíos',
-            prompt: 'Indica qué datos faltan en estos antecedentes y qué preguntas dirigirías al paciente.',
-            description: 'Checklist de información pendiente.',
-        },
-        {
-            label: '⚠️ Riesgos',
-            prompt: 'Detecta factores de riesgo mayores y explícales en 2 frases con su impacto clínico.',
-            description: 'Bandas rojas inmediatas.',
-        },
-    ],
-    examen: [
-        {
-            label: '🩺 Objetivar hallazgos',
-            prompt: 'Convierte la descripción del examen físico en bullets orientados a sistemas y resalta hallazgos positivos.',
-            description: 'Formato rápido por sistemas.',
-        },
-        {
-            label: '🎯 Focos del examen',
-            prompt: 'Sugiere maniobras o mediciones adicionales que mejorarían este examen según la sospecha clínica.',
-            description: 'Profundiza el examen dirigido.',
-        },
-    ],
-    plan: [
-        {
-            label: '💊 Revisar plan',
-            prompt: 'Revisa dosis, interacciones y duplicidades del plan terapéutico descrito y sugiere ajustes si corresponde.',
-            description: 'Control de seguridad terapéutica.',
-        },
-        {
-            label: '📅 Seguimiento',
-            prompt: 'Propón un plan de seguimiento con hitos, responsables y criterios de alerta temprana.',
-            description: 'Seguimiento accionable.',
-        },
-        {
-            label: '🎯 Objetivos SMART',
-            prompt: 'Define objetivos SMART para la intervención actual considerando tiempo, métricas y responsables.',
-            description: 'Clarifica metas terapéuticas.',
-        },
-    ],
-    default: [
-        {
-            label: '✨ Pulir sección',
-            prompt: 'Mejora este texto clínico manteniendo datos y estructura, priorizando claridad y orden cronológico.',
-            description: 'Reescritura rápida.',
-        },
-        {
-            label: '🧠 Preguntas guía',
-            prompt: 'Formula preguntas que te ayudarían a profundizar esta sección con el paciente o el equipo.',
-            description: 'Explora ángulos pendientes.',
-        },
-    ],
+const CONVERSATION_TONES: Record<ConversationToneId, ConversationStyleOption> = {
+    neutral: {
+        label: 'Profesional neutro',
+        description: 'Lenguaje directo y respetuoso.',
+        prompt: 'Usa un tono profesional, sobrio y colaborativo.',
+    },
+    warm: {
+        label: 'Empático',
+        description: 'Acompañamiento cercano.',
+        prompt: 'Adopta un tono empático que valide dudas y transmita calma clínica.',
+    },
+    direct: {
+        label: 'Directo',
+        description: 'Enfocado en decisiones.',
+        prompt: 'Prioriza mensajes ejecutivos y alertas, sin rodeos innecesarios.',
+    },
 };
 
-const getTemplateKeyForSection = (title?: string | null): string => {
-    if (!title) return 'default';
-    const normalized = title.toLowerCase();
-    if (normalized.includes('antecedente') || normalized.includes('historia')) return 'antecedentes';
-    if (normalized.includes('examen') || normalized.includes('evaluación')) return 'examen';
-    if (normalized.includes('plan') || normalized.includes('tratamiento')) return 'plan';
-    return 'default';
+const CONVERSATION_LENGTHS: Record<ConversationLengthId, ConversationStyleOption> = {
+    concise: {
+        label: 'Resumida',
+        description: '2-3 ideas clave.',
+        prompt: 'Limita las respuestas a 2-3 frases o bullets clínicos.',
+    },
+    balanced: {
+        label: 'Equilibrada',
+        description: 'Detalles esenciales.',
+        prompt: 'Incluye contexto suficiente y bullets accionables sin excederse.',
+    },
+    detailed: {
+        label: 'Detallada',
+        description: 'Profundiza decisiones.',
+        prompt: 'Desarrolla argumentos completos, justificando cada recomendación.',
+    },
+};
+
+const CONVERSATION_NARRATIVES: Record<ConversationNarrativeId, ConversationStyleOption> = {
+    structured: {
+        label: 'Bullets estructurados',
+        description: 'Listas y subtítulos.',
+        prompt: 'Prefiere bullets jerarquizados con subtítulos clínicos claros.',
+    },
+    continuous: {
+        label: 'Narrativa continua',
+        description: 'Párrafos fluidos.',
+        prompt: 'Redacta en párrafos conectados describiendo el razonamiento paso a paso.',
+    },
+    qa: {
+        label: 'Preguntas y respuestas',
+        description: 'Enfoque socrático.',
+        prompt: 'Formula brevemente la pregunta clínica y contesta con argumentos y próximos pasos.',
+    },
 };
 
 const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash-latest';
@@ -399,6 +395,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceView>('chat');
     const [selectedAiWorkspace, setSelectedAiWorkspace] = useState<AiWorkspaceId>('quick');
     const [assistantProfile, setAssistantProfile] = useState<AssistantProfileId>('general');
+    const [conversationTone, setConversationTone] = useState<ConversationToneId>('neutral');
+    const [conversationLength, setConversationLength] = useState<ConversationLengthId>('balanced');
+    const [conversationNarrative, setConversationNarrative] = useState<ConversationNarrativeId>('structured');
     const [allowMarkdownFormatting, setAllowMarkdownFormatting] = useState(true);
     const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -409,12 +408,35 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
         () => Object.entries(ASSISTANT_PROFILES) as [AssistantProfileId, AssistantProfileConfig][],
         [],
     );
+    const toneEntries = useMemo(
+        () => Object.entries(CONVERSATION_TONES) as [ConversationToneId, ConversationStyleOption][],
+        [],
+    );
+    const lengthEntries = useMemo(
+        () => Object.entries(CONVERSATION_LENGTHS) as [ConversationLengthId, ConversationStyleOption][],
+        [],
+    );
+    const narrativeEntries = useMemo(
+        () => Object.entries(CONVERSATION_NARRATIVES) as [ConversationNarrativeId, ConversationStyleOption][],
+        [],
+    );
     const workspaceEntries = useMemo(
         () => Object.entries(AI_WORKSPACES) as [AiWorkspaceId, AiWorkspaceConfig][],
         [],
     );
 
     const fullRecordPlainText = useMemo(() => (fullRecordContent || '').trim(), [fullRecordContent]);
+    const entireRecordPlainText = useMemo(() => {
+        if (fullRecordPlainText) return fullRecordPlainText;
+        if (!sections.length) return '';
+        return sections
+            .map(section => {
+                const title = section.title?.trim() || 'Sección sin título';
+                const plain = htmlToPlainText(section.content || '').trim();
+                return `${title}:\n${plain || 'Sin contenido registrado.'}`;
+            })
+            .join('\n\n');
+    }, [fullRecordPlainText, sections]);
     const conversationStorageKey = useMemo(
         () => (conversationKey ? `ai-conversation:${conversationKey}` : null),
         [conversationKey],
@@ -497,13 +519,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
         () => htmlToPlainText(editSection?.content || '').trim(),
         [editSection?.content],
     );
-    const templateKey = useMemo(() => getTemplateKeyForSection(editSection?.title), [editSection?.title]);
-    const templateSuggestions = useMemo(
-        () => CLINICAL_PROMPT_TEMPLATES[templateKey] || CLINICAL_PROMPT_TEMPLATES.default,
-        [templateKey],
-    );
-    const templateSectionName = editSection?.title?.trim() || 'esta sección';
-
     const selectedSections = useMemo(() => {
         if (selectedSectionIds.length === 0) return [];
         const selected = new Set(selectedSectionIds);
@@ -562,9 +577,14 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
         [attachmentsContext],
     );
 
+    const chatContextText = useMemo(() => {
+        if (!entireRecordPlainText) return '';
+        return `Contexto clínico (${CHAT_SCOPE_LABEL}):\n${entireRecordPlainText}`;
+    }, [entireRecordPlainText]);
+
     const combinedChatContext = useMemo(
-        () => applyAttachmentsToContext(labeledRecordContext),
-        [applyAttachmentsToContext, labeledRecordContext],
+        () => applyAttachmentsToContext(chatContextText),
+        [applyAttachmentsToContext, chatContextText],
     );
 
     const hasContextForChat = combinedChatContext.length > 0;
@@ -596,10 +616,13 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
 
     const personaPrompt = useMemo(() => {
         const profile = ASSISTANT_PROFILES[assistantProfile];
+        const tone = CONVERSATION_TONES[conversationTone];
+        const length = CONVERSATION_LENGTHS[conversationLength];
+        const narrative = CONVERSATION_NARRATIVES[conversationNarrative];
         const basePrompt =
-            'Actúa como un colega médico digital: ofrece sugerencias útiles, honestas y no vinculantes, indicando riesgos o interacciones cuando corresponda.';
-        return `${basePrompt} ${profile.persona}`.trim();
-    }, [assistantProfile]);
+            'Actúa como colega clínico digital con enfoque de medicina interna: analiza integralmente los datos del paciente, mantén las respuestas editables y recuerda que son sugerencias no vinculantes.';
+        return `${basePrompt} ${profile.persona} ${tone.prompt} ${length.prompt} ${narrative.prompt}`.trim();
+    }, [assistantProfile, conversationTone, conversationLength, conversationNarrative]);
 
     const executeGeminiRequest = async (
         contextText: string,
@@ -732,14 +755,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
         }
     };
 
-    const handleTemplatePrompt = (prompt: string) => {
-        setActiveWorkspace('chat');
-        setCustomPrompt(prompt);
-        requestAnimationFrame(() => {
-            chatTextareaRef.current?.focus();
-        });
-    };
-
     const handleCustomPrompt = async () => {
         if (missingApiKey) {
             setError('Configure su GEMINI_API_KEY en el entorno o en Configuración > IA.');
@@ -751,17 +766,18 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
             return;
         }
         if (!hasContextForChat) {
-            setError('Seleccione secciones o adjunte archivos para que la IA tenga contexto.');
+            setError('Completa la ficha clínica para que la IA pueda analizar el caso.');
             return;
         }
 
         const scope: AiContextScope = 'record';
+        const scopeLabel = CHAT_SCOPE_LABEL;
         const userEntry: ConversationEntry = {
             id: `user-${Date.now()}`,
             role: 'user',
             text: trimmedPrompt,
             scope,
-            scopeLabel: selectionLabel,
+            scopeLabel,
             timestamp: Date.now(),
         };
         const conversationSnapshot = [...conversation, userEntry].slice(-MAX_CONVERSATION_ENTRIES);
@@ -791,7 +807,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                         role: 'assistant',
                         text: reply.trim(),
                         scope,
-                        scopeLabel: selectionLabel,
+                        scopeLabel,
                         timestamp: Date.now(),
                     },
                 ];
@@ -879,45 +895,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
         setAttachedFiles([]);
     };
 
-    const handleRemoveConversationEntry = (id: string) => {
-        setConversation(prev => {
-            const index = prev.findIndex(entry => entry.id === id);
-            if (index === -1) return prev;
-            const updated = [...prev];
-            const [removed] = updated.splice(index, 1);
-            if (removed?.role === 'user') {
-                const maybeReply = updated[index];
-                if (maybeReply && maybeReply.role === 'assistant') {
-                    updated.splice(index, 1);
-                }
-            }
-            return updated;
-        });
-    };
-
-    const handleExportConversation = () => {
-        if (conversation.length === 0) return;
-        const transcript = conversation
-            .map(entry => {
-                const timestamp = new Date(entry.timestamp).toLocaleString('es-CL', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    day: '2-digit',
-                    month: '2-digit',
-                });
-                const speaker = entry.role === 'user' ? 'Profesional' : 'IA';
-                return `${timestamp} · ${speaker} (${entry.scopeLabel})\n${entry.text}`;
-            })
-            .join('\n\n');
-        const blob = new Blob([transcript], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `conversacion-ia-${Date.now()}.txt`;
-        link.click();
-        URL.revokeObjectURL(url);
-    };
-
     const handleResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
         event.preventDefault();
         event.stopPropagation();
@@ -993,6 +970,56 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                             {ASSISTANT_PROFILES[assistantProfile].description}
                         </p>
                     </div>
+                    <div className="ai-style-controls" aria-label="Tono y estilo de respuesta">
+                        <div className="ai-style-control">
+                            <label htmlFor="toneSelect">Tono</label>
+                            <select
+                                id="toneSelect"
+                                className="ai-select"
+                                value={conversationTone}
+                                onChange={event => setConversationTone(event.target.value as ConversationToneId)}
+                            >
+                                {toneEntries.map(([toneId, tone]) => (
+                                    <option key={toneId} value={toneId}>
+                                        {tone.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <p>{CONVERSATION_TONES[conversationTone].description}</p>
+                        </div>
+                        <div className="ai-style-control">
+                            <label htmlFor="lengthSelect">Extensión</label>
+                            <select
+                                id="lengthSelect"
+                                className="ai-select"
+                                value={conversationLength}
+                                onChange={event => setConversationLength(event.target.value as ConversationLengthId)}
+                            >
+                                {lengthEntries.map(([lengthId, length]) => (
+                                    <option key={lengthId} value={lengthId}>
+                                        {length.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <p>{CONVERSATION_LENGTHS[conversationLength].description}</p>
+                        </div>
+                        <div className="ai-style-control">
+                            <label htmlFor="narrativeSelect">Narrativa</label>
+                            <select
+                                id="narrativeSelect"
+                                className="ai-select"
+                                value={conversationNarrative}
+                                onChange={event => setConversationNarrative(event.target.value as ConversationNarrativeId)}
+                            >
+                                {narrativeEntries.map(([narrativeId, narrative]) => (
+                                    <option key={narrativeId} value={narrativeId}>
+                                        {narrative.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <p>{CONVERSATION_NARRATIVES[conversationNarrative].description}</p>
+                        </div>
+                    </div>
                     <div className="ai-workspace-selector" role="tablist" aria-label="Espacios de trabajo IA">
                         {workspaceEntries.map(([workspaceId, workspace]) => (
                             <button
@@ -1036,7 +1063,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                     <header className="ai-context-header">
                         <div>
                             <h3>Secciones incluidas</h3>
-                            <p>Por defecto se analiza toda la planilla. Desmarque etiquetas para excluir secciones puntuales.</p>
+                            <p>
+                                La conversación usa siempre la historia completa; desmarca etiquetas solo si deseas que las ediciones guiadas ignoren alguna sección.
+                            </p>
                         </div>
                         <button type="button" onClick={handleSelectAll} className="ai-context-reset">
                             Analizar todo
@@ -1243,20 +1272,25 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                 ) : (
                     <div className="ai-chat" aria-label="Conversación con la IA">
                         <div className="ai-chat-header">
-                            <h3>Conversación</h3>
-                            <p>Las preguntas quedan asociadas a esta planilla para que puedas retomarlas cuando quieras.</p>
+                            <div>
+                                <h3>Discusión clínica</h3>
+                                <p>
+                                    La IA responde como internista analítico y revisa la {CHAT_SCOPE_LABEL}. Úsala para debatir diagnósticos, planes y dudas.
+                                </p>
+                            </div>
+                            <span className="ai-chat-context-pill">{CHAT_SCOPE_LABEL}</span>
                         </div>
                         <div className="ai-chat-history">
                             {conversation.length === 0 ? (
                                 <p className="ai-assistant-helper">
-                                    Describe dudas clínicas, cuestiona manejos o solicita rutas diagnósticas. También puedes adjuntar archivos para que la IA los tenga presentes.
+                                    Describe hallazgos, plantea hipótesis o pide riesgos a vigilar. El asistente siempre analiza toda la historia clínica disponible.
                                 </p>
                             ) : (
                                 conversation.map(entry => (
                                     <div key={entry.id} className={`ai-chat-entry ai-chat-entry-${entry.role}`}>
                                         <div className="ai-chat-entry-head">
                                             <div className="ai-chat-entry-meta">
-                                                {entry.role === 'user' ? 'Profesional' : 'Asistente IA'} · {entry.scopeLabel}
+                                                {entry.role === 'user' ? 'Profesional' : 'IA internista'}
                                             </div>
                                             <div className="ai-chat-entry-time">
                                                 {new Date(entry.timestamp).toLocaleTimeString('es-CL', {
@@ -1269,72 +1303,32 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                                             className="ai-chat-entry-text"
                                             dangerouslySetInnerHTML={{ __html: formatAiText(entry.text) }}
                                         />
-                                        <div className="ai-entry-actions">
-                                            <button
-                                                type="button"
-                                                className="ai-entry-remove"
-                                                onClick={() => handleRemoveConversationEntry(entry.id)}
-                                            >
-                                                Eliminar {entry.role === 'user' ? 'pregunta' : 'respuesta'}
-                                            </button>
-                                        </div>
                                     </div>
                                 ))
                             )}
                         </div>
-                        {templateSuggestions.length > 0 && (
-                            <div className="ai-template-panel" aria-label="Plantillas de prompt sugeridas">
-                                <div className="ai-template-header">
-                                    <p className="ai-template-title">Atajos para {templateSectionName.toLowerCase()}</p>
-                                    <p className="ai-template-subtitle">
-                                        Inserta un prompt listo y continúa la conversación sin escribir desde cero.
-                                    </p>
-                                </div>
-                                <div className="ai-template-grid">
-                                    {templateSuggestions.map(template => (
-                                        <button
-                                            key={template.label}
-                                            type="button"
-                                            className="ai-template-btn"
-                                            onClick={() => handleTemplatePrompt(template.prompt)}
-                                        >
-                                            <strong>{template.label}</strong>
-                                            <span>{template.description}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                         {missingApiKey && (
                             <p className="ai-assistant-helper">
                                 Configura la clave de Gemini para obtener respuestas y continuar la conversación.
                             </p>
                         )}
-                        <textarea
-                            className="ai-chat-textarea"
-                            placeholder="Escriba una pregunta u orientación específica..."
-                            value={customPrompt}
-                            onChange={event => setCustomPrompt(event.target.value)}
-                            disabled={(isProcessing && activeAction === 'chat') || missingApiKey}
-                            ref={chatTextareaRef}
-                        />
-                        <div className="ai-chat-controls">
-                            <button
-                                type="button"
-                                className="ai-convo-export"
-                                onClick={handleExportConversation}
-                                disabled={conversation.length === 0}
-                            >
-                                Guardar registro (.txt)
-                            </button>
-                            <div className="ai-chat-control-group">
+                        <div className="ai-chat-composer">
+                            <textarea
+                                className="ai-chat-textarea"
+                                placeholder="Ej. ¿Cuál sería tu diagnóstico diferencial prioritario y qué exámenes propones?"
+                                value={customPrompt}
+                                onChange={event => setCustomPrompt(event.target.value)}
+                                disabled={(isProcessing && activeAction === 'chat') || missingApiKey}
+                                ref={chatTextareaRef}
+                            />
+                            <div className="ai-chat-controls">
                                 <button
                                     type="button"
                                     className="ai-chat-clear"
                                     onClick={handleClearConversation}
                                     disabled={conversation.length === 0 || (isProcessing && activeAction === 'chat')}
                                 >
-                                    Vaciar chat
+                                    Limpiar conversación
                                 </button>
                                 <button
                                     type="button"
@@ -1347,7 +1341,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                                         !hasContextForChat
                                     }
                                 >
-                                    {isProcessing && activeAction === 'chat' ? 'Enviando…' : 'Enviar'}
+                                    {isProcessing && activeAction === 'chat' ? 'Analizando…' : 'Enviar análisis'}
                                 </button>
                             </div>
                         </div>
