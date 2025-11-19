@@ -503,7 +503,7 @@ const Header: React.FC<HeaderProps> = ({
                                 className={isAiAssistantVisible ? 'is-active' : ''}
                                 onClick={onToggleAiAssistant}
                                 aria-pressed={isAiAssistantVisible}
-                                aria-label={isAiAssistantVisible ? 'Ocultar IA en secciones' : 'Mostrar IA en secciones'}
+                                aria-label={isAiAssistantVisible ? 'Ocultar panel lateral de IA' : 'Mostrar panel lateral de IA'}
                                 title={isAiAssistantVisible ? 'Ocultar asistente de IA' : 'Mostrar asistente de IA'}
                             >
                                 <span className="toolbar-icon" role="img" aria-hidden="true">🤖</span>

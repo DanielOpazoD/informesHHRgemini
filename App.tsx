@@ -20,9 +20,11 @@ import { useClinicalRecord } from './hooks/useClinicalRecord';
 import { useConfirmDialog } from './hooks/useConfirmDialog';
 import { MAX_RECENT_FILES, SEARCH_CACHE_TTL, DRIVE_CONTENT_FETCH_CONCURRENCY, LOCAL_STORAGE_KEYS } from './appConstants';
 import { getEnvGeminiApiKey, getEnvGeminiProjectId, getEnvGeminiModel, normalizeGeminiModelId } from './utils/env';
+import { htmlToPlainText } from './utils/textUtils';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
+import AIAssistant from './components/AIAssistant';
 import Footer from './components/Footer';
 import SettingsModal from './components/modals/SettingsModal';
 import OpenFromDriveModal from './components/modals/OpenFromDriveModal';
@@ -266,6 +268,57 @@ const App: React.FC = () => {
     const resolvedAiProjectId = useMemo(() => aiProjectId || ENV_GEMINI_PROJECT_ID, [aiProjectId]);
     const allowAiAutoSelection = useMemo(() => !aiModel && !ENV_GEMINI_MODEL, [aiModel]);
     const resolvedAiModel = useMemo(() => aiModel || ENV_GEMINI_MODEL || 'gemini-1.5-flash-latest', [aiModel]);
+    const fullRecordContext = useMemo(() => {
+        const patientLines = record.patientFields
+            .map(field => {
+                const value = field.value?.trim();
+                if (!value) return '';
+                return `${field.label}: ${value}`;
+            })
+            .filter(Boolean)
+            .join('\n');
+
+        const sectionBlocks = record.sections
+            .map((section, index) => {
+                const title = section.title?.trim() || `Sección ${index + 1}`;
+                const meta = section.kind === 'clinical-update'
+                    ? [section.updateDate ? `Fecha ${section.updateDate}` : '', section.updateTime ? `Hora ${section.updateTime}` : '']
+                          .filter(Boolean)
+                          .join(' · ')
+                    : '';
+                const header = [title, meta].filter(Boolean).join(' — ');
+                const content = htmlToPlainText(section.content || '').trim();
+                return `${header || title}:\n${content || 'Sin contenido registrado.'}`;
+            })
+            .join('\n\n');
+
+        const footerLines = [
+            record.medico?.trim() ? `Médico responsable: ${record.medico.trim()}` : '',
+            record.especialidad?.trim() ? `Especialidad: ${record.especialidad.trim()}` : '',
+        ]
+            .filter(Boolean)
+            .join('\n');
+
+        return [
+            record.title?.trim() ? `Título del registro: ${record.title.trim()}` : '',
+            patientLines ? `Datos del paciente:\n${patientLines}` : '',
+            sectionBlocks ? `Secciones clínicas:\n${sectionBlocks}` : '',
+            footerLines,
+        ]
+            .filter(Boolean)
+            .join('\n\n');
+    }, [record]);
+
+    const aiSections = useMemo(
+        () =>
+            record.sections.map((section, index) => ({
+                id: `section-${index}`,
+                index,
+                title: section.title,
+                content: section.content || '',
+            })),
+        [record.sections],
+    );
     const handleAutoSelectAiModel = useCallback(
         (modelId: string) => {
             setAiModel(modelId);
@@ -1136,9 +1189,11 @@ const App: React.FC = () => {
     }
 
     const handleSectionContentChange = (index: number, content: string) => {
-        const newSections = [...record.sections];
-        newSections[index] = { ...newSections[index], content };
-        setRecord(r => ({ ...r, sections: newSections }));
+        setRecord(r => {
+            const newSections = [...r.sections];
+            newSections[index] = { ...newSections[index], content };
+            return { ...r, sections: newSections };
+        });
     };
 
     const handleToolbarCommand = useCallback((command: string) => {
@@ -1507,50 +1562,60 @@ const App: React.FC = () => {
             <input ref={importInputRef} id="importJson" type="file" accept="application/json" style={{ display: 'none' }} onChange={handleImportFile} />
 
             <div className="wrap">
-                <div
-                    id="sheet"
-                    className={`sheet ${isEditing ? 'edit-mode' : ''}`}
-                    style={{ '--sheet-zoom': sheetZoom } as React.CSSProperties}
-                >
-                    <img id="logoLeft" src="https://iili.io/FEirDCl.png" className="absolute top-2 left-2 w-12 h-auto opacity-60 print:block" alt="Logo Left"/>
-                    <img id="logoRight" src="https://iili.io/FEirQjf.png" className="absolute top-2 right-2 w-12 h-auto opacity-60 print:block" alt="Logo Right"/>
-                    <div id="editPanel" className={`edit-panel ${isEditing ? 'visible' : 'hidden'}`}>
-                        <div>Edición</div>
-                        <button onClick={handleAddSection} className="btn" type="button">Agregar sección</button>
-                        <button onClick={() => handleRemoveSection(record.sections.length-1)} className="btn" type="button">Eliminar última sección</button>
-                        <hr /><div className="text-xs">Campos del paciente</div>
-                        <button onClick={handleAddPatientField} className="btn" type="button">Agregar campo</button>
-                        <button onClick={() => setRecord(r => ({...r, patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS))}))} className="btn" type="button">Restaurar campos</button>
-                        <hr /><button onClick={restoreAll} className="btn" type="button">Restaurar todo</button>
+                <div className="workspace">
+                    <div className="sheet-shell">
+                        <div
+                            id="sheet"
+                            className={`sheet ${isEditing ? 'edit-mode' : ''}`}
+                            style={{ '--sheet-zoom': sheetZoom } as React.CSSProperties}
+                        >
+                            <img id="logoLeft" src="https://iili.io/FEirDCl.png" className="absolute top-2 left-2 w-12 h-auto opacity-60 print:block" alt="Logo Left"/>
+                            <img id="logoRight" src="https://iili.io/FEirQjf.png" className="absolute top-2 right-2 w-12 h-auto opacity-60 print:block" alt="Logo Right"/>
+                            <div id="editPanel" className={`edit-panel ${isEditing ? 'visible' : 'hidden'}`}>
+                                <div>Edición</div>
+                                <button onClick={handleAddSection} className="btn" type="button">Agregar sección</button>
+                                <button onClick={() => handleRemoveSection(record.sections.length-1)} className="btn" type="button">Eliminar última sección</button>
+                                <hr /><div className="text-xs">Campos del paciente</div>
+                                <button onClick={handleAddPatientField} className="btn" type="button">Agregar campo</button>
+                                <button onClick={() => setRecord(r => ({...r, patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS))}))} className="btn" type="button">Restaurar campos</button>
+                                <hr /><button onClick={restoreAll} className="btn" type="button">Restaurar todo</button>
+                            </div>
+                            <div className="title" contentEditable={isEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>{record.title}</div>
+                            <PatientInfo
+                                isEditing={isEditing}
+                                patientFields={record.patientFields}
+                                onPatientFieldChange={handlePatientFieldChange}
+                                onPatientLabelChange={handlePatientLabelChange}
+                                onRemovePatientField={handleRemovePatientField}
+                            />
+                            <div id="sectionsContainer">{record.sections.map((section, index) => (
+                                <ClinicalSection
+                                    key={index}
+                                    section={section}
+                                    index={index}
+                                    isEditing={isEditing}
+                                    isAdvancedEditing={isAdvancedEditing}
+                                    onSectionContentChange={handleSectionContentChange}
+                                    onSectionTitleChange={handleSectionTitleChange}
+                                    onRemoveSection={handleRemoveSection}
+                                    onUpdateSectionMeta={handleUpdateSectionMeta}
+                                />
+                            ))}</div>
+                            <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
+                        </div>
                     </div>
-                    <div className="title" contentEditable={isEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>{record.title}</div>
-                    <PatientInfo
-                        isEditing={isEditing}
-                        patientFields={record.patientFields}
-                        onPatientFieldChange={handlePatientFieldChange}
-                        onPatientLabelChange={handlePatientLabelChange}
-                        onRemovePatientField={handleRemovePatientField}
+                    <AIAssistant
+                        sections={aiSections}
+                        apiKey={resolvedAiApiKey}
+                        projectId={resolvedAiProjectId}
+                        model={resolvedAiModel}
+                        allowModelAutoSelection={allowAiAutoSelection}
+                        onAutoModelSelected={handleAutoSelectAiModel}
+                        onApplySuggestion={handleSectionContentChange}
+                        fullRecordContent={fullRecordContext}
+                        isOpen={isAdvancedEditing && isAiAssistantVisible}
+                        onClose={() => setIsAiAssistantVisible(false)}
                     />
-                    <div id="sectionsContainer">{record.sections.map((section, index) => (
-                        <ClinicalSection
-                            key={index}
-                            section={section}
-                            index={index}
-                            isEditing={isEditing}
-                            isAdvancedEditing={isAdvancedEditing}
-                            showAiTools={isAiAssistantVisible}
-                            aiApiKey={resolvedAiApiKey}
-                            aiProjectId={resolvedAiProjectId}
-                            aiModel={resolvedAiModel}
-                            allowAiModelAutoSelection={allowAiAutoSelection}
-                            onAutoSelectAiModel={handleAutoSelectAiModel}
-                            onSectionContentChange={handleSectionContentChange}
-                            onSectionTitleChange={handleSectionTitleChange}
-                            onRemoveSection={handleRemoveSection}
-                            onUpdateSectionMeta={handleUpdateSectionMeta}
-                        />
-                    ))}</div>
-                    <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
                 </div>
             </div>
         </>
