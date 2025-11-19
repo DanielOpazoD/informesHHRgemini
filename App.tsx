@@ -264,7 +264,18 @@ const App: React.FC = () => {
 
     const resolvedAiApiKey = useMemo(() => aiApiKey || ENV_GEMINI_API_KEY, [aiApiKey]);
     const resolvedAiProjectId = useMemo(() => aiProjectId || ENV_GEMINI_PROJECT_ID, [aiProjectId]);
-    const resolvedAiModel = useMemo(() => aiModel || ENV_GEMINI_MODEL || 'gemini-pro', [aiModel]);
+    const allowAiAutoSelection = useMemo(() => !aiModel && !ENV_GEMINI_MODEL, [aiModel]);
+    const resolvedAiModel = useMemo(() => aiModel || ENV_GEMINI_MODEL || 'gemini-1.5-flash-latest', [aiModel]);
+    const handleAutoSelectAiModel = useCallback(
+        (modelId: string) => {
+            setAiModel(modelId);
+            if (typeof window !== 'undefined') {
+                window.localStorage.setItem('geminiModel', modelId);
+            }
+            showToast(`Modelo de IA actualizado automáticamente a ${modelId}.`);
+        },
+        [showToast],
+    );
 
     useEffect(() => {
         if (scriptLoadRef.current) return;
@@ -1531,6 +1542,8 @@ const App: React.FC = () => {
                             aiApiKey={resolvedAiApiKey}
                             aiProjectId={resolvedAiProjectId}
                             aiModel={resolvedAiModel}
+                            allowAiModelAutoSelection={allowAiAutoSelection}
+                            onAutoSelectAiModel={handleAutoSelectAiModel}
                             onSectionContentChange={handleSectionContentChange}
                             onSectionTitleChange={handleSectionTitleChange}
                             onRemoveSection={handleRemoveSection}

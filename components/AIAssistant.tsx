@@ -1,5 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { generateGeminiContent } from '../utils/geminiClient';
+import {
+    generateGeminiContent,
+    GeminiModelUnavailableError,
+    suggestGeminiFallbackModel,
+} from '../utils/geminiClient';
 import { normalizeGeminiModelId } from '../utils/env';
 
 interface AIAssistantProps {
@@ -7,6 +11,8 @@ interface AIAssistantProps {
     apiKey?: string;
     projectId?: string;
     model?: string;
+    allowModelAutoSelection?: boolean;
+    onAutoModelSelected?: (model: string) => void;
     onSuggestion: (text: string) => void;
 }
 
@@ -30,7 +36,7 @@ const ACTION_CONFIG: Record<AiAction, { label: string; prompt: string }> = {
     },
 };
 
-const DEFAULT_GEMINI_MODEL = 'gemini-pro';
+const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash-latest';
 const MAX_GEMINI_RETRIES = 2;
 
 const htmlToPlainText = (html: string): string => {
@@ -88,16 +94,16 @@ const resolveModelId = (rawModel?: string): string => {
 const normalizeApiError = (message: string, model: string): string => {
     const normalized = message.toLowerCase();
 
-    if (normalized.includes('quota') || normalized.includes('rate')) {
+    if (normalized.includes('not found') || normalized.includes('not be found') || normalized.includes('not supported')) {
         return withTechnicalDetails(
-            'Se alcanzó el límite por minuto de la API de Gemini. Espera un momento o habilita facturación en Google AI Studio para solicitar más cuota.',
+            `El modelo "${model}" no está habilitado en tu cuenta. Abre Configuración → IA para elegir un modelo distinto (p. ej., gemini-1.5-flash-latest) o agrega @v1/@v1beta para forzar la versión indicada por Google AI Studio.`,
             message,
         );
     }
 
-    if (normalized.includes('not found') || normalized.includes('not be found') || normalized.includes('not supported')) {
+    if (normalized.includes('quota') || normalized.includes('rate')) {
         return withTechnicalDetails(
-            `El modelo "${model}" no está disponible en tu cuenta o en esta versión de la API. Ajusta el modelo en Configuración → IA y, si es necesario, fuerza la versión agregando @v1 o @v1beta (ej.: gemini-1.5-flash@v1beta).`,
+            'Se alcanzó el límite por minuto de la API de Gemini. Espera un momento o habilita facturación en Google AI Studio para solicitar más cuota.',
             message,
         );
     }
@@ -130,7 +136,15 @@ const normalizeApiError = (message: string, model: string): string => {
     return message;
 };
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, projectId, model, onSuggestion }) => {
+const AIAssistant: React.FC<AIAssistantProps> = ({
+    sectionContent,
+    apiKey,
+    projectId,
+    model,
+    allowModelAutoSelection,
+    onAutoModelSelected,
+    onSuggestion,
+}) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastAction, setLastAction] = useState<AiAction | null>(null);
@@ -155,32 +169,57 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ sectionContent, apiKey, proje
         setError(null);
         setLastAction(action);
 
-        try {
-            const data = await generateGeminiContent({
-                apiKey,
-                model: resolvedModel,
-                maxRetries: MAX_GEMINI_RETRIES,
-                projectId,
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [
-                            {
-                                text: `${ACTION_CONFIG[action].prompt}\n\n${plainTextContent}`,
-                            },
-                        ],
-                    },
-                ],
-            });
+        const runWithModel = async (modelId: string, allowFallback: boolean): Promise<string> => {
+            try {
+                const data = await generateGeminiContent({
+                    apiKey,
+                    model: modelId,
+                    maxRetries: MAX_GEMINI_RETRIES,
+                    projectId,
+                    contents: [
+                        {
+                            role: 'user',
+                            parts: [
+                                {
+                                    text: `${ACTION_CONFIG[action].prompt}\n\n${plainTextContent}`,
+                                },
+                            ],
+                        },
+                    ],
+                });
 
-            const improvedText = extractGeminiText(data);
-            if (!improvedText) {
-                throw new Error('No se recibió una respuesta utilizable de la IA.');
+                const improvedText = extractGeminiText(data);
+                if (!improvedText) {
+                    throw new Error('No se recibió una respuesta utilizable de la IA.');
+                }
+
+                return plainTextToHtml(improvedText);
+            } catch (error) {
+                if (
+                    allowFallback &&
+                    allowModelAutoSelection &&
+                    error instanceof GeminiModelUnavailableError &&
+                    error.availableModels?.length
+                ) {
+                    const fallback = suggestGeminiFallbackModel(error.availableModels);
+                    if (fallback) {
+                        const fallbackModelId = `${fallback.modelId}@${fallback.version}`;
+                        onAutoModelSelected?.(fallbackModelId);
+                        return runWithModel(fallbackModelId, false);
+                    }
+                }
+                throw error;
             }
+        };
 
-            onSuggestion(plainTextToHtml(improvedText));
+        try {
+            const suggestion = await runWithModel(resolvedModel, Boolean(allowModelAutoSelection));
+            onSuggestion(suggestion);
         } catch (err) {
-            setError(normalizeApiError((err as Error).message, resolvedModel));
+            const message = err as Error;
+            const modelLabel =
+                message instanceof GeminiModelUnavailableError ? message.requestedModelId : resolvedModel;
+            setError(normalizeApiError(message.message, modelLabel));
         } finally {
             setIsProcessing(false);
         }

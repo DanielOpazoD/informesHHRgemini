@@ -11,6 +11,8 @@ interface ClinicalSectionProps {
     aiApiKey?: string;
     aiProjectId?: string;
     aiModel?: string;
+    allowAiModelAutoSelection?: boolean;
+    onAutoSelectAiModel?: (model: string) => void;
     onSectionContentChange: (index: number, content: string) => void;
     onSectionTitleChange: (index: number, title: string) => void;
     onRemoveSection: (index: number) => void;
@@ -30,6 +32,8 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     onRemoveSection,
     onUpdateSectionMeta,
     aiModel,
+    allowAiModelAutoSelection,
+    onAutoSelectAiModel,
 }) => {
     const noteRef = useRef<HTMLDivElement>(null);
     const [isFocused, setIsFocused] = useState(false);
@@ -111,6 +115,8 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
                     apiKey={aiApiKey}
                     projectId={aiProjectId}
                     model={aiModel}
+                    allowModelAutoSelection={allowAiModelAutoSelection}
+                    onAutoModelSelected={onAutoSelectAiModel}
                     onSuggestion={text => onSectionContentChange(index, text)}
                 />
             )}
