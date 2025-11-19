@@ -1403,11 +1403,25 @@
       max-width: 170px;
     }
 
+    .patient-field-row-default[data-field-id="fecnac"],
+    .patient-field-row-default[data-field-id="fing"],
+    .patient-field-row-default[data-field-id="finf"] {
+      grid-template-columns: 1fr;
+      justify-items: start;
+      row-gap: 4px;
+    }
+
+    .patient-field-row-default[data-field-id="fecnac"] .patient-field-input,
+    .patient-field-row-default[data-field-id="fing"] .patient-field-input,
+    .patient-field-row-default[data-field-id="finf"] .patient-field-input {
+      width: 100%;
+    }
+
     .patient-field-row-default[data-field-id="fecnac"] .patient-field-input .inp,
     .patient-field-row-default[data-field-id="fing"] .patient-field-input .inp,
     .patient-field-row-default[data-field-id="finf"] .patient-field-input .inp {
-      min-width: 180px;
-      max-width: 240px;
+      min-width: 0;
+      max-width: 100%;
       width: 100%;
     }
 
