@@ -19,6 +19,18 @@ View your app in AI Studio: https://ai.studio/apps/drive/1gRaJgpJCj1Y4n8qkayhtci
 3. Run the app:
    `npm run dev`
 
+### Personaliza el nombre y los logos de la institución
+
+La aplicación ya no está ligada al Hospital Hanga Roa. Puedes definir el nombre y los logos de tu centro médico creando un archivo `.env.local` (o usando variables de entorno en tu plataforma de despliegue) con cualquiera de estos valores:
+
+```bash
+VITE_INSTITUTION_NAME="Hospital General de Ejemplo"
+VITE_LOGO_LEFT_URL="https://tu-dominio.com/logo-izquierdo.png"
+VITE_LOGO_RIGHT_URL="https://tu-dominio.com/logo-derecho.png"
+```
+
+Si no los defines, seguiremos usando el nombre y los logos predeterminados para mantener la compatibilidad con instalaciones existentes.
+
 ## Asistente de IA en el editor
 
 El modo de edición avanzada ahora incluye un asistente de IA que puede mejorar, resumir o expandir el contenido de cada sección clínica. Para activarlo tienes dos opciones:
