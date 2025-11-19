@@ -159,6 +159,11 @@ const listAccessibleGeminiModels = async ({
     return Array.from(unique.values()).filter(model => model.supportsGenerateContent);
 };
 
+export const __testables__ = {
+    parseModelListResponse,
+    listAccessibleGeminiModels,
+};
+
 const formatAvailableModelsMessage = (models: GeminiModelSummary[]): string => {
     if (!models.length) {
         return '';
