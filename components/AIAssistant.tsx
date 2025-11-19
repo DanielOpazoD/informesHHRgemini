@@ -31,6 +31,7 @@ interface AIAssistantProps {
 
 type AiMode = 'chat' | 'edit';
 type MessageRole = 'user' | 'assistant';
+type AssistantProfile = 'internista' | 'general' | 'urgencias' | 'pediatria';
 
 interface Message {
     id: string;
@@ -48,6 +49,7 @@ interface QuickAction {
 }
 
 const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash-latest';
+const DEFAULT_ASSISTANT_PROFILE: AssistantProfile = 'internista';
 
 const CHAT_ACTIONS: QuickAction[] = [
     {
@@ -112,10 +114,10 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showSettings, setShowSettings] = useState(false);
-    const [assistantProfile, setAssistantProfile] = useState('general');
+    const [assistantProfile, setAssistantProfile] = useState<AssistantProfile>(DEFAULT_ASSISTANT_PROFILE);
     const [allowMarkdown, setAllowMarkdown] = useState(true);
 
-    const chatEndRef = useRef<HTMLDivElement>(null);
+    const chatContainerRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
@@ -125,8 +127,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     }, [sections, targetSectionId]);
 
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, mode]);
+        if (!chatContainerRef.current) return;
+        chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: 'smooth' });
+    }, [messages]);
 
     useEffect(() => {
         if (!conversationKey) return;
@@ -147,8 +150,10 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     const resolvedModel = useMemo(() => model || DEFAULT_GEMINI_MODEL, [model]);
 
     const buildSystemPrompt = () => {
-        let persona = 'Actúa como un colega médico experto (Internista).';
-        if (assistantProfile === 'urgencias') {
+        let persona = 'Actúa como un médico internista experto, priorizando exactitud clínica y razonamiento estructurado.';
+        if (assistantProfile === 'general') {
+            persona = 'Actúa como un colega de medicina general con lenguaje neutro y claro para todo el equipo.';
+        } else if (assistantProfile === 'urgencias') {
             persona = 'Actúa como un médico de Urgencias, priorizando riesgos vitales y acciones rápidas.';
         } else if (assistantProfile === 'pediatria') {
             persona = 'Actúa como Pediatra, considerando dosis por peso y comunicación con padres.';
@@ -292,49 +297,54 @@ Responde preguntas o genera documentos basados en toda la información disponibl
             <div className="ai-resize-handle" onMouseDown={handleResizeStart} />
 
             <div className="ai-drawer-inner" style={{ display: 'flex', flexDirection: 'column', height: '100%', opacity: 1, transform: 'none' }}>
-                <header className="ai-drawer-header" style={{ marginBottom: '12px', flexShrink: 0 }}>
+                <header className="ai-drawer-header py-2" style={{ marginBottom: '8px', flexShrink: 0 }}>
                     <div>
-                        <h3 className="ai-drawer-title">Asistente IA</h3>
-                        <p className="ai-drawer-subtitle">{mode === 'chat' ? 'Análisis del caso completo' : 'Edición y redacción'}</p>
+                        <h3 className="ai-drawer-title text-base">Asistente IA</h3>
+                        <p className="ai-drawer-subtitle text-xs text-gray-500">
+                            {mode === 'chat' ? 'Análisis del caso completo' : 'Edición y redacción'}
+                        </p>
                     </div>
-                    <div className="ai-header-actions">
+                    <div className="ai-header-actions gap-1">
                         <button
-                            className={`ai-ghost-btn ${showSettings ? 'text-blue-600 bg-blue-50' : ''}`}
+                            className={`ai-ghost-btn h-8 w-8 ${showSettings ? 'text-blue-600 bg-blue-50' : ''}`}
                             onClick={() => setShowSettings(prev => !prev)}
                             title="Configuración"
                         >
                             ⚙️
                         </button>
-                        <button className="ai-close-btn" onClick={onClose}>
+                        <button className="ai-close-btn h-8 w-8" onClick={onClose}>
                             ✕
                         </button>
                     </div>
                 </header>
 
                 {showSettings && (
-                    <div className="ai-panel-settings mb-4 animate-fade-in">
-                        <label className="text-xs font-bold text-gray-700 block mb-1">Perfil Médico</label>
+                    <div className="ai-panel-settings mb-3 animate-fade-in rounded-lg border border-slate-200 bg-white/70 p-3 text-xs">
+                        <label className="font-bold text-gray-700 block mb-1">Perfil Médico</label>
                         <select
-                            className="ai-select w-full mb-3"
+                            className="ai-select w-full text-xs mb-2"
                             value={assistantProfile}
-                            onChange={event => setAssistantProfile(event.target.value)}
+                            onChange={event => setAssistantProfile(event.target.value as AssistantProfile)}
                         >
+                            <option value="internista">🩺 Medicina Interna (Precisión)</option>
                             <option value="general">👨‍⚕️ Medicina General (Neutro)</option>
                             <option value="urgencias">🚑 Urgencias (Directo/Riesgos)</option>
                             <option value="pediatria">👶 Pediatría (Empático/Seguridad)</option>
                         </select>
 
-                        <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer">
+                        <label className="flex items-center gap-2 font-semibold text-gray-600 cursor-pointer">
                             <input type="checkbox" checked={allowMarkdown} onChange={event => setAllowMarkdown(event.target.checked)} />
                             Formatear con Markdown
                         </label>
                     </div>
                 )}
 
-                <div className="flex gap-2 mb-4 border-b border-gray-200 pb-2 flex-shrink-0">
+                <div className="flex items-center gap-1 mb-3 text-xs font-semibold">
                     <button
-                        className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                            mode === 'chat' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'
+                        className={`flex-1 py-1.5 rounded-full border text-[12px] transition-colors ${
+                            mode === 'chat'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                : 'border-gray-200 text-gray-600 hover:border-blue-200'
                         }`}
                         onClick={() => {
                             setMode('chat');
@@ -344,23 +354,27 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                         💬 Conversación
                     </button>
                     <button
-                        className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                            mode === 'edit' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'
+                        className={`flex-1 py-1.5 rounded-full border text-[12px] transition-colors ${
+                            mode === 'edit'
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                : 'border-gray-200 text-gray-600 hover:border-indigo-200'
                         }`}
                         onClick={() => {
                             setMode('edit');
                             setMessages([]);
                         }}
                     >
-                        📝 Editar Sección
+                        📝 Editar
                     </button>
                 </div>
 
                 {mode === 'edit' && (
-                    <div className="mb-4 flex-shrink-0 bg-indigo-50 p-3 rounded-lg border border-indigo-100">
-                        <label className="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-1 block">Editando sección:</label>
+                    <div className="mb-3 flex-shrink-0 rounded-lg border border-indigo-100 bg-indigo-50/80 p-2">
+                        <label className="text-[11px] font-semibold text-indigo-900 uppercase tracking-wider mb-1 block">
+                            Editando sección
+                        </label>
                         <select
-                            className="w-full p-2 text-sm border border-indigo-200 rounded bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full rounded-md border border-indigo-200 bg-white p-1.5 text-xs focus:ring-1 focus:ring-indigo-400"
                             value={targetSectionId}
                             onChange={event => {
                                 setTargetSectionId(event.target.value);
@@ -376,11 +390,11 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                     </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-2 mb-4 flex-shrink-0">
+                <div className="mb-3 flex flex-wrap gap-1.5">
                     {(mode === 'chat' ? CHAT_ACTIONS : EDIT_ACTIONS).map(action => (
                         <button
                             key={action.label}
-                            className="flex items-center justify-center gap-2 p-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all shadow-sm"
+                            className="flex items-center gap-1 rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700 disabled:opacity-60"
                             onClick={() => handleSendMessage(action.prompt)}
                             disabled={isLoading || !apiKey}
                         >
@@ -390,7 +404,10 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                     ))}
                 </div>
 
-                <div className="flex-1 overflow-y-auto min-h-0 mb-4 pr-1 space-y-4">
+                <div
+                    ref={chatContainerRef}
+                    className="flex-1 overflow-y-auto min-h-0 mb-3 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3"
+                >
                     {!apiKey ? (
                         <div className="text-center p-4 text-gray-500 text-sm bg-gray-50 rounded-lg border border-dashed border-gray-300">
                             ⚠️ Configura tu API Key de Gemini en el menú ⚙️ para comenzar.
@@ -405,7 +422,7 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                         messages.map(msg => (
                             <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                                 <div
-                                    className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
+                                    className={`max-w-[95%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
                                         msg.role === 'user'
                                             ? 'bg-blue-600 text-white rounded-tr-none'
                                             : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'
@@ -414,9 +431,9 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                                     <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: formatAssistantHtml(msg.text, allowMarkdown) }} />
                                 </div>
                                 {msg.role === 'assistant' && msg.isProposal && (
-                                    <div className="mt-2 ml-2">
+                                    <div className="mt-1 ml-2">
                                         <button
-                                            className="flex items-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors border border-indigo-200"
+                                            className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full hover:bg-indigo-100 transition-colors border border-indigo-200"
                                             onClick={() => handleApply(msg.text, msg.proposalSectionId)}
                                         >
                                             <span>✅</span> Aplicar a la sección
@@ -428,20 +445,19 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                     )}
                     {isLoading && (
                         <div className="flex items-start">
-                            <div className="bg-gray-100 rounded-2xl rounded-tl-none px-4 py-3 text-gray-500 text-sm animate-pulse">Pensando...</div>
+                            <div className="bg-gray-100 rounded-2xl rounded-tl-none px-4 py-2 text-gray-500 text-sm animate-pulse">Pensando...</div>
                         </div>
                     )}
                     {error && (
-                        <div className="bg-red-50 text-red-600 text-xs p-3 rounded-lg border border-red-200">Error: {error}</div>
+                        <div className="bg-red-50 text-red-600 text-xs p-2 rounded-lg border border-red-200">Error: {error}</div>
                     )}
-                    <div ref={chatEndRef} />
                 </div>
 
-                <div className="flex-shrink-0 mt-auto pt-2 border-t border-gray-200">
+                <div className="flex-shrink-0 mt-auto pt-1 border-t border-gray-200">
                     <div className="relative">
                         <textarea
                             ref={textareaRef}
-                            className="w-full p-3 pr-12 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none shadow-sm"
+                            className="w-full p-2.5 pr-11 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none shadow-sm"
                             placeholder={mode === 'chat' ? 'Haz una pregunta sobre el caso...' : 'Ej: Hazlo más conciso, enfatiza la fiebre...'}
                             rows={2}
                             value={inputPrompt}
@@ -455,7 +471,7 @@ Responde preguntas o genera documentos basados en toda la información disponibl
                             disabled={isLoading || !apiKey}
                         />
                         <button
-                            className={`absolute right-2 bottom-2 p-2 rounded-lg transition-all ${
+                            className={`absolute right-1.5 bottom-1.5 p-2 rounded-lg transition-all ${
                                 !inputPrompt.trim() || isLoading
                                     ? 'text-gray-300 cursor-not-allowed'
                                     : 'text-blue-600 hover:bg-blue-50 active:bg-blue-100'

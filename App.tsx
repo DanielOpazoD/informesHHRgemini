@@ -45,6 +45,7 @@ interface DriveCacheEntry {
 }
 
 const DEFAULT_TEMPLATE_ID = '2';
+const RECOMMENDED_GEMINI_MODEL = 'gemini-1.5-flash-latest';
 
 const createTemplateBaseline = (templateId: string): ClinicalRecord => {
     const selectedTemplateId = TEMPLATES[templateId] ? templateId : DEFAULT_TEMPLATE_ID;
@@ -63,6 +64,7 @@ const createTemplateBaseline = (templateId: string): ClinicalRecord => {
 const ENV_GEMINI_API_KEY = getEnvGeminiApiKey();
 const ENV_GEMINI_PROJECT_ID = getEnvGeminiProjectId();
 const ENV_GEMINI_MODEL = getEnvGeminiModel();
+const INITIAL_GEMINI_MODEL = ENV_GEMINI_MODEL || RECOMMENDED_GEMINI_MODEL;
 
 const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
@@ -108,7 +110,7 @@ const App: React.FC = () => {
     const [apiKey, setApiKey] = useState('');
     const [aiApiKey, setAiApiKey] = useState('');
     const [aiProjectId, setAiProjectId] = useState('');
-    const [aiModel, setAiModel] = useState('');
+    const [aiModel, setAiModel] = useState(INITIAL_GEMINI_MODEL);
     const [clientId, setClientId] = useState('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
     const [isGapiReady, setIsGapiReady] = useState(false);
     const [isGisReady, setIsGisReady] = useState(false);
@@ -124,7 +126,7 @@ const App: React.FC = () => {
     const [tempClientId, setTempClientId] = useState('');
     const [tempAiApiKey, setTempAiApiKey] = useState('');
     const [tempAiProjectId, setTempAiProjectId] = useState('');
-    const [tempAiModel, setTempAiModel] = useState('');
+    const [tempAiModel, setTempAiModel] = useState(INITIAL_GEMINI_MODEL);
     const [showApiKey, setShowApiKey] = useState(false);
     const [showAiApiKey, setShowAiApiKey] = useState(false);
 
@@ -264,8 +266,11 @@ const App: React.FC = () => {
 
     const resolvedAiApiKey = useMemo(() => aiApiKey || ENV_GEMINI_API_KEY, [aiApiKey]);
     const resolvedAiProjectId = useMemo(() => aiProjectId || ENV_GEMINI_PROJECT_ID, [aiProjectId]);
-    const allowAiAutoSelection = useMemo(() => !aiModel && !ENV_GEMINI_MODEL, [aiModel]);
-    const resolvedAiModel = useMemo(() => aiModel || ENV_GEMINI_MODEL || 'gemini-1.5-flash-latest', [aiModel]);
+    const allowAiAutoSelection = useMemo(() => {
+        if (ENV_GEMINI_MODEL) return false;
+        return !aiModel || aiModel === RECOMMENDED_GEMINI_MODEL;
+    }, [aiModel]);
+    const resolvedAiModel = useMemo(() => aiModel || INITIAL_GEMINI_MODEL, [aiModel]);
     const fullRecordContext = useMemo(() => {
         const patientLines = record.patientFields
             .map(field => {
@@ -456,7 +461,7 @@ const App: React.FC = () => {
         setTempClientId(clientId);
         setTempAiApiKey(aiApiKey || ENV_GEMINI_API_KEY);
         setTempAiProjectId(aiProjectId || ENV_GEMINI_PROJECT_ID);
-        setTempAiModel(aiModel || ENV_GEMINI_MODEL || '');
+        setTempAiModel(aiModel || INITIAL_GEMINI_MODEL);
         setIsSettingsModalOpen(true);
     };
 
@@ -505,7 +510,7 @@ const App: React.FC = () => {
             setAiModel(sanitizedModel);
         } else {
             localStorage.removeItem('geminiModel');
-            setAiModel('');
+            setAiModel(INITIAL_GEMINI_MODEL);
         }
 
         showToast('Configuración guardada. Para que todos los cambios surtan efecto, por favor, recargue la página.');
@@ -531,7 +536,8 @@ const App: React.FC = () => {
             setClientId('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
             setAiApiKey('');
             setAiProjectId('');
-            setAiModel('');
+            setAiModel(INITIAL_GEMINI_MODEL);
+            setTempAiModel(INITIAL_GEMINI_MODEL);
             showToast('Credenciales eliminadas. Recargue la página para aplicar los cambios.', 'warning');
             closeSettingsModal();
         })();
