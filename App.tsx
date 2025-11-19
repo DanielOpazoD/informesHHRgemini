@@ -31,6 +31,7 @@ import HistoryModal from './components/modals/HistoryModal';
 import CartolaMedicamentosView from './components/CartolaMedicamentosView';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DriveProvider, useDrive } from './contexts/DriveContext';
+import { generateGeminiContent, GeminiModelUnavailableError, suggestGeminiFallbackModel } from './utils/geminiClient';
 
 declare global {
     interface Window {
@@ -151,6 +152,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [isGeneratingMedicationTable, setIsGeneratingMedicationTable] = useState(false);
 
     // Settings Modal Temp State
     const [tempApiKey, setTempApiKey] = useState('');
@@ -918,6 +920,108 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     }, [setRecord]);
     const handleAddPatientField = () => setRecord(r => ({...r, patientFields: [...r.patientFields, { label: 'Nuevo campo', value: '', type: 'text', isCustom: true }]}));
     const handleRemovePatientField = (index: number) => setRecord(r => ({...r, patientFields: r.patientFields.filter((_, i) => i !== index)}));
+
+    const findPlanSectionIndex = useCallback(() => {
+        return record.sections.findIndex(section => section.title?.trim().toLowerCase() === 'plan');
+    }, [record.sections]);
+
+    const handleGenerateMedicationTable = useCallback(async () => {
+        if (!resolvedAiApiKey) {
+            showToast('Configura tu API Key de Gemini en Configuración → IA para usar esta herramienta.', 'warning');
+            return;
+        }
+
+        const planIndex = findPlanSectionIndex();
+        if (planIndex === -1) {
+            showToast('No se encontró la sección «Plan» en esta planilla.', 'warning');
+            return;
+        }
+
+        const planContent = htmlToPlainText(record.sections[planIndex].content || '').trim();
+        if (!planContent) {
+            showToast('La sección «Plan» está vacía. Agrega las indicaciones antes de generar la tabla.', 'warning');
+            return;
+        }
+
+        setIsGeneratingMedicationTable(true);
+
+        try {
+            const prompt = [
+                'Eres un asistente clínico que resume indicaciones farmacológicas.',
+                'Analiza solo la sección de "Plan" entregada y extrae los fármacos mencionados (sin inventar nuevos).',
+                'Devuelve ÚNICAMENTE una tabla HTML (sin bloques de código) con clase "medication-table" y columnas:',
+                'Fármaco | Presentación / dosis | Frecuencia y horario | Vía | Comentarios.',
+                'Incluye la dosis exacta, forma farmacéutica y observaciones relevantes (por ejemplo, duración, ajustes o indicaciones especiales).',
+            ].join('\n');
+
+            const response = await generateGeminiContent({
+                apiKey: resolvedAiApiKey,
+                model: resolvedAiModel,
+                projectId: resolvedAiProjectId,
+                contents: [
+                    { role: 'user', parts: [{ text: prompt }] },
+                    { role: 'user', parts: [{ text: `Plan clínico:\n${planContent}` }] },
+                ],
+                maxRetries: 1,
+            });
+
+            const candidate = (response as any).candidates?.[0];
+            const replyText = candidate?.content?.parts?.map((part: any) => part.text || '').join(' ').trim() || '';
+            const cleanedTable = replyText.replace(/```html?|```/gi, '').trim();
+
+            if (!cleanedTable.toLowerCase().includes('<table')) {
+                throw new Error('La IA no devolvió una tabla válida. Intenta reformular el Plan.');
+            }
+
+            setRecord(r => {
+                const nextSections = [...r.sections];
+                const existingTableIndex = nextSections.findIndex(section => section.title?.trim().toLowerCase() === 'tabla de fármacos');
+                const newSection = {
+                    title: 'Tabla de fármacos',
+                    content: cleanedTable,
+                };
+
+                if (existingTableIndex >= 0) {
+                    nextSections[existingTableIndex] = { ...nextSections[existingTableIndex], ...newSection };
+                } else if (planIndex >= 0) {
+                    nextSections.splice(planIndex + 1, 0, newSection);
+                } else {
+                    nextSections.push(newSection);
+                }
+
+                return { ...r, sections: nextSections };
+            });
+
+            showToast('Tabla de fármacos generada a partir del Plan.', 'success');
+        } catch (error: any) {
+            console.error(error);
+
+            if (error instanceof GeminiModelUnavailableError && allowAiAutoSelection && error.availableModels) {
+                const fallback = suggestGeminiFallbackModel(error.availableModels);
+                if (fallback) {
+                    setAiModel(`${fallback.modelId}@${fallback.version}`);
+                    showToast('El modelo configurado no está disponible. Cambiamos automáticamente a uno compatible, inténtalo nuevamente.', 'warning');
+                    setIsGeneratingMedicationTable(false);
+                    return;
+                }
+            }
+
+            const message = error?.message || 'No se pudo generar la tabla de fármacos.';
+            showToast(message, 'error');
+        } finally {
+            setIsGeneratingMedicationTable(false);
+        }
+    }, [
+        allowAiAutoSelection,
+        findPlanSectionIndex,
+        record.sections,
+        resolvedAiApiKey,
+        resolvedAiModel,
+        resolvedAiProjectId,
+        setAiModel,
+        setRecord,
+        showToast,
+    ]);
     
     const restoreAll = useCallback(() => {
         void (async () => {
@@ -1182,6 +1286,24 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                                 onPatientLabelChange={handlePatientLabelChange}
                                 onRemovePatientField={handleRemovePatientField}
                             />
+                            <div className="ai-medication-tool">
+                                <div className="ai-medication-copy">
+                                    <div className="ai-medication-title">Tabla de fármacos con IA</div>
+                                    <div className="ai-medication-desc">Lee el Plan activo y arma automáticamente la tabla de indicaciones farmacológicas.</div>
+                                </div>
+                                <div className="ai-medication-actions">
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={handleGenerateMedicationTable}
+                                        disabled={isGeneratingMedicationTable || !resolvedAiApiKey}
+                                        title={!resolvedAiApiKey ? 'Agrega tu clave de Gemini para activar esta función.' : undefined}
+                                    >
+                                        {isGeneratingMedicationTable ? 'Generando…' : 'Crear tabla de fármacos'}
+                                    </button>
+                                    <span className="ai-medication-hint">Usa las indicaciones escritas en la sección «Plan».</span>
+                                </div>
+                            </div>
                             <div id="sectionsContainer">{record.sections.map((section, index) => (
                                 <ClinicalSection
                                     key={index}
