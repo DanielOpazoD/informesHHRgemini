@@ -20,11 +20,41 @@ export interface GeminiGenerateRequest {
     projectId?: string;
 }
 
+interface GeminiApiErrorDetail {
+    ['@type']?: string;
+    reason?: string;
+    message?: string;
+}
+
 interface GeminiApiError {
     error?: {
         message?: string;
+        details?: GeminiApiErrorDetail[];
     };
 }
+
+const isVersionMismatchError = (error?: GeminiApiError['error']): boolean => {
+    if (!error) return false;
+    const normalizedMessage = error.message?.toLowerCase() ?? '';
+    if (
+        normalizedMessage.includes('is not found for api version') ||
+        normalizedMessage.includes('is not supported for generatecontent')
+    ) {
+        return true;
+    }
+
+    return Boolean(
+        error.details?.some(detail => {
+            const normalizedReason = detail.reason?.toLowerCase() ?? '';
+            const normalizedDetailMessage = detail.message?.toLowerCase() ?? '';
+            return (
+                normalizedReason.includes('api_version') ||
+                normalizedDetailMessage.includes('is not found for api version') ||
+                normalizedDetailMessage.includes('is not supported for generatecontent')
+            );
+        }),
+    );
+};
 
 export const generateGeminiContent = async <T = unknown>({
     apiKey,
@@ -68,10 +98,7 @@ export const generateGeminiContent = async <T = unknown>({
         const data = (await response.json().catch(() => ({}))) as GeminiApiError;
         const message = data?.error?.message || 'La API devolvió un error desconocido.';
 
-        const normalizedMessage = message.toLowerCase();
-        const versionMismatch =
-            normalizedMessage.includes('is not found for api version') ||
-            normalizedMessage.includes('is not supported for generatecontent');
+        const versionMismatch = isVersionMismatchError(data?.error);
 
         if (versionMismatch && !hasTriedAlternateVersion) {
             forcedVersion = getAlternateGeminiVersion(versionToUse);

@@ -88,16 +88,16 @@ const resolveModelId = (rawModel?: string): string => {
 const normalizeApiError = (message: string, model: string): string => {
     const normalized = message.toLowerCase();
 
-    if (normalized.includes('quota') || normalized.includes('rate')) {
+    if (normalized.includes('not found') || normalized.includes('not be found') || normalized.includes('not supported')) {
         return withTechnicalDetails(
-            'Se alcanzó el límite por minuto de la API de Gemini. Espera un momento o habilita facturación en Google AI Studio para solicitar más cuota.',
+            `El modelo "${model}" no está disponible en tu cuenta o en esta versión de la API. Ajusta el modelo en Configuración → IA y, si es necesario, fuerza la versión agregando @v1 o @v1beta (ej.: gemini-1.5-flash@v1beta).`,
             message,
         );
     }
 
-    if (normalized.includes('not found') || normalized.includes('not be found') || normalized.includes('not supported')) {
+    if (normalized.includes('quota') || normalized.includes('rate')) {
         return withTechnicalDetails(
-            `El modelo "${model}" no está disponible en tu cuenta o en esta versión de la API. Ajusta el modelo en Configuración → IA y, si es necesario, fuerza la versión agregando @v1 o @v1beta (ej.: gemini-1.5-flash@v1beta).`,
+            'Se alcanzó el límite por minuto de la API de Gemini. Espera un momento o habilita facturación en Google AI Studio para solicitar más cuota.',
             message,
         );
     }
