@@ -151,9 +151,6 @@ const App: React.FC = () => {
     useEffect(() => {
         if (typeof document === 'undefined') return;
         document.body.classList.toggle('advanced-editing-active', isAdvancedEditing);
-        if (!isAdvancedEditing) {
-            setIsAiAssistantVisible(false);
-        }
         return () => {
             document.body.classList.remove('advanced-editing-active');
         };
@@ -1613,7 +1610,7 @@ const App: React.FC = () => {
                         onAutoModelSelected={handleAutoSelectAiModel}
                         onApplySuggestion={handleSectionContentChange}
                         fullRecordContent={fullRecordContext}
-                        isOpen={isAdvancedEditing && isAiAssistantVisible}
+                        isOpen={isAiAssistantVisible}
                         onClose={() => setIsAiAssistantVisible(false)}
                     />
                 </div>

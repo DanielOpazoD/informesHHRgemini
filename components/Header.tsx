@@ -99,6 +99,17 @@ const PenIcon = () => (
     </svg>
 );
 
+const AssistantIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M8.5 14.5c1 .8 2.2 1.3 3.5 1.3s2.5-.5 3.5-1.3" />
+        <path d="M9 10h.01" />
+        <path d="M15 10h.01" />
+        <path d="M5 19l-1.5 2" />
+        <path d="M19 19l1.5 2" />
+    </svg>
+);
+
 const SettingsIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />
@@ -496,18 +507,6 @@ const Header: React.FC<HeaderProps> = ({
                             >
                                 <span className="toolbar-icon">+</span>
                             </button>
-                            <span className="toolbar-divider" aria-hidden="true" />
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                className={isAiAssistantVisible ? 'is-active' : ''}
-                                onClick={onToggleAiAssistant}
-                                aria-pressed={isAiAssistantVisible}
-                                aria-label={isAiAssistantVisible ? 'Ocultar panel lateral de IA' : 'Mostrar panel lateral de IA'}
-                                title={isAiAssistantVisible ? 'Ocultar asistente de IA' : 'Mostrar asistente de IA'}
-                            >
-                                <span className="toolbar-icon" role="img" aria-hidden="true">🤖</span>
-                            </button>
                         </div>
                     )}
                 </div>
@@ -582,6 +581,17 @@ const Header: React.FC<HeaderProps> = ({
                     >
                         <PenIcon />
                         <span>Editar</span>
+                    </button>
+                    <button
+                        type="button"
+                        className={`action-btn ai-launch ${isAiAssistantVisible ? 'active is-active' : ''}`}
+                        onClick={onToggleAiAssistant}
+                        aria-pressed={isAiAssistantVisible}
+                        aria-label={isAiAssistantVisible ? 'Ocultar panel lateral de IA' : 'Mostrar panel lateral de IA'}
+                        title={isAiAssistantVisible ? 'Ocultar asistente de IA' : 'Mostrar asistente de IA'}
+                    >
+                        <AssistantIcon />
+                        <span>Asistente</span>
                     </button>
                     <div className={`action-group ${openActionMenu === 'drive' ? 'open' : ''}`} ref={driveMenuRef}>
                         <button
