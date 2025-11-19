@@ -13,6 +13,7 @@ import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
 import { validateCriticalFields, formatTimeSince } from './utils/validationUtils';
+import { normalizeClinicalRecord } from './utils/patientFieldUtils';
 import { useToast, type ToastState } from './hooks/useToast';
 import { useClinicalRecord } from './hooks/useClinicalRecord';
 import { useConfirmDialog } from './hooks/useConfirmDialog';
@@ -480,7 +481,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
         const importedRecord = await openJsonFileFromDrive(file);
         if (!importedRecord) return;
         markRecordAsReplaced();
-        setRecord(importedRecord);
+        setRecord(normalizeClinicalRecord(importedRecord));
         setHasUnsavedChanges(false);
         saveDraft('import');
         setIsOpenModalOpen(false);
@@ -946,9 +947,10 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                 const importedRecord = JSON.parse(e.target?.result as string);
                 if (importedRecord.version && importedRecord.patientFields && importedRecord.sections) {
                     markRecordAsReplaced();
-                    setRecord(importedRecord);
+                    const normalizedRecord = normalizeClinicalRecord(importedRecord);
+                    setRecord(normalizedRecord);
                     setHasUnsavedChanges(false);
-                    saveDraft('import', importedRecord);
+                    saveDraft('import', normalizedRecord);
                     showToast('Borrador importado correctamente.');
                 } else {
                     showToast('Archivo JSON inválido.', 'error');
