@@ -30,6 +30,7 @@ interface GeminiApiError {
     error?: {
         message?: string;
         details?: GeminiApiErrorDetail[];
+        status?: string;
     };
 }
 
@@ -54,6 +55,27 @@ const isVersionMismatchError = (error?: GeminiApiError['error']): boolean => {
             );
         }),
     );
+};
+
+const shouldSwitchGeminiVersion = (
+    responseStatus: number,
+    error: GeminiApiError['error'] | undefined,
+    alreadyTriedAlternate: boolean,
+): boolean => {
+    if (alreadyTriedAlternate) {
+        return false;
+    }
+
+    if (isVersionMismatchError(error)) {
+        return true;
+    }
+
+    if (responseStatus === 404) {
+        return true;
+    }
+
+    const normalizedStatus = error?.status?.toLowerCase() ?? '';
+    return normalizedStatus === 'not_found';
 };
 
 export const generateGeminiContent = async <T = unknown>({
@@ -98,9 +120,9 @@ export const generateGeminiContent = async <T = unknown>({
         const data = (await response.json().catch(() => ({}))) as GeminiApiError;
         const message = data?.error?.message || 'La API devolvió un error desconocido.';
 
-        const versionMismatch = isVersionMismatchError(data?.error);
+        const switchVersion = shouldSwitchGeminiVersion(response.status, data?.error, hasTriedAlternateVersion);
 
-        if (versionMismatch && !hasTriedAlternateVersion) {
+        if (switchVersion) {
             forcedVersion = getAlternateGeminiVersion(versionToUse);
             hasTriedAlternateVersion = true;
             continue;
