@@ -13,6 +13,8 @@ interface HeaderProps {
     onToggleAdvancedEditing: () => void;
     isAiAssistantVisible: boolean;
     onToggleAiAssistant: () => void;
+    onGenerateMedicationTable: () => void;
+    isMedicationTableLoading: boolean;
     onToolbarCommand: (command: string) => void;
     isSignedIn: boolean;
     isGisReady: boolean;
@@ -118,6 +120,13 @@ const LaunchIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M7 17 17 7" />
         <path d="M8 7h9v9" />
+    </svg>
+);
+
+const PillIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="8" width="18" height="8" rx="4" />
+        <path d="M12 8v8" />
     </svg>
 );
 
@@ -227,6 +236,8 @@ const Header: React.FC<HeaderProps> = ({
     onToggleAdvancedEditing,
     isAiAssistantVisible,
     onToggleAiAssistant,
+    onGenerateMedicationTable,
+    isMedicationTableLoading,
     onToolbarCommand,
     isSignedIn,
     isGisReady,
@@ -450,6 +461,16 @@ const Header: React.FC<HeaderProps> = ({
                         >
                             <span className="ai-launch-icon" aria-hidden="true">🤖</span>
                             <span className="ai-launch-label">IA</span>
+                        </button>
+                        <button
+                            type="button"
+                            className="action-btn"
+                            onClick={onGenerateMedicationTable}
+                            disabled={isMedicationTableLoading}
+                            title="Genera automáticamente la tabla de fármacos desde el texto del plan"
+                        >
+                            <PillIcon />
+                            <span>{isMedicationTableLoading ? 'Generando...' : 'Tabla fármacos (IA)'}</span>
                         </button>
                         {isAdvancedEditing && (
                             <div className="editor-toolbar" role="toolbar" aria-label="Herramientas de edición avanzada">

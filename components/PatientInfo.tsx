@@ -20,21 +20,32 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
     const isLabelEditable = (fieldId?: string) => isEditing || fieldId === 'rut';
 
     const compactFields = new Set<string>();
+    const defaultFieldOrder = ['nombre', 'rut', 'edad', 'fecnac', 'fing', 'finf'];
     const defaultFieldLayout: Record<string, React.CSSProperties> = {
-        nombre: { gridColumn: 'span 7' },
+        nombre: { gridColumn: 'span 8' },
         rut: { gridColumn: 'span 3' },
-        edad: { gridColumn: 'span 2' },
+        edad: { gridColumn: 'span 1' },
         fecnac: { gridColumn: 'span 4' },
         fing: { gridColumn: 'span 4' },
         finf: { gridColumn: 'span 4' },
     };
+
+    const orderedDefaultFields = patientFields
+        .filter(f => !f.isCustom)
+        .sort((a, b) => {
+            const aIndex = defaultFieldOrder.indexOf(a.id || '');
+            const bIndex = defaultFieldOrder.indexOf(b.id || '');
+            const aScore = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
+            const bScore = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
+            return aScore - bScore;
+        });
 
     return (
         <div className="sec" id="sec-datos">
             <div className="subtitle" contentEditable={isEditing} suppressContentEditableWarning>Información del Paciente</div>
             <div id="patientGrid">
                 <div className="patient-default-grid">
-                    {patientFields.filter(f => !f.isCustom).map((field) => {
+                    {orderedDefaultFields.map((field) => {
                         const originalIndex = patientFields.findIndex(pf => pf === field);
                         const fieldId = field.id || '';
                         const layoutStyle = defaultFieldLayout[fieldId] || {};
