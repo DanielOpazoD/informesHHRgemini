@@ -1,5 +1,5 @@
 {
-  "name": "Registro Clínico - Hospital Hanga Roa",
-  "description": "Una aplicación web para gestionar y documentar la evolución clínica de los pacientes del Hospital Hanga Roa. Permite la edición de informes, la adición de campos personalizados, la exportación e importación de registros en formato JSON y la generación de versiones imprimibles.",
+  "name": "Registro Clínico configurable",
+  "description": "Una aplicación web para gestionar y documentar la evolución clínica de los pacientes de tu institución médica. Permite la edición de informes, la adición de campos personalizados, la exportación e importación de registros en formato JSON y la generación de versiones imprimibles.",
   "requestFramePermissions": []
 }

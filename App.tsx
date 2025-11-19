@@ -18,6 +18,7 @@ import { useClinicalRecord } from './hooks/useClinicalRecord';
 import { useConfirmDialog } from './hooks/useConfirmDialog';
 import { getEnvGeminiApiKey, getEnvGeminiProjectId, getEnvGeminiModel, normalizeGeminiModelId } from './utils/env';
 import { htmlToPlainText } from './utils/textUtils';
+import { appDisplayName, buildInstitutionTitle, logoUrls } from './institutionConfig';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -723,10 +724,19 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     useEffect(() => {
         const template = TEMPLATES[record.templateId];
         if (!template) return;
-        let newTitle = (template.id === '2') ? `Evolución médica (${formatDateDMY(getReportDate())}) - Hospital Hanga Roa` : template.title;
+        let newTitle = template.title;
+        if (template.id === '2') {
+            const reportDate = formatDateDMY(getReportDate());
+            const baseTitle = reportDate ? `Evolución médica (${reportDate})` : 'Evolución médica (____)';
+            newTitle = buildInstitutionTitle(baseTitle);
+        }
         markRecordAsReplaced();
         setRecord(r => ({ ...r, title: newTitle }));
     }, [record.templateId, getReportDate]);
+
+    useEffect(() => {
+        document.title = appDisplayName;
+    }, []);
     
     useEffect(() => {
         if (!isEditing) return;
@@ -1146,8 +1156,12 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                             className={`sheet ${isEditing ? 'edit-mode' : ''}`}
                             style={{ '--sheet-zoom': sheetZoom } as React.CSSProperties}
                         >
-                            <img id="logoLeft" src="https://iili.io/FEirDCl.png" className="absolute top-2 left-2 w-12 h-auto opacity-60 print:block" alt="Logo Left"/>
-                            <img id="logoRight" src="https://iili.io/FEirQjf.png" className="absolute top-2 right-2 w-12 h-auto opacity-60 print:block" alt="Logo Right"/>
+                            {logoUrls.left && (
+                                <img id="logoLeft" src={logoUrls.left} className="absolute top-2 left-2 w-12 h-auto opacity-60 print:block" alt="Logo Left"/>
+                            )}
+                            {logoUrls.right && (
+                                <img id="logoRight" src={logoUrls.right} className="absolute top-2 right-2 w-12 h-auto opacity-60 print:block" alt="Logo Right"/>
+                            )}
                             <div id="editPanel" className={`edit-panel ${isEditing ? 'visible' : 'hidden'}`}>
                                 <div>Edición</div>
                                 <button onClick={handleAddSection} className="btn" type="button">Agregar sección</button>
