@@ -1,11 +1,14 @@
 import React, { useEffect } from 'react';
 import CartolaMedicamentosApp from '../Cartolamedicamentos-main/App';
+import type { Medication, Patient } from '../Cartolamedicamentos-main/types';
 
 interface CartolaMedicamentosViewProps {
     onBack: () => void;
+    initialPatient?: Patient;
+    initialMedications?: Medication[];
 }
 
-const CartolaMedicamentosView: React.FC<CartolaMedicamentosViewProps> = ({ onBack }) => {
+const CartolaMedicamentosView: React.FC<CartolaMedicamentosViewProps> = ({ onBack, initialPatient, initialMedications }) => {
     useEffect(() => {
         const previousTitle = document.title;
         document.title = 'Cartola de Medicamentos';
@@ -72,7 +75,7 @@ const CartolaMedicamentosView: React.FC<CartolaMedicamentosViewProps> = ({ onBac
             </div>
 
             <div className="cartola-app-body">
-                <CartolaMedicamentosApp />
+                <CartolaMedicamentosApp initialPatient={initialPatient} initialMedications={initialMedications} />
             </div>
 
             <style>{`

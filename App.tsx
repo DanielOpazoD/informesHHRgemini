@@ -16,6 +16,7 @@ import { validateCriticalFields, formatTimeSince } from './utils/validationUtils
 import { useToast, type ToastState } from './hooks/useToast';
 import { useClinicalRecord } from './hooks/useClinicalRecord';
 import { useConfirmDialog } from './hooks/useConfirmDialog';
+import { generateGeminiContent } from './utils/geminiClient';
 import { getEnvGeminiApiKey, getEnvGeminiProjectId, getEnvGeminiModel, normalizeGeminiModelId } from './utils/env';
 import { htmlToPlainText } from './utils/textUtils';
 import { appDisplayName, buildInstitutionTitle, logoUrls } from './institutionConfig';
@@ -31,6 +32,13 @@ import HistoryModal from './components/modals/HistoryModal';
 import CartolaMedicamentosView from './components/CartolaMedicamentosView';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DriveProvider, useDrive } from './contexts/DriveContext';
+import {
+    DosageForm,
+    Frequency,
+    MedicationCategory,
+    type Medication as CartolaMedication,
+    type Patient as CartolaPatient,
+} from './Cartolamedicamentos-main/types';
 
 declare global {
     interface Window {
@@ -42,12 +50,102 @@ declare global {
 const DEFAULT_TEMPLATE_ID = '2';
 const RECOMMENDED_GEMINI_MODEL = 'gemini-1.5-flash-latest';
 
+interface AiMedicationRow {
+    name?: string;
+    farmaco?: string;
+    fármaco?: string;
+    presentacion?: string;
+    presentación?: string;
+    dosis?: string;
+    dose?: string;
+    frecuencia?: string;
+    frequency?: string;
+    via?: string;
+    vía?: string;
+    observaciones?: string;
+    notes?: string;
+}
+
+const parseAiMedicationPayload = (rawText: string): { tableHtml: string; medications: AiMedicationRow[] } => {
+    const cleaned = rawText.trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+        const jsonText = jsonMatch[0]
+            .replace(/^```json\s*/i, '')
+            .replace(/```$/i, '');
+        try {
+            const parsed = JSON.parse(jsonText);
+            const tableHtml = parsed.tableHtml || parsed.table || parsed.html || '';
+            const medications = Array.isArray(parsed.medications) ? parsed.medications : [];
+            if (tableHtml) {
+                return { tableHtml, medications };
+            }
+        } catch (error) {
+            console.warn('No se pudo parsear la respuesta estructurada de IA', error);
+        }
+    }
+    return { tableHtml: cleaned, medications: [] };
+};
+
+const normalizeFrequency = (raw?: string): Frequency => {
+    if (!raw) return Frequency.EVERY_24H;
+    const text = raw.toLowerCase();
+    if (text.includes('12')) return Frequency.EVERY_12H;
+    if (text.includes('8')) return Frequency.EVERY_8H;
+    if (text.includes('noche')) return Frequency.EVERY_24H_NIGHT;
+    if (text.includes('mañana')) return Frequency.MORNING;
+    if (text.includes('tarde')) return Frequency.AFTERNOON;
+    return Frequency.EVERY_24H;
+};
+
+const mapAiRowToCartolaMedication = (row: AiMedicationRow, order: number): CartolaMedication => {
+    const name = row.name || row.farmaco || row.fármaco || 'Fármaco sin nombre';
+    const presentation = row.presentacion || row.presentación || row.dosis || row.dose || '—';
+    const frequency = normalizeFrequency(row.frecuencia || row.frequency || '');
+    const notes = row.observaciones || row.notes || row.via || row.vía || '';
+
+    return {
+        id: Date.now() + order,
+        name,
+        presentacion: presentation,
+        dose: presentation,
+        frequency,
+        dosageForm: DosageForm.NONE,
+        otherDosageForm: '',
+        notes,
+        isNewMedication: false,
+        doseIncreased: false,
+        doseDecreased: false,
+        requiresPurchase: false,
+        category: MedicationCategory.OTHER,
+        order,
+    };
+};
+
+const extractPatientForCartola = (record: ClinicalRecord): CartolaPatient => {
+    const today = new Date().toISOString().split('T')[0];
+    const patientName = record.patientFields.find(f => f.id === 'nombre')?.value?.trim() || 'Paciente sin nombre';
+    const patientRut = record.patientFields.find(f => f.id === 'rut')?.value?.trim() || '';
+    const reportDate =
+        record.patientFields.find(f => f.id === 'finf')?.value?.trim() ||
+        record.patientFields.find(f => f.id === 'fing')?.value?.trim() ||
+        today;
+    return { name: patientName, rut: patientRut, date: reportDate };
+};
+
 interface AppShellProps {
     toast: ToastState | null;
     showToast: (message: string, type?: 'success' | 'warning' | 'error') => void;
     clientId: string;
     setClientId: React.Dispatch<React.SetStateAction<string>>;
     onOpenCartola: () => void;
+    onSyncCartolaData: (data: CartolaTransferData) => void;
+}
+
+interface CartolaTransferData {
+    patient: CartolaPatient;
+    medications: CartolaMedication[];
+    importedAt: number;
 }
 
 const createTemplateBaseline = (templateId: string): ClinicalRecord => {
@@ -69,12 +167,13 @@ const ENV_GEMINI_PROJECT_ID = getEnvGeminiProjectId();
 const ENV_GEMINI_MODEL = getEnvGeminiModel();
 const INITIAL_GEMINI_MODEL = ENV_GEMINI_MODEL || RECOMMENDED_GEMINI_MODEL;
 
-const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClientId, onOpenCartola }) => {
+const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClientId, onOpenCartola, onSyncCartolaData }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAdvancedEditing, setIsAdvancedEditing] = useState(false);
     const [isAiAssistantVisible, setIsAiAssistantVisible] = useState(false);
     const [sheetZoom, setSheetZoom] = useState(1);
     const [aiPanelWidth, setAiPanelWidth] = useState(420);
+    const [isGeneratingMedicationTable, setIsGeneratingMedicationTable] = useState(false);
     const lastSelectionRef = useRef<Range | null>(null);
     const lastEditableRef = useRef<HTMLElement | null>(null);
     const auth = useAuth();
@@ -262,6 +361,92 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
         return !aiModel || aiModel === RECOMMENDED_GEMINI_MODEL;
     }, [aiModel]);
     const resolvedAiModel = useMemo(() => aiModel || INITIAL_GEMINI_MODEL, [aiModel]);
+
+    const handleGenerateMedicationTable = useCallback(async () => {
+        if (isGeneratingMedicationTable) return;
+        if (!resolvedAiApiKey) {
+            showToast('Configura la API de Gemini en Ajustes para usar esta herramienta.', 'error');
+            return;
+        }
+
+        const planSectionIndex = record.sections.findIndex(section => section.title?.trim().toLowerCase().startsWith('plan'));
+        if (planSectionIndex === -1) {
+            showToast('No se encontró la sección "Plan" en la planilla actual.', 'error');
+            return;
+        }
+
+        const planPlainText = htmlToPlainText(record.sections[planSectionIndex].content || '').trim();
+        if (!planPlainText) {
+            showToast('La sección de Plan no tiene texto para analizar.', 'warning');
+            return;
+        }
+
+        setIsGeneratingMedicationTable(true);
+        try {
+            const systemPrompt = 'Eres un asistente clínico que extrae fármacos de indicaciones médicas sin inventar datos.';
+        const userPrompt = [
+            'A partir del siguiente texto de la sección Plan, identifica cada fármaco indicado y completa una tabla.',
+            'Devuelve exclusivamente un objeto JSON con dos claves:',
+            '{',
+            '  "tableHtml": "<table class=\"medication-table\">...</table>",',
+            '  "medications": [ { "name": "", "presentacion": "", "frecuencia": "", "via": "", "observaciones": "" } ]',
+            '}',
+            'Cada fila debe incluir: Fármaco, Presentación/Dosis, Frecuencia, Vía y Observaciones. Si falta un dato, usa el carácter —.',
+            'No incluyas explicaciones ni texto adicional.',
+            '',
+            `Plan:\n${planPlainText}`,
+        ].join('\n');
+
+            const response = await generateGeminiContent({
+                apiKey: resolvedAiApiKey,
+                projectId: resolvedAiProjectId,
+                model: resolvedAiModel,
+                maxRetries: 1,
+                contents: [
+                    { role: 'user', parts: [{ text: systemPrompt }] },
+                    { role: 'user', parts: [{ text: userPrompt }] },
+                ],
+            });
+
+            const candidate = (response as any).candidates?.[0];
+            const parsed = parseAiMedicationPayload(candidate?.content?.parts?.[0]?.text || '');
+            const tableHtml = parsed.tableHtml?.trim();
+            if (!tableHtml) throw new Error('Sin respuesta de la IA');
+
+            setRecord(current => {
+                const nextSections = [...current.sections];
+                const currentPlan = nextSections[planSectionIndex];
+                const currentContent = currentPlan?.content || '';
+                const separator = currentContent.trim() ? '<br/><br/>' : '';
+                nextSections[planSectionIndex] = {
+                    ...currentPlan,
+                    content: `${currentContent}${separator}<div class="medication-table-block"><div class="medication-table-title">Tabla de fármacos</div>${tableHtml}</div>`,
+                };
+                return { ...current, sections: nextSections };
+            });
+
+            const patientForCartola = extractPatientForCartola(record);
+            const medicationsForCartola = parsed.medications.map(mapAiRowToCartolaMedication);
+            onSyncCartolaData({ patient: patientForCartola, medications: medicationsForCartola, importedAt: Date.now() });
+
+            showToast('Tabla de fármacos generada con IA.', 'success');
+        } catch (error) {
+            console.error(error);
+            showToast('No se pudo generar la tabla de fármacos con IA.', 'error');
+        } finally {
+            setIsGeneratingMedicationTable(false);
+        }
+    }, [
+        isGeneratingMedicationTable,
+        record.sections,
+        record.patientFields,
+        resolvedAiApiKey,
+        resolvedAiModel,
+        resolvedAiProjectId,
+        onSyncCartolaData,
+        setRecord,
+        showToast,
+    ]);
     const fullRecordContext = useMemo(() => {
         const patientLines = record.patientFields
             .map(field => {
@@ -1036,6 +1221,8 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                 onToggleAdvancedEditing={() => setIsAdvancedEditing(prev => !prev)}
                 isAiAssistantVisible={isAiAssistantVisible}
                 onToggleAiAssistant={() => setIsAiAssistantVisible(prev => !prev)}
+                onGenerateMedicationTable={handleGenerateMedicationTable}
+                isMedicationTableLoading={isGeneratingMedicationTable}
                 onToolbarCommand={handleToolbarCommand}
                 isSignedIn={isSignedIn}
                 isGisReady={isGisReady}
@@ -1224,10 +1411,17 @@ type ActiveApp = 'clinical' | 'cartola';
 const App: React.FC = () => {
     const [clientId, setClientId] = useState('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
     const [activeApp, setActiveApp] = useState<ActiveApp>('clinical');
+    const [cartolaData, setCartolaData] = useState<CartolaTransferData | null>(null);
     const { toast, showToast } = useToast();
 
     if (activeApp === 'cartola') {
-        return <CartolaMedicamentosView onBack={() => setActiveApp('clinical')} />;
+        return (
+            <CartolaMedicamentosView
+                onBack={() => setActiveApp('clinical')}
+                initialPatient={cartolaData?.patient}
+                initialMedications={cartolaData?.medications}
+            />
+        );
     }
 
     return (
@@ -1239,6 +1433,7 @@ const App: React.FC = () => {
                     clientId={clientId}
                     setClientId={setClientId}
                     onOpenCartola={() => setActiveApp('cartola')}
+                    onSyncCartolaData={setCartolaData}
                 />
             </DriveProvider>
         </AuthProvider>

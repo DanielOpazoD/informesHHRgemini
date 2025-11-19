@@ -1361,6 +1361,10 @@
       margin-bottom: 8px;
     }
 
+    .patient-default-grid .patient-field-row-default[data-field-id="nombre"] .patient-field-input .inp {
+      min-width: 240px;
+    }
+
     .patient-field-row-default {
       display: grid;
       grid-template-columns: auto 1fr;
@@ -1440,6 +1444,46 @@
 
     .patient-field-row-default .patient-field-input .row-del {
       flex-shrink: 0;
+    }
+
+    .medication-table-block {
+      margin-top: 8px;
+    }
+
+    .medication-table-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #1f2937;
+    }
+
+    .medication-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .medication-table th,
+    .medication-table td {
+      border: 1px solid #e2e8f0;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .medication-table th {
+      background: #f8fafc;
+      font-weight: 700;
+    }
+
+    body[data-theme='dark'] .medication-table th {
+      background: rgba(148, 163, 184, 0.12);
+      color: #e2e8f0;
+      border-color: rgba(148, 163, 184, 0.35);
+    }
+
+    body[data-theme='dark'] .medication-table td {
+      border-color: rgba(148, 163, 184, 0.35);
+      color: #e2e8f0;
     }
 
     .edit-panel {

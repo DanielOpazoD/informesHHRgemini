@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Patient, Medication, Injectable, ControlInfo, ExamOptions, Inhaler, DosageForm, MedicationCategory, Frequency, InjectableSchedule } from './types';
 import PatientInfoForm from './components/PatientInfoForm';
 import MedicationForm from './components/MedicationForm';
@@ -212,7 +212,12 @@ const testPatientData: { patient: Patient; medications: Medication[]; injectable
     ],
 };
 
-const App: React.FC = () => {
+interface CartolaAppProps {
+    initialPatient?: Patient;
+    initialMedications?: Medication[];
+}
+
+const App: React.FC<CartolaAppProps> = ({ initialPatient, initialMedications }) => {
     const today = new Date().toISOString().split('T')[0];
     const [patient, setPatient] = useState<Patient>({ name: '', rut: '', date: today });
     const [medications, setMedications] = useState<Medication[]>([]);
@@ -232,6 +237,15 @@ const App: React.FC = () => {
 
     const previewRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (initialPatient) {
+            setPatient(prev => ({ ...prev, ...initialPatient, date: initialPatient.date || prev.date }));
+        }
+        if (initialMedications) {
+            setMedications(normalizeMedications(initialMedications.map(med => ({ ...med }))));
+        }
+    }, [initialMedications, initialPatient]);
 
     const getExportBaseName = useCallback(() => {
         const sanitizeComponent = (value: string, fallback: string) => {
