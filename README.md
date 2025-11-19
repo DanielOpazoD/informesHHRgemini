@@ -19,6 +19,18 @@ View your app in AI Studio: https://ai.studio/apps/drive/1gRaJgpJCj1Y4n8qkayhtci
 3. Run the app:
    `npm run dev`
 
+### Personalizar la identidad visual
+
+Puedes reutilizar esta aplicación en distintos establecimientos de salud sin editar el código fuente. Define cualquiera de las siguientes variables en `.env.local` (todas son opcionales) y vuelve a construir la app:
+
+| Variable | Uso |
+| --- | --- |
+| `VITE_APP_NAME` | Nombre corto de la aplicación que se mostrará en la pestaña del navegador. |
+| `VITE_INSTITUTION_NAME` | Nombre del hospital, clínica o institución para completar automáticamente los títulos de los informes. |
+| `VITE_LOGO_LEFT_URL` / `VITE_LOGO_RIGHT_URL` | URLs de los logos que aparecerán en las esquinas del informe listo para impresión. |
+
+Si no defines ninguna variable seguiremos usando los valores predeterminados (Registro Clínico, Hospital Hanga Roa y los logos incluidos originalmente).
+
 ## Asistente de IA en el editor
 
 El modo de edición avanzada ahora incluye un asistente de IA que puede mejorar, resumir o expandir el contenido de cada sección clínica. Para activarlo tienes dos opciones:
