@@ -35,6 +35,7 @@ interface HeaderProps {
     hasUnsavedChanges: boolean;
     onOpenHistory: () => void;
     onRestoreTemplate: () => void;
+    onOpenCartolaApp: () => void;
 }
 
 const GridIcon = () => (
@@ -247,7 +248,8 @@ const Header: React.FC<HeaderProps> = ({
     lastSaveTime,
     hasUnsavedChanges,
     onOpenHistory,
-    onRestoreTemplate
+    onRestoreTemplate,
+    onOpenCartolaApp
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isLauncherOpen, setIsLauncherOpen] = useState(false);
@@ -387,6 +389,17 @@ const Header: React.FC<HeaderProps> = ({
                         {isLauncherOpen && (
                             <div className="app-launcher-dropdown" role="menu">
                                 <div className="app-launcher-grid">
+                                    <button
+                                        type="button"
+                                        className="app-tile"
+                                        onClick={() => {
+                                            onOpenCartolaApp();
+                                            setIsLauncherOpen(false);
+                                        }}
+                                    >
+                                        <FileGroupIcon />
+                                        <span>Cartola de medicamentos</span>
+                                    </button>
                                     <button type="button" className="app-tile" onClick={() => setIsLauncherOpen(false)}>
                                         <BloodTestIcon />
                                         <span>Análisis de Sangre</span>
@@ -395,9 +408,6 @@ const Header: React.FC<HeaderProps> = ({
                                         <GlucoseIcon />
                                         <span>Registro Glicemia</span>
                                     </button>
-                                    <div className="app-tile disabled">
-                                        <span>Próximamente…</span>
-                                    </div>
                                 </div>
                             </div>
                         )}
