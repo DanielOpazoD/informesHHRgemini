@@ -1,4 +1,4 @@
-import { getAlternateGeminiVersion, resolveGeminiRouting } from './geminiModelUtils';
+import { getAlternateGeminiVersion, resolveGeminiRouting, stripModelPrefix } from './geminiModelUtils';
 import type { GeminiApiVersion } from './geminiModelUtils';
 
 const GEMINI_ENDPOINTS = {
@@ -8,6 +8,21 @@ const GEMINI_ENDPOINTS = {
 const RETRYABLE_STATUS = new Set([429, 500, 503]);
 
 const routingCache = new Map<string, GeminiApiVersion>();
+
+interface GeminiListModelsResponse {
+    models?: Array<{
+        name?: string;
+        displayName?: string;
+        supportedGenerationMethods?: string[];
+    }>;
+}
+
+interface GeminiModelSummary {
+    id: string;
+    version: GeminiApiVersion;
+    displayName?: string;
+    supportsGenerateContent: boolean;
+}
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -61,6 +76,77 @@ const buildRequestHeaders = (projectId?: string): Record<string, string> => {
         headers['X-Goog-User-Project'] = projectId;
     }
     return headers;
+};
+
+const parseModelListResponse = (version: GeminiApiVersion, response: GeminiListModelsResponse): GeminiModelSummary[] => {
+    if (!response.models || !Array.isArray(response.models)) {
+        return [];
+    }
+
+    return response.models
+        .map(entry => {
+            const id = stripModelPrefix(entry.name || '');
+            const summary: GeminiModelSummary = {
+                id,
+                version,
+                displayName: entry.displayName,
+                supportsGenerateContent: Boolean(
+                    entry.supportedGenerationMethods?.includes('generateContent'),
+                ),
+            };
+            return summary;
+        })
+        .filter(model => Boolean(model.id));
+};
+
+const listAccessibleGeminiModels = async ({
+    apiKey,
+    projectId,
+    versions,
+}: {
+    apiKey: string;
+    projectId?: string;
+    versions: GeminiApiVersion[];
+}): Promise<GeminiModelSummary[]> => {
+    const headers = buildRequestHeaders(projectId);
+    const summaries: GeminiModelSummary[] = [];
+    for (const version of versions) {
+        try {
+            const response = await fetch(`${GEMINI_ENDPOINTS[version]}?key=${apiKey}&pageSize=200`, {
+                method: 'GET',
+                headers,
+            });
+            if (!response.ok) continue;
+            const data = (await response.json().catch(() => ({}))) as GeminiListModelsResponse;
+            summaries.push(...parseModelListResponse(version, data));
+        } catch {
+            // Ignorar errores de listado; solo usamos esta llamada para ofrecer sugerencias.
+        }
+    }
+
+    const unique = new Map<string, GeminiModelSummary>();
+    for (const model of summaries) {
+        const key = `${model.id.toLowerCase()}::${model.version}`;
+        if (!unique.has(key)) {
+            unique.set(key, model);
+        }
+    }
+    return Array.from(unique.values()).filter(model => model.supportsGenerateContent);
+};
+
+const formatAvailableModelsMessage = (models: GeminiModelSummary[]): string => {
+    if (!models.length) {
+        return '';
+    }
+
+    const sorted = [...models].sort((a, b) => a.id.localeCompare(b.id));
+    const bullets = sorted.map(model => {
+        const versionTag = model.version === 'v1beta' ? '@v1beta' : '@v1';
+        const label = model.displayName ? `${model.displayName} – ${model.id}` : model.id;
+        return `• ${label}${versionTag ? ` (${versionTag})` : ''}`;
+    });
+
+    return ['Modelos disponibles con tu clave:', ...bullets].join('\n');
 };
 
 const isVersionMismatchError = (error?: GeminiApiError['error']): boolean => {
@@ -120,6 +206,7 @@ const discoverGeminiVersion = async ({
 }): Promise<GeminiApiVersion> => {
     const tried = new Set<GeminiApiVersion>();
     const ordered: GeminiApiVersion[] = [preferredVersion, getAlternateGeminiVersion(preferredVersion)];
+    const attemptedErrors: Array<{ version: GeminiApiVersion; message?: string; status: number }> = [];
     for (const version of ordered) {
         if (tried.has(version)) continue;
         tried.add(version);
@@ -133,6 +220,8 @@ const discoverGeminiVersion = async ({
         }
 
         if (response.status === 404) {
+            const data = (await response.json().catch(() => ({}))) as GeminiApiError;
+            attemptedErrors.push({ version, message: data?.error?.message, status: response.status });
             continue;
         }
 
@@ -150,10 +239,22 @@ const discoverGeminiVersion = async ({
         throw new Error(message);
     }
 
-    throw new Error(
+    const availableModels = await listAccessibleGeminiModels({ apiKey, projectId, versions: ordered }).catch(() => []);
+    const availabilityMessage = formatAvailableModelsMessage(availableModels);
+
+    const attemptedMessage = attemptedErrors
+        .map(error => `• ${error.version}: ${error.message || 'respuesta 404 del endpoint'}`)
+        .join('\n');
+
+    const baseMessage =
         `El modelo "${modelId}" no está disponible en tu cuenta o en las versiones públicas de la API. ` +
-            'Configura otro modelo en Configuración → IA o solicita acceso en Google AI Studio.',
-    );
+        'Configura otro modelo en Configuración → IA o solicita acceso en Google AI Studio.';
+
+    const details = [availabilityMessage, attemptedMessage ? `Intentos realizados:\n${attemptedMessage}` : '']
+        .filter(Boolean)
+        .join('\n\n');
+
+    throw new Error(details ? `${baseMessage}\n\n${details}` : baseMessage);
 };
 
 const ensureGeminiRouting = async ({
