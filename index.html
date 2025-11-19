@@ -1409,11 +1409,20 @@
       grid-template-columns: 1fr;
       justify-items: start;
       row-gap: 4px;
+      align-items: start;
     }
 
     .patient-field-row-default[data-field-id="fecnac"] .patient-field-input,
     .patient-field-row-default[data-field-id="fing"] .patient-field-input,
     .patient-field-row-default[data-field-id="finf"] .patient-field-input {
+      width: 100%;
+    }
+
+    .patient-field-row-default[data-field-id="fecnac"] .lbl,
+    .patient-field-row-default[data-field-id="fing"] .lbl,
+    .patient-field-row-default[data-field-id="finf"] .lbl {
+      align-self: start;
+      text-align: left;
       width: 100%;
     }
 
