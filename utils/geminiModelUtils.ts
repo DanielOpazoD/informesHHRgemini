@@ -1,10 +1,14 @@
 export type GeminiApiVersion = 'v1' | 'v1beta';
 
+export const RECOMMENDED_GEMINI_MODEL = 'gemini-flash-latest';
+
 const VERSION_SUFFIX_RE = /@(?:(v1|v1beta))$/i;
 const BETA_KEYWORDS = ['1.5', 'flash', 'ultra', 'beta', 'experimental'];
 const MODEL_ALIASES: Record<string, string> = {
     'gemini-1.5-flash': 'gemini-1.5-flash-latest',
     'gemini-1.5-pro': 'gemini-1.5-pro-latest',
+    'gemini-flash': RECOMMENDED_GEMINI_MODEL,
+    'gemini-pro': 'gemini-pro-latest',
 };
 
 export const stripModelPrefix = (value: string): string => value.replace(/^models\//i, '').trim();

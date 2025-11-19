@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { generateGeminiContent } from '../utils/geminiClient';
 import { normalizeGeminiModelId } from '../utils/env';
+import { RECOMMENDED_GEMINI_MODEL } from '../utils/geminiModelUtils';
 
 interface AIAssistantProps {
     sectionContent: string;
@@ -30,7 +31,7 @@ const ACTION_CONFIG: Record<AiAction, { label: string; prompt: string }> = {
     },
 };
 
-const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash-latest';
+const DEFAULT_GEMINI_MODEL = RECOMMENDED_GEMINI_MODEL;
 const MAX_GEMINI_RETRIES = 2;
 
 const htmlToPlainText = (html: string): string => {
@@ -90,7 +91,7 @@ const normalizeApiError = (message: string, model: string): string => {
 
     if (normalized.includes('not found') || normalized.includes('not be found') || normalized.includes('not supported')) {
         return withTechnicalDetails(
-            `El modelo "${model}" no está habilitado en tu cuenta. Abre Configuración → IA para elegir un modelo distinto (p. ej., gemini-1.5-flash-latest) o agrega @v1/@v1beta para forzar la versión indicada por Google AI Studio.`,
+            `El modelo "${model}" no está habilitado en tu cuenta. Abre Configuración → IA para elegir un modelo distinto (p. ej., ${RECOMMENDED_GEMINI_MODEL}) o agrega @v1/@v1beta para forzar la versión indicada por Google AI Studio.`,
             message,
         );
     }

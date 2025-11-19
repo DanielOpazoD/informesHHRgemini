@@ -20,6 +20,7 @@ import { useClinicalRecord } from './hooks/useClinicalRecord';
 import { useConfirmDialog } from './hooks/useConfirmDialog';
 import { MAX_RECENT_FILES, SEARCH_CACHE_TTL, DRIVE_CONTENT_FETCH_CONCURRENCY, LOCAL_STORAGE_KEYS } from './appConstants';
 import { getEnvGeminiApiKey, getEnvGeminiProjectId, getEnvGeminiModel, normalizeGeminiModelId } from './utils/env';
+import { RECOMMENDED_GEMINI_MODEL } from './utils/geminiModelUtils';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -264,7 +265,10 @@ const App: React.FC = () => {
 
     const resolvedAiApiKey = useMemo(() => aiApiKey || ENV_GEMINI_API_KEY, [aiApiKey]);
     const resolvedAiProjectId = useMemo(() => aiProjectId || ENV_GEMINI_PROJECT_ID, [aiProjectId]);
-    const resolvedAiModel = useMemo(() => aiModel || ENV_GEMINI_MODEL || 'gemini-1.5-flash-latest', [aiModel]);
+    const resolvedAiModel = useMemo(
+        () => aiModel || ENV_GEMINI_MODEL || RECOMMENDED_GEMINI_MODEL,
+        [aiModel],
+    );
 
     useEffect(() => {
         if (scriptLoadRef.current) return;
