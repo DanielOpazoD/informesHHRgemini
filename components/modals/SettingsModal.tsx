@@ -44,8 +44,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay">
-            <div className="modal-content">
+        <div className="modal-overlay" onClick={onClose}>
+            <div
+                className="modal-content settings-modal"
+                onClick={event => event.stopPropagation()}
+            >
                 <div className="modal-header">
                     <div className="modal-title">⚙️ Configuración de Google API</div>
                     <button onClick={onClose} className="modal-close">&times;</button>
