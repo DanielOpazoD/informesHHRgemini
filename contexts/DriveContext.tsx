@@ -6,6 +6,7 @@ import type {
     RecentDriveFile,
 } from '../types';
 import { MAX_RECENT_FILES, SEARCH_CACHE_TTL, DRIVE_CONTENT_FETCH_CONCURRENCY, LOCAL_STORAGE_KEYS } from '../appConstants';
+import { normalizeClinicalRecord } from '../utils/patientFieldUtils';
 
 type ToastFn = (message: string, type?: 'success' | 'warning' | 'error') => void;
 
@@ -402,7 +403,7 @@ export const DriveProvider: React.FC<DriveProviderProps> = ({ children, showToas
             if (importedRecord.version && importedRecord.patientFields && importedRecord.sections) {
                 showToast('Archivo cargado exitosamente desde Google Drive.');
                 addRecentFile(file);
-                return importedRecord as ClinicalRecord;
+                return normalizeClinicalRecord(importedRecord as ClinicalRecord);
             }
             showToast('El archivo JSON seleccionado de Drive no es válido.', 'error');
             return null;
