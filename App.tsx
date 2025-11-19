@@ -20,6 +20,7 @@ import { useClinicalRecord } from './hooks/useClinicalRecord';
 import { useConfirmDialog } from './hooks/useConfirmDialog';
 import { MAX_RECENT_FILES, SEARCH_CACHE_TTL, DRIVE_CONTENT_FETCH_CONCURRENCY, LOCAL_STORAGE_KEYS } from './appConstants';
 import { getEnvGeminiApiKey, getEnvGeminiProjectId, getEnvGeminiModel, normalizeGeminiModelId } from './utils/env';
+import { serializeRecordToPlainText } from './utils/recordUtils';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -1379,6 +1380,8 @@ const App: React.FC = () => {
         return () => window.removeEventListener('keydown', handleShortcut);
     }, [handleManualSave, handlePrint, restoreAll]);
 
+    const fullRecordPlainText = useMemo(() => serializeRecordToPlainText(record), [record]);
+
     return (
         <>
             <Header
@@ -1544,6 +1547,7 @@ const App: React.FC = () => {
                             aiModel={resolvedAiModel}
                             allowAiModelAutoSelection={allowAiAutoSelection}
                             onAutoSelectAiModel={handleAutoSelectAiModel}
+                            fullRecordContent={fullRecordPlainText}
                             onSectionContentChange={handleSectionContentChange}
                             onSectionTitleChange={handleSectionTitleChange}
                             onRemoveSection={handleRemoveSection}
