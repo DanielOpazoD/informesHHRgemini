@@ -19,13 +19,13 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
 }) => {
     const isLabelEditable = (fieldId?: string) => isEditing || fieldId === 'rut';
 
-    const compactFields = new Set(['fecnac', 'fing', 'finf']);
+    const compactFields = new Set<string>();
     const defaultFieldLayout: Record<string, React.CSSProperties> = {
         nombre: { gridColumn: 'span 7' },
         rut: { gridColumn: 'span 3' },
         edad: { gridColumn: 'span 2' },
-        fecnac: { gridColumn: 'span 5' },
-        fing: { gridColumn: 'span 3' },
+        fecnac: { gridColumn: 'span 4' },
+        fing: { gridColumn: 'span 4' },
         finf: { gridColumn: 'span 4' },
     };
 
