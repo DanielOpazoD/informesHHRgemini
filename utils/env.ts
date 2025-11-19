@@ -1,6 +1,10 @@
-import { stripModelPrefix } from './geminiModelUtils';
+import { applyGeminiModelAlias, splitModelIdAndVersion } from './geminiModelUtils';
 
-export const normalizeGeminiModelId = (value: string): string => stripModelPrefix(value);
+export const normalizeGeminiModelId = (value: string): string => {
+    const { modelId, versionHint } = splitModelIdAndVersion(value);
+    const normalizedModel = applyGeminiModelAlias(modelId);
+    return versionHint ? `${normalizedModel}@${versionHint}` : normalizedModel;
+};
 
 export const getEnvGeminiApiKey = (): string => {
     const metaEnv = typeof import.meta !== 'undefined' ? (import.meta as { env?: Record<string, string> }).env ?? {} : {};
