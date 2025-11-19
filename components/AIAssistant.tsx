@@ -90,7 +90,7 @@ const normalizeApiError = (message: string, model: string): string => {
 
     if (normalized.includes('not found') || normalized.includes('not be found') || normalized.includes('not supported')) {
         return withTechnicalDetails(
-            `El modelo "${model}" no está disponible en tu cuenta o en esta versión de la API. Ajusta el modelo en Configuración → IA y, si es necesario, fuerza la versión agregando @v1 o @v1beta (ej.: gemini-1.5-flash@v1beta).`,
+            `El modelo "${model}" no está habilitado en tu cuenta. Abre Configuración → IA para elegir un modelo distinto (p. ej., gemini-1.5-flash) o agrega @v1/@v1beta para forzar la versión indicada por Google AI Studio.`,
             message,
         );
     }

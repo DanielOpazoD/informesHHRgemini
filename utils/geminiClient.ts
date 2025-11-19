@@ -7,6 +7,8 @@ const GEMINI_ENDPOINTS = {
 } as const;
 const RETRYABLE_STATUS = new Set([429, 500, 503]);
 
+const routingCache = new Map<string, GeminiApiVersion>();
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export interface GeminiGenerateRequest {
@@ -33,6 +35,33 @@ interface GeminiApiError {
         status?: string;
     };
 }
+
+interface EnsureRoutingArgs {
+    apiKey: string;
+    modelId: string;
+    preferredVersion: GeminiApiVersion;
+    projectId?: string;
+    explicitVersion?: GeminiApiVersion;
+    skipCache?: boolean;
+}
+
+interface RoutingResolution {
+    modelId: string;
+    apiVersion: GeminiApiVersion;
+    cacheKey: string | null;
+    explicitVersion?: GeminiApiVersion;
+}
+
+const buildRoutingCacheKey = (modelId: string, projectId?: string) =>
+    `${projectId?.toLowerCase() || 'default'}::${modelId.toLowerCase()}`;
+
+const buildRequestHeaders = (projectId?: string): Record<string, string> => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (projectId) {
+        headers['X-Goog-User-Project'] = projectId;
+    }
+    return headers;
+};
 
 const isVersionMismatchError = (error?: GeminiApiError['error']): boolean => {
     if (!error) return false;
@@ -78,6 +107,103 @@ const shouldSwitchGeminiVersion = (
     return normalizedStatus === 'not_found';
 };
 
+const discoverGeminiVersion = async ({
+    apiKey,
+    modelId,
+    preferredVersion,
+    projectId,
+}: {
+    apiKey: string;
+    modelId: string;
+    preferredVersion: GeminiApiVersion;
+    projectId?: string;
+}): Promise<GeminiApiVersion> => {
+    const tried = new Set<GeminiApiVersion>();
+    const ordered: GeminiApiVersion[] = [preferredVersion, getAlternateGeminiVersion(preferredVersion)];
+    for (const version of ordered) {
+        if (tried.has(version)) continue;
+        tried.add(version);
+        const endpointBase = GEMINI_ENDPOINTS[version];
+        const response = await fetch(`${endpointBase}/${modelId}?key=${apiKey}`, {
+            method: 'GET',
+            headers: buildRequestHeaders(projectId),
+        });
+        if (response.ok) {
+            return version;
+        }
+
+        if (response.status === 404) {
+            continue;
+        }
+
+        const data = (await response.json().catch(() => ({}))) as GeminiApiError;
+        if (response.status === 401) {
+            throw new Error('La API key de Gemini no es válida o fue revocada.');
+        }
+        if (response.status === 403) {
+            throw new Error(
+                'La cuenta asociada a la API key no tiene permisos para este modelo. Verifica los accesos en Google AI Studio.',
+            );
+        }
+
+        const message = data?.error?.message || 'No se pudo verificar la disponibilidad del modelo seleccionado.';
+        throw new Error(message);
+    }
+
+    throw new Error(
+        `El modelo "${modelId}" no está disponible en tu cuenta o en las versiones públicas de la API. ` +
+            'Configura otro modelo en Configuración → IA o solicita acceso en Google AI Studio.',
+    );
+};
+
+const ensureGeminiRouting = async ({
+    apiKey,
+    modelId,
+    preferredVersion,
+    projectId,
+    explicitVersion,
+    skipCache,
+}: EnsureRoutingArgs): Promise<RoutingResolution> => {
+    if (explicitVersion) {
+        return { modelId, apiVersion: explicitVersion, cacheKey: null, explicitVersion };
+    }
+
+    const cacheKey = buildRoutingCacheKey(modelId, projectId);
+    if (!skipCache && routingCache.has(cacheKey)) {
+        return { modelId, apiVersion: routingCache.get(cacheKey)!, cacheKey };
+    }
+
+    const apiVersion = await discoverGeminiVersion({ apiKey, modelId, preferredVersion, projectId });
+    routingCache.set(cacheKey, apiVersion);
+    return { modelId, apiVersion, cacheKey };
+};
+
+export const probeGeminiModelVersion = async ({
+    apiKey,
+    model,
+    projectId,
+}: {
+    apiKey: string;
+    model: string;
+    projectId?: string;
+}): Promise<{ modelId: string; apiVersion: GeminiApiVersion }> => {
+    const { modelId, apiVersion, explicitVersion } = resolveGeminiRouting(model);
+    if (!apiKey) {
+        throw new Error('Falta la clave de API de Gemini.');
+    }
+
+    const routing = await ensureGeminiRouting({
+        apiKey,
+        modelId,
+        preferredVersion: apiVersion,
+        projectId: projectId?.trim(),
+        explicitVersion,
+        skipCache: true,
+    });
+
+    return { modelId: routing.modelId, apiVersion: routing.apiVersion };
+};
+
 export const generateGeminiContent = async <T = unknown>({
     apiKey,
     model,
@@ -86,28 +212,29 @@ export const generateGeminiContent = async <T = unknown>({
     projectId,
 }: GeminiGenerateRequest): Promise<T> => {
     if (!apiKey) {
-        throw new Error('Missing Gemini API key');
+        throw new Error('Falta la clave de API de Gemini.');
     }
 
+    const trimmedProject = projectId?.trim();
+    const { modelId, apiVersion: preferredVersion, explicitVersion } = resolveGeminiRouting(model);
+    let routing = await ensureGeminiRouting({
+        apiKey,
+        modelId,
+        preferredVersion,
+        projectId: trimmedProject,
+        explicitVersion,
+    });
+
     const payload = JSON.stringify({ contents });
+    const headers = buildRequestHeaders(trimmedProject);
+
     let attempt = 0;
-    const { modelId, apiVersion } = resolveGeminiRouting(model);
-    let forcedVersion: GeminiApiVersion | undefined;
-    let hasTriedAlternateVersion = false;
+    let hasRefreshedRouting = false;
 
     while (attempt <= maxRetries) {
-        const headers: Record<string, string> = {
-            'Content-Type': 'application/json',
-        };
-
-        const trimmedProject = projectId?.trim();
-        if (trimmedProject) {
-            headers['X-Goog-User-Project'] = trimmedProject;
-        }
-
-        const versionToUse = forcedVersion || apiVersion;
+        const versionToUse = routing.apiVersion;
         const endpointBase = GEMINI_ENDPOINTS[versionToUse];
-        const response = await fetch(`${endpointBase}/${modelId}:generateContent?key=${apiKey}`, {
+        const response = await fetch(`${endpointBase}/${routing.modelId}:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers,
             body: payload,
@@ -120,11 +247,20 @@ export const generateGeminiContent = async <T = unknown>({
         const data = (await response.json().catch(() => ({}))) as GeminiApiError;
         const message = data?.error?.message || 'La API devolvió un error desconocido.';
 
-        const switchVersion = shouldSwitchGeminiVersion(response.status, data?.error, hasTriedAlternateVersion);
+        const shouldRetryRouting =
+            !explicitVersion &&
+            shouldSwitchGeminiVersion(response.status, data?.error, hasRefreshedRouting);
 
-        if (switchVersion) {
-            forcedVersion = getAlternateGeminiVersion(versionToUse);
-            hasTriedAlternateVersion = true;
+        if (shouldRetryRouting) {
+            hasRefreshedRouting = true;
+            const alternatePreference = getAlternateGeminiVersion(versionToUse);
+            routing = await ensureGeminiRouting({
+                apiKey,
+                modelId,
+                preferredVersion: alternatePreference,
+                projectId: trimmedProject,
+                skipCache: true,
+            });
             continue;
         }
 
@@ -142,4 +278,3 @@ export const generateGeminiContent = async <T = unknown>({
 
     throw new Error('No se pudo completar la solicitud después de varios intentos.');
 };
-

@@ -26,13 +26,15 @@ export const inferDefaultGeminiVersion = (modelId: string): GeminiApiVersion => 
     return 'v1';
 };
 
-export const resolveGeminiRouting = (rawModel: string): { modelId: string; apiVersion: GeminiApiVersion } => {
+export const resolveGeminiRouting = (
+    rawModel: string,
+): { modelId: string; apiVersion: GeminiApiVersion; explicitVersion?: GeminiApiVersion } => {
     const { modelId, versionHint } = splitModelIdAndVersion(rawModel);
     if (!modelId) {
-        return { modelId: rawModel, apiVersion: versionHint || 'v1' };
+        return { modelId: rawModel, apiVersion: versionHint || 'v1', explicitVersion: versionHint };
     }
     const apiVersion = versionHint || inferDefaultGeminiVersion(modelId);
-    return { modelId, apiVersion };
+    return { modelId, apiVersion, explicitVersion: versionHint };
 };
 
 export const getAlternateGeminiVersion = (version: GeminiApiVersion): GeminiApiVersion =>
