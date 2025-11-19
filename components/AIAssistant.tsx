@@ -30,7 +30,7 @@ const ACTION_CONFIG: Record<AiAction, { label: string; prompt: string }> = {
     },
 };
 
-const DEFAULT_GEMINI_MODEL = 'gemini-pro';
+const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
 const MAX_GEMINI_RETRIES = 2;
 
 const htmlToPlainText = (html: string): string => {

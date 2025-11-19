@@ -2,7 +2,7 @@ import { resolveGeminiRouting } from './utils/geminiModelUtils';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY;
 const GEMINI_PROJECT_ID = process.env.GEMINI_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.PROJECT_NUMBER;
-const rawModel = process.env.GEMINI_MODEL || process.env.VITE_GEMINI_MODEL || 'gemini-pro';
+const rawModel = process.env.GEMINI_MODEL || process.env.VITE_GEMINI_MODEL || 'gemini-1.5-flash';
 const { modelId: GEMINI_MODEL, apiVersion } = resolveGeminiRouting(rawModel);
 
 if (!GEMINI_API_KEY) {

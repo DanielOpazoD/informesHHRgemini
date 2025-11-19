@@ -264,7 +264,7 @@ const App: React.FC = () => {
 
     const resolvedAiApiKey = useMemo(() => aiApiKey || ENV_GEMINI_API_KEY, [aiApiKey]);
     const resolvedAiProjectId = useMemo(() => aiProjectId || ENV_GEMINI_PROJECT_ID, [aiProjectId]);
-    const resolvedAiModel = useMemo(() => aiModel || ENV_GEMINI_MODEL || 'gemini-pro', [aiModel]);
+    const resolvedAiModel = useMemo(() => aiModel || ENV_GEMINI_MODEL || 'gemini-1.5-flash', [aiModel]);
 
     useEffect(() => {
         if (scriptLoadRef.current) return;
