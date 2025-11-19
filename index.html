@@ -196,26 +196,35 @@
       gap: 12px;
       min-width: 0;
       flex-wrap: nowrap;
+      overflow: visible;
+    }
+
+    .topbar-left-scroll {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex-wrap: nowrap;
       overflow-x: auto;
       padding-bottom: 2px;
       scrollbar-width: thin;
       scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
     }
 
-    .topbar-left::-webkit-scrollbar {
+    .topbar-left-scroll::-webkit-scrollbar {
       height: 4px;
     }
 
-    .topbar-left::-webkit-scrollbar-thumb {
+    .topbar-left-scroll::-webkit-scrollbar-thumb {
       background: rgba(148, 163, 184, 0.6);
       border-radius: 999px;
     }
 
-    .topbar-left::-webkit-scrollbar-track {
+    .topbar-left-scroll::-webkit-scrollbar-track {
       background: transparent;
     }
 
-    .topbar-left .editor-toolbar {
+    .topbar-left-scroll .editor-toolbar {
       margin-left: 4px;
       flex: 0 0 auto;
     }
@@ -2524,7 +2533,7 @@
       .grid-2 { grid-template-columns: 1fr; }
       .row { grid-template-columns: 100px 1fr auto; }
       .topbar-left { justify-content: flex-start; }
-      .topbar-left .editor-toolbar {
+      .topbar-left-scroll .editor-toolbar {
         order: initial;
         width: auto;
         justify-content: flex-start;

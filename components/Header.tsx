@@ -402,114 +402,116 @@ const Header: React.FC<HeaderProps> = ({
                             </div>
                         )}
                     </div>
-                    <div className="topbar-group topbar-group-templates">
-                        <select
-                            style={{ flex: '0 1 220px', minWidth: '160px', maxWidth: '240px' }}
-                            value={templateId}
-                            onChange={e => onTemplateChange(e.target.value)}
-                        >
-                            {Object.values(TEMPLATES).map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
-                        </select>
+                    <div className="topbar-left-scroll">
+                        <div className="topbar-group topbar-group-templates">
+                            <select
+                                style={{ flex: '0 1 220px', minWidth: '160px', maxWidth: '240px' }}
+                                value={templateId}
+                                onChange={e => onTemplateChange(e.target.value)}
+                            >
+                                {Object.values(TEMPLATES).map(t => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                className="template-update-btn"
+                                onClick={onAddClinicalUpdateSection}
+                                title="Agregar actualización clínica"
+                            >
+                                <CalendarPlusIcon />
+                                <span>Act. clínica</span>
+                            </button>
+                        </div>
+                        <div className={`save-status ${statusState}`}>
+                            <span className="status-dot" data-state={statusState} />
+                            <div>
+                                <div className="status-label">{saveStatusLabel}</div>
+                                {!hasUnsavedChanges && lastSaveTime && <div className="status-meta">Último guardado: {lastSaveTime}</div>}
+                            </div>
+                        </div>
                         <button
                             type="button"
-                            className="template-update-btn"
-                            onClick={onAddClinicalUpdateSection}
-                            title="Agregar actualización clínica"
+                            className={`ai-launch-btn ${isAiAssistantVisible ? 'is-active' : ''}`}
+                            onClick={onToggleAiAssistant}
+                            aria-pressed={isAiAssistantVisible}
+                            aria-label={isAiAssistantVisible ? 'Ocultar asistente clínico' : 'Abrir asistente clínico'}
+                            title={isAiAssistantVisible ? 'Ocultar asistente clínico' : 'Abrir asistente clínico'}
                         >
-                            <CalendarPlusIcon />
-                            <span>Act. clínica</span>
+                            <span className="ai-launch-icon" aria-hidden="true">🤖</span>
+                            <span className="ai-launch-label">IA</span>
                         </button>
+                        {isAdvancedEditing && (
+                            <div className="editor-toolbar" role="toolbar" aria-label="Herramientas de edición avanzada">
+                                <button
+                                    type="button"
+                                    onMouseDown={preventToolbarMouseDown}
+                                    onClick={() => onToolbarCommand('bold')}
+                                    aria-label="Aplicar negrita"
+                                    title="Negrita"
+                                >
+                                    <span className="toolbar-icon">B</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onMouseDown={preventToolbarMouseDown}
+                                    onClick={() => onToolbarCommand('italic')}
+                                    aria-label="Aplicar cursiva"
+                                    title="Cursiva"
+                                >
+                                    <span className="toolbar-icon toolbar-italic">I</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onMouseDown={preventToolbarMouseDown}
+                                    onClick={() => onToolbarCommand('underline')}
+                                    aria-label="Aplicar subrayado"
+                                    title="Subrayado"
+                                >
+                                    <span className="toolbar-icon toolbar-underline">S</span>
+                                </button>
+                                <span className="toolbar-divider" aria-hidden="true" />
+                                <button
+                                    type="button"
+                                    onMouseDown={preventToolbarMouseDown}
+                                    onClick={() => onToolbarCommand('outdent')}
+                                    aria-label="Reducir sangría"
+                                    title="Reducir sangría"
+                                >
+                                    <span className="toolbar-icon">⇤</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onMouseDown={preventToolbarMouseDown}
+                                    onClick={() => onToolbarCommand('indent')}
+                                    aria-label="Aumentar sangría"
+                                    title="Aumentar sangría"
+                                >
+                                    <span className="toolbar-icon">⇥</span>
+                                </button>
+                                <span className="toolbar-divider" aria-hidden="true" />
+                                <button
+                                    type="button"
+                                    onMouseDown={preventToolbarMouseDown}
+                                    onClick={() => onToolbarCommand('zoom-out')}
+                                    aria-label="Alejar (zoom)"
+                                    title="Alejar (zoom)"
+                                >
+                                    <span className="toolbar-icon">−</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onMouseDown={preventToolbarMouseDown}
+                                    onClick={() => onToolbarCommand('zoom-in')}
+                                    aria-label="Acercar (zoom)"
+                                    title="Acercar (zoom)"
+                                >
+                                    <span className="toolbar-icon">+</span>
+                                </button>
+                                <span className="toolbar-divider" aria-hidden="true" />
+                            </div>
+                        )}
                     </div>
-                    <div className={`save-status ${statusState}`}>
-                        <span className="status-dot" data-state={statusState} />
-                        <div>
-                            <div className="status-label">{saveStatusLabel}</div>
-                            {!hasUnsavedChanges && lastSaveTime && <div className="status-meta">Último guardado: {lastSaveTime}</div>}
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        className={`ai-launch-btn ${isAiAssistantVisible ? 'is-active' : ''}`}
-                        onClick={onToggleAiAssistant}
-                        aria-pressed={isAiAssistantVisible}
-                        aria-label={isAiAssistantVisible ? 'Ocultar asistente clínico' : 'Abrir asistente clínico'}
-                        title={isAiAssistantVisible ? 'Ocultar asistente clínico' : 'Abrir asistente clínico'}
-                    >
-                        <span className="ai-launch-icon" aria-hidden="true">🤖</span>
-                        <span className="ai-launch-label">IA</span>
-                    </button>
-                    {isAdvancedEditing && (
-                        <div className="editor-toolbar" role="toolbar" aria-label="Herramientas de edición avanzada">
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => onToolbarCommand('bold')}
-                                aria-label="Aplicar negrita"
-                                title="Negrita"
-                            >
-                                <span className="toolbar-icon">B</span>
-                            </button>
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => onToolbarCommand('italic')}
-                                aria-label="Aplicar cursiva"
-                                title="Cursiva"
-                            >
-                                <span className="toolbar-icon toolbar-italic">I</span>
-                            </button>
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => onToolbarCommand('underline')}
-                                aria-label="Aplicar subrayado"
-                                title="Subrayado"
-                            >
-                                <span className="toolbar-icon toolbar-underline">S</span>
-                            </button>
-                            <span className="toolbar-divider" aria-hidden="true" />
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => onToolbarCommand('outdent')}
-                                aria-label="Reducir sangría"
-                                title="Reducir sangría"
-                            >
-                                <span className="toolbar-icon">⇤</span>
-                            </button>
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => onToolbarCommand('indent')}
-                                aria-label="Aumentar sangría"
-                                title="Aumentar sangría"
-                            >
-                                <span className="toolbar-icon">⇥</span>
-                            </button>
-                            <span className="toolbar-divider" aria-hidden="true" />
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => onToolbarCommand('zoom-out')}
-                                aria-label="Alejar (zoom)"
-                                title="Alejar (zoom)"
-                            >
-                                <span className="toolbar-icon">−</span>
-                            </button>
-                            <button
-                                type="button"
-                                onMouseDown={preventToolbarMouseDown}
-                                onClick={() => onToolbarCommand('zoom-in')}
-                                aria-label="Acercar (zoom)"
-                                title="Acercar (zoom)"
-                            >
-                                <span className="toolbar-icon">+</span>
-                            </button>
-                            <span className="toolbar-divider" aria-hidden="true" />
-                        </div>
-                    )}
                 </div>
                 <div className="topbar-actions">
                     <div className={`action-group ${openActionMenu === 'archivo' ? 'open' : ''}`} ref={archivoMenuRef}>
