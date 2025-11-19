@@ -438,7 +438,7 @@ const Header: React.FC<HeaderProps> = ({
                         title={isAiAssistantVisible ? 'Ocultar asistente clínico' : 'Abrir asistente clínico'}
                     >
                         <span className="ai-launch-icon" aria-hidden="true">🤖</span>
-                        <span className="ai-launch-label">Icono IA</span>
+                        <span className="ai-launch-label">IA</span>
                     </button>
                     {isAdvancedEditing && (
                         <div className="editor-toolbar" role="toolbar" aria-label="Herramientas de edición avanzada">
