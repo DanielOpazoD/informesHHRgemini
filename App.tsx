@@ -4,23 +4,19 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import jsPDF from 'jspdf';
 import type {
     ClinicalRecord,
-    GoogleUserProfile,
-    DriveFolder,
-    FavoriteFolderEntry,
-    RecentDriveFile,
     ClinicalSectionData,
 } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
 import { validateCriticalFields, formatTimeSince } from './utils/validationUtils';
-import { decodeIdToken } from './utils/googleAuth';
 import { useToast } from './hooks/useToast';
 import { useClinicalRecord } from './hooks/useClinicalRecord';
 import { useConfirmDialog } from './hooks/useConfirmDialog';
-import { MAX_RECENT_FILES, SEARCH_CACHE_TTL, DRIVE_CONTENT_FETCH_CONCURRENCY, LOCAL_STORAGE_KEYS } from './appConstants';
 import { getEnvGeminiApiKey, getEnvGeminiProjectId, getEnvGeminiModel, normalizeGeminiModelId } from './utils/env';
 import { htmlToPlainText } from './utils/textUtils';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { GoogleDriveProvider, useGoogleDrive } from './contexts/GoogleDriveContext';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -36,12 +32,6 @@ declare global {
         gapi: any;
         google: any;
     }
-}
-
-interface DriveCacheEntry {
-    folders: DriveFolder[];
-    files: DriveFolder[];
-    timestamp: number;
 }
 
 const DEFAULT_TEMPLATE_ID = '2';
@@ -90,35 +80,16 @@ const App: React.FC = () => {
         markRecordAsReplaced,
     } = useClinicalRecord({ onToast: showToast });
     const [nowTick, setNowTick] = useState(Date.now());
-    const [driveSearchTerm, setDriveSearchTerm] = useState('');
-    const [driveDateFrom, setDriveDateFrom] = useState('');
-    const [driveDateTo, setDriveDateTo] = useState('');
-    const [driveContentTerm, setDriveContentTerm] = useState('');
-    const [favoriteFolders, setFavoriteFolders] = useState<FavoriteFolderEntry[]>([]);
-    const [recentFiles, setRecentFiles] = useState<RecentDriveFile[]>([]);
     const importInputRef = useRef<HTMLInputElement>(null);
-    const scriptLoadRef = useRef(false);
-    const driveCacheRef = useRef(new Map<string, DriveCacheEntry>());
 
-    // Google Auth State
-    const [isSignedIn, setIsSignedIn] = useState(false);
-    const [userProfile, setUserProfile] = useState<GoogleUserProfile | null>(null);
-    const [tokenClient, setTokenClient] = useState<any>(null);
-    const [isSaving, setIsSaving] = useState(false);
-    
     // API & Settings State
     const [apiKey, setApiKey] = useState('');
     const [aiApiKey, setAiApiKey] = useState('');
     const [aiProjectId, setAiProjectId] = useState('');
     const [aiModel, setAiModel] = useState(INITIAL_GEMINI_MODEL);
     const [clientId, setClientId] = useState('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
-    const [isGapiReady, setIsGapiReady] = useState(false);
-    const [isGisReady, setIsGisReady] = useState(false);
-    const [isPickerApiReady, setIsPickerApiReady] = useState(false);
 
     // Modals State
-    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-    const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
     // Settings Modal Temp State
@@ -130,16 +101,6 @@ const App: React.FC = () => {
     const [showApiKey, setShowApiKey] = useState(false);
     const [showAiApiKey, setShowAiApiKey] = useState(false);
 
-    // Drive Modals State
-    const [saveFormat, setSaveFormat] = useState<'json' | 'pdf' | 'both'>('json');
-    const [driveFolders, setDriveFolders] = useState<DriveFolder[]>([]);
-    const [driveJsonFiles, setDriveJsonFiles] = useState<DriveFolder[]>([]);
-    const [folderPath, setFolderPath] = useState<DriveFolder[]>([{ id: 'root', name: 'Mi unidad' }]);
-    const [selectedFolderId, setSelectedFolderId] = useState<string>('root');
-    const [newFolderName, setNewFolderName] = useState('');
-    const [fileNameInput, setFileNameInput] = useState('');
-    const [isDriveLoading, setIsDriveLoading] = useState(false);
-    
     const SCOPES = [
         'https://www.googleapis.com/auth/drive',
         'https://www.googleapis.com/auth/userinfo.email',
@@ -198,29 +159,6 @@ const App: React.FC = () => {
         return () => window.clearInterval(timer);
     }, []);
     
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        try {
-            const favoritesRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.favorites);
-            if (favoritesRaw) {
-                const parsedFavorites = JSON.parse(favoritesRaw) as FavoriteFolderEntry[];
-                setFavoriteFolders(parsedFavorites);
-            }
-        } catch (error) {
-            console.warn('No se pudo leer la lista de favoritos de Drive:', error);
-        }
-
-        try {
-            const recentsRaw = localStorage.getItem(LOCAL_STORAGE_KEYS.recent);
-            if (recentsRaw) {
-                const parsedRecents = JSON.parse(recentsRaw) as RecentDriveFile[];
-                setRecentFiles(parsedRecents.slice(0, MAX_RECENT_FILES));
-            }
-        } catch (error) {
-            console.warn('No se pudo leer la lista de documentos recientes:', error);
-        }
-    }, []);
-
     // Load settings from localStorage on initial render
     useEffect(() => {
         const savedApiKey = localStorage.getItem('googleApiKey');
@@ -258,11 +196,6 @@ const App: React.FC = () => {
         if (!lastLocalSave) return '';
         return new Date(lastLocalSave).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
     }, [lastLocalSave]);
-
-    const defaultDriveFileName = useMemo(() => {
-        const patientName = record.patientFields.find(f => f.id === 'nombre')?.value || '';
-        return suggestedFilename(record.templateId, patientName);
-    }, [record.patientFields, record.templateId]);
 
     const resolvedAiApiKey = useMemo(() => aiApiKey || ENV_GEMINI_API_KEY, [aiApiKey]);
     const resolvedAiProjectId = useMemo(() => aiProjectId || ENV_GEMINI_PROJECT_ID, [aiProjectId]);
@@ -543,357 +476,6 @@ const App: React.FC = () => {
         })();
     };
 
-    // --- Drive API & Modals Logic ---
-    const fetchDriveFolders = useCallback(async (folderId: string) => {
-        setIsDriveLoading(true);
-        try {
-            const cacheKey = `folders:${folderId}`;
-            const cached = driveCacheRef.current.get(cacheKey);
-            if (cached) {
-                setDriveFolders(cached.folders);
-                setSelectedFolderId(folderId);
-                return;
-            }
-            const response = await window.gapi.client.drive.files.list({
-                q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-                fields: 'files(id, name, mimeType, modifiedTime)',
-                orderBy: 'name',
-            });
-            const folders = (response.result.files || []).map((file: any) => ({
-                id: file.id,
-                name: file.name,
-                mimeType: file.mimeType,
-                modifiedTime: file.modifiedTime,
-            }));
-            driveCacheRef.current.set(cacheKey, { folders, files: [], timestamp: Date.now() });
-            setDriveFolders(folders);
-            setSelectedFolderId(folderId);
-        } catch (error) {
-            console.error("Error fetching folders:", error);
-            showToast('No se pudieron cargar las carpetas de Drive.', 'error');
-        } finally {
-            setIsDriveLoading(false);
-        }
-    }, []);
-
-    const fetchFolderContents = useCallback(async (folderId: string) => {
-        setIsDriveLoading(true);
-        try {
-            const cacheKey = `contents:${folderId}`;
-            const cached = driveCacheRef.current.get(cacheKey);
-            if (cached) {
-                setDriveFolders(cached.folders);
-                setDriveJsonFiles(cached.files);
-                setSelectedFolderId(folderId);
-                return;
-            }
-
-            const foldersPromise = window.gapi.client.drive.files.list({
-                q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-                fields: 'files(id, name, mimeType, modifiedTime)',
-                orderBy: 'name',
-            });
-            const filesPromise = window.gapi.client.drive.files.list({
-                q: `'${folderId}' in parents and mimeType='application/json' and trashed=false`,
-                fields: 'files(id, name, mimeType, modifiedTime)',
-                orderBy: 'name',
-            });
-            const [foldersResponse, filesResponse] = await Promise.all([foldersPromise, filesPromise]);
-            const folders = (foldersResponse.result.files || []).map((file: any) => ({
-                id: file.id,
-                name: file.name,
-                mimeType: file.mimeType,
-                modifiedTime: file.modifiedTime,
-            }));
-            const files = (filesResponse.result.files || []).map((file: any) => ({
-                id: file.id,
-                name: file.name,
-                mimeType: file.mimeType,
-                modifiedTime: file.modifiedTime,
-            }));
-            driveCacheRef.current.set(cacheKey, { folders, files, timestamp: Date.now() });
-            setDriveFolders(folders);
-            setDriveJsonFiles(files);
-            setSelectedFolderId(folderId);
-        } catch (error) {
-            console.error("Error fetching folder contents:", error);
-            showToast('No se pudieron cargar los contenidos de la carpeta de Drive.', 'error');
-        } finally {
-            setIsDriveLoading(false);
-        }
-    }, []);
-
-    const handleAddFavoriteFolder = useCallback(() => {
-        const currentFolder = folderPath[folderPath.length - 1];
-        if (!currentFolder) return;
-        setFavoriteFolders(prev => {
-            if (prev.some(fav => fav.id === currentFolder.id)) {
-                showToast('La carpeta ya está marcada como favorita.', 'warning');
-                return prev;
-            }
-            const newEntry: FavoriteFolderEntry = {
-                id: currentFolder.id,
-                name: currentFolder.name,
-                path: JSON.parse(JSON.stringify(folderPath)),
-            };
-            const updated = [...prev, newEntry];
-            if (typeof window !== 'undefined') {
-                window.localStorage.setItem(LOCAL_STORAGE_KEYS.favorites, JSON.stringify(updated));
-            }
-            showToast('Carpeta añadida a favoritos.');
-            return updated;
-        });
-    }, [folderPath, showToast]);
-
-    const handleRemoveFavoriteFolder = useCallback((id: string) => {
-        setFavoriteFolders(prev => {
-            if (!prev.some(fav => fav.id === id)) {
-                showToast('La carpeta ya no está en favoritos.', 'warning');
-                return prev;
-            }
-            const updated = prev.filter(fav => fav.id !== id);
-            if (typeof window !== 'undefined') {
-                window.localStorage.setItem(LOCAL_STORAGE_KEYS.favorites, JSON.stringify(updated));
-            }
-            showToast('Favorito eliminado.', 'warning');
-            return updated;
-        });
-    }, [showToast]);
-
-    const handleGoToFavorite = useCallback((favorite: FavoriteFolderEntry, mode: 'save' | 'open') => {
-        const clonedPath = favorite.path?.length ? JSON.parse(JSON.stringify(favorite.path)) as DriveFolder[] : [{ id: 'root', name: 'Mi unidad' }];
-        setFolderPath(clonedPath);
-        if (mode === 'save') {
-            fetchDriveFolders(favorite.id);
-        } else {
-            fetchFolderContents(favorite.id);
-        }
-    }, [fetchDriveFolders, fetchFolderContents]);
-
-    const handleSearchInDrive = useCallback(async () => {
-        if (!driveSearchTerm && !driveDateFrom && !driveDateTo && !driveContentTerm) {
-            showToast('Ingrese algún criterio de búsqueda.', 'warning');
-            return;
-        }
-        setIsDriveLoading(true);
-        try {
-            const searchTerm = driveSearchTerm.trim();
-            const contentTerm = driveContentTerm.trim();
-            const cacheKey = `search:${searchTerm.toLowerCase()}|${driveDateFrom}|${driveDateTo}|${contentTerm.toLowerCase()}`;
-            const cached = driveCacheRef.current.get(cacheKey);
-            if (cached && Date.now() - cached.timestamp < SEARCH_CACHE_TTL) {
-                setDriveFolders([]);
-                setDriveJsonFiles(cached.files);
-                setFolderPath([{ id: 'search', name: 'Resultados de búsqueda' }]);
-                showToast(`Se encontraron ${cached.files.length} archivo(s).`);
-                return;
-            }
-
-            const qParts = ["mimeType='application/json'", 'trashed=false'];
-            if (searchTerm) {
-                const sanitized = searchTerm.replace(/'/g, "\\'");
-                qParts.push(`name contains '${sanitized}'`);
-            }
-            if (driveDateFrom) {
-                qParts.push(`modifiedTime >= '${driveDateFrom}T00:00:00'`);
-            }
-            if (driveDateTo) {
-                qParts.push(`modifiedTime <= '${driveDateTo}T23:59:59'`);
-            }
-            const response = await window.gapi.client.drive.files.list({
-                q: qParts.join(' and '),
-                fields: 'files(id, name, mimeType, modifiedTime)',
-                orderBy: 'modifiedTime desc',
-            });
-            let files = (response.result.files || []).map((file: any) => ({
-                id: file.id,
-                name: file.name,
-                mimeType: file.mimeType,
-                modifiedTime: file.modifiedTime,
-            }));
-
-            if (contentTerm && files.length) {
-                const term = contentTerm.toLowerCase();
-                const filtered: DriveFolder[] = [];
-                const queue = [...files];
-                const workerCount = Math.min(DRIVE_CONTENT_FETCH_CONCURRENCY, queue.length) || 1;
-                const workers = Array.from({ length: workerCount }, () => (async () => {
-                    while (queue.length) {
-                        const nextFile = queue.shift();
-                        if (!nextFile) {
-                            return;
-                        }
-                        try {
-                            const fileResponse = await window.gapi.client.drive.files.get({
-                                fileId: nextFile.id,
-                                alt: 'media',
-                            });
-                            const body = fileResponse?.body;
-                            const content = typeof body === 'string' ? body : body ? JSON.stringify(body) : '';
-                            if (content && content.toLowerCase().includes(term)) {
-                                filtered.push(nextFile);
-                            }
-                        } catch (error) {
-                            console.warn('No se pudo analizar el archivo para la búsqueda de contenido:', nextFile.name, error);
-                        }
-                    }
-                })());
-                await Promise.all(workers);
-                files = filtered;
-            }
-
-            setDriveFolders([]);
-            setDriveJsonFiles(files);
-            setFolderPath([{ id: 'search', name: 'Resultados de búsqueda' }]);
-            driveCacheRef.current.set(cacheKey, { folders: [], files, timestamp: Date.now() });
-            showToast(`Se encontraron ${files.length} archivo(s).`);
-        } catch (error) {
-            console.error('Error al buscar en Drive:', error);
-            showToast('No se pudo completar la búsqueda en Drive.', 'error');
-        } finally {
-            setIsDriveLoading(false);
-        }
-    }, [driveSearchTerm, driveDateFrom, driveDateTo, driveContentTerm, showToast]);
-
-    const clearDriveSearch = useCallback(() => {
-        setDriveSearchTerm('');
-        setDriveDateFrom('');
-        setDriveDateTo('');
-        setDriveContentTerm('');
-        setFolderPath([{ id: 'root', name: 'Mi unidad' }]);
-        fetchFolderContents('root');
-    }, [fetchFolderContents]);
-
-    const addRecentFile = useCallback((file: DriveFolder) => {
-        setRecentFiles(prev => {
-            const filtered = prev.filter(entry => entry.id !== file.id);
-            const updated: RecentDriveFile[] = [
-                { id: file.id, name: file.name, openedAt: Date.now() },
-                ...filtered,
-            ].slice(0, MAX_RECENT_FILES);
-            if (typeof window !== 'undefined') {
-                window.localStorage.setItem(LOCAL_STORAGE_KEYS.recent, JSON.stringify(updated));
-            }
-            return updated;
-        });
-    }, []);
-
-    const formatDriveDate = useCallback((value?: string) => {
-        if (!value) return 'Sin fecha';
-        try {
-            return new Date(value).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
-        } catch (error) {
-            return value;
-        }
-    }, []);
-
-
-    // --- Save Modal Handlers ---
-    const openSaveModal = () => {
-        if (!isSignedIn) {
-            showToast('Por favor, inicie sesión para guardar en Google Drive.', 'warning');
-            handleSignIn();
-            return;
-        }
-        setFileNameInput(defaultDriveFileName);
-        const savedPath = localStorage.getItem('defaultDriveFolderPath');
-        if (savedPath) {
-            const path = JSON.parse(savedPath) as DriveFolder[];
-            setFolderPath(path);
-            fetchDriveFolders(path[path.length - 1].id);
-        } else {
-            setFolderPath([{ id: 'root', name: 'Mi unidad' }]);
-            fetchDriveFolders('root');
-        }
-        setIsSaveModalOpen(true);
-    };
-
-    const closeSaveModal = () => {
-        setIsSaveModalOpen(false);
-        setFileNameInput('');
-    };
-    const handleSaveFolderClick = (folder: DriveFolder) => {
-        setFolderPath(currentPath => [...currentPath, folder]);
-        fetchDriveFolders(folder.id);
-    };
-    const handleSaveBreadcrumbClick = (folderId: string, index: number) => {
-        setFolderPath(currentPath => currentPath.slice(0, index + 1));
-        fetchDriveFolders(folderId);
-    };
-
-    const handleCreateFolder = async () => {
-        if (!newFolderName.trim()) {
-            showToast('Por favor, ingrese un nombre para la nueva carpeta.', 'warning');
-            return;
-        }
-        setIsDriveLoading(true);
-        try {
-            const currentFolderId = folderPath[folderPath.length - 1].id;
-            await window.gapi.client.drive.files.create({
-                resource: {
-                    name: newFolderName.trim(),
-                    mimeType: 'application/vnd.google-apps.folder',
-                    parents: [currentFolderId]
-                }
-            });
-            setNewFolderName('');
-            driveCacheRef.current.delete(`folders:${currentFolderId}`);
-            driveCacheRef.current.delete(`contents:${currentFolderId}`);
-            fetchDriveFolders(currentFolderId);
-            showToast('Carpeta creada correctamente.');
-        } catch (error) {
-            console.error("Error creating folder:", error);
-            showToast('No se pudo crear la carpeta.', 'error');
-        } finally {
-            setIsDriveLoading(false);
-        }
-    };
-
-    const handleSetDefaultFolder = () => {
-        localStorage.setItem('defaultDriveFolderId', selectedFolderId);
-        localStorage.setItem('defaultDriveFolderPath', JSON.stringify(folderPath));
-        showToast(`'${folderPath[folderPath.length - 1].name}' guardada como predeterminada.`);
-    };
-    
-    // --- Open Modal Handlers (Simple Picker) ---
-    const handleOpenModalFolderClick = (folder: DriveFolder) => {
-        setFolderPath(currentPath => [...currentPath, folder]);
-        fetchFolderContents(folder.id);
-    };
-
-    const handleOpenModalBreadcrumbClick = (folderId: string, index: number) => {
-        setFolderPath(currentPath => currentPath.slice(0, index + 1));
-        if (folderId === 'search') return;
-        fetchFolderContents(folderId);
-    };
-
-    const handleFileOpen = async (file: DriveFolder) => {
-        setIsDriveLoading(true);
-        try {
-            const response = await window.gapi.client.drive.files.get({
-                fileId: file.id,
-                alt: 'media',
-            });
-            const importedRecord = JSON.parse(response.body);
-            if (importedRecord.version && importedRecord.patientFields && importedRecord.sections) {
-                markRecordAsReplaced();
-                setRecord(importedRecord);
-                setHasUnsavedChanges(false);
-                saveDraft('import');
-                addRecentFile(file);
-                showToast('Archivo cargado exitosamente desde Google Drive.');
-                setIsOpenModalOpen(false);
-            } else {
-                showToast('El archivo JSON seleccionado de Drive no es válido.', 'error');
-            }
-        } catch (error) {
-            console.error('Error al abrir el archivo desde Drive:', error);
-            showToast('Hubo un error al leer el archivo desde Google Drive.', 'error');
-        } finally {
-            setIsDriveLoading(false);
-        }
-    };
-
     // --- PDF & File Operations ---
     const generatePdfAsBlob = async (): Promise<Blob> => {
         const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
@@ -1056,111 +638,6 @@ const App: React.FC = () => {
         return pdf.output('blob');
     };
 
-    const handlePickerCallback = async (data: any) => {
-        if (data.action === window.google.picker.Action.PICKED) {
-            const doc = data.docs[0];
-            handleFileOpen({ id: doc.id, name: doc.name || 'Archivo sin nombre' });
-        }
-    };
-    
-    const handleOpenFromDrive = () => {
-        const accessToken = window.gapi.client.getToken()?.access_token;
-        if (!accessToken) {
-            showToast('Por favor, inicie sesión para continuar.', 'warning');
-            handleSignIn();
-            return;
-        }
-        
-        if (!apiKey) {
-            setIsOpenModalOpen(true);
-            const savedPath = localStorage.getItem('defaultDriveFolderPath');
-            if (savedPath) {
-                const path = JSON.parse(savedPath) as DriveFolder[];
-                setFolderPath(path);
-                fetchFolderContents(path[path.length - 1].id);
-            } else {
-                setFolderPath([{ id: 'root', name: 'Mi unidad' }]);
-                fetchFolderContents('root');
-            }
-            return;
-        }
-
-        if (!isPickerApiReady || !window.google?.picker) {
-            showToast('La API de Google Picker no está lista. Por favor, espere un momento e intente de nuevo.', 'warning');
-            return;
-        }
-        
-        try {
-            const view = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS).setMimeTypes('application/json');
-            const picker = new window.google.picker.PickerBuilder()
-                .addView(view)
-                .setOAuthToken(accessToken)
-                .setDeveloperKey(apiKey)
-                .setCallback(handlePickerCallback)
-                .build();
-            picker.setVisible(true);
-        } catch (error) {
-            console.error("Picker failed to initialize, falling back to simple picker.", error);
-            setIsOpenModalOpen(true);
-            fetchFolderContents('root');
-        }
-    };
-
-    const handleFinalSave = async () => {
-        const errors = validateCriticalFields(record);
-        if (errors.length) {
-            showToast(`No se puede guardar porque:\n- ${errors.join('\n- ')}`, 'error');
-            return;
-        }
-        const defaultBaseName = defaultDriveFileName || 'Registro Clínico';
-        const sanitizedInput = fileNameInput.trim().replace(/\.(json|pdf)$/gi, '');
-        const baseFileName = sanitizedInput || defaultBaseName;
-        setIsSaving(true);
-        const saveFile = async (format: 'json' | 'pdf'): Promise<string> => {
-            const extension = format === 'pdf' ? '.pdf' : '.json';
-            const fileName = `${baseFileName}${extension}`;
-            const mimeType = format === 'pdf' ? 'application/pdf' : 'application/json';
-
-            const fileContent = format === 'pdf'
-                ? await generatePdfAsBlob()
-                : new Blob([JSON.stringify(record, null, 2)], { type: mimeType });
-
-            const metadata = { name: fileName, parents: [selectedFolderId] };
-            const form = new FormData();
-            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-            form.append('file', fileContent);
-
-            const accessToken = window.gapi.client.getToken()?.access_token;
-            if (!accessToken) throw new Error("No hay token de acceso. Por favor, inicie sesión de nuevo.");
-
-            const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${accessToken}` },
-                body: form
-            });
-            
-            const result = await response.json();
-            if (!response.ok) throw new Error(result?.error?.message || `Error del servidor: ${response.status}`);
-            return fileName;
-        };
-
-        try {
-            if (saveFormat === 'json' || saveFormat === 'pdf') {
-                const fileName = await saveFile(saveFormat);
-                showToast(`Archivo "${fileName}" guardado en Google Drive exitosamente.`);
-            } else {
-                const [jsonFileName, pdfFileName] = await Promise.all([saveFile('json'), saveFile('pdf')]);
-                showToast(`Archivos "${jsonFileName}" y "${pdfFileName}" guardados en Google Drive exitosamente.`);
-            }
-            closeSaveModal();
-        } catch (error: any) {
-            console.error('Error saving to Drive:', error);
-            showToast(`Error al guardar en Google Drive: ${error.message || String(error)}`, 'error');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-    
     // --- App State & Form Handlers ---
     const getReportDate = useCallback(() => {
         return record.patientFields.find(f => f.id === 'finf')?.value || '';
@@ -1457,194 +934,269 @@ const App: React.FC = () => {
         return () => window.removeEventListener('keydown', handleShortcut);
     }, [handleManualSave, handlePrint, restoreAll]);
 
-    return (
-        <>
-            <Header
-                templateId={record.templateId}
-                onTemplateChange={handleTemplateChange}
-                onAddClinicalUpdateSection={handleAddClinicalUpdateSection}
-                onPrint={handlePrint}
-                isEditing={isEditing}
-                onToggleEdit={() => setIsEditing(!isEditing)}
-                isAdvancedEditing={isAdvancedEditing}
-                onToggleAdvancedEditing={() => setIsAdvancedEditing(prev => !prev)}
-                isAiAssistantVisible={isAiAssistantVisible}
-                onToggleAiAssistant={() => setIsAiAssistantVisible(prev => !prev)}
-                onToolbarCommand={handleToolbarCommand}
-                isSignedIn={isSignedIn}
-                isGisReady={isGisReady}
-                isGapiReady={isGapiReady}
-                isPickerApiReady={isPickerApiReady}
-                tokenClient={tokenClient}
-                userProfile={userProfile}
-                isSaving={isSaving}
-                onSaveToDrive={openSaveModal}
-                onSignOut={handleSignOut}
-                onSignIn={handleSignIn}
-                onChangeUser={handleChangeUser}
-                onOpenFromDrive={handleOpenFromDrive}
-                onOpenSettings={openSettingsModal}
-                onDownloadJson={handleDownloadJson}
-                hasApiKey={!!apiKey}
-                onQuickSave={handleManualSave}
-                saveStatusLabel={saveStatusLabel}
-                lastSaveTime={lastSaveTime}
-                hasUnsavedChanges={hasUnsavedChanges}
-                onOpenHistory={() => setIsHistoryModalOpen(true)}
-                onRestoreTemplate={restoreAll}
-            />
-            
-            {/* --- Modals --- */}
-            <SettingsModal
-                isOpen={isSettingsModalOpen}
-                tempApiKey={tempApiKey}
-                tempClientId={tempClientId}
-                tempAiApiKey={tempAiApiKey}
-                tempAiProjectId={tempAiProjectId}
-                tempAiModel={tempAiModel}
-                showApiKey={showApiKey}
-                showAiApiKey={showAiApiKey}
-                onClose={closeSettingsModal}
-                onToggleShowApiKey={() => setShowApiKey(prev => !prev)}
-                onToggleShowAiApiKey={() => setShowAiApiKey(prev => !prev)}
-                onTempApiKeyChange={setTempApiKey}
-                onTempClientIdChange={setTempClientId}
-                onTempAiApiKeyChange={setTempAiApiKey}
-                onTempAiProjectIdChange={setTempAiProjectId}
-                onTempAiModelChange={setTempAiModel}
-                onSave={handleSaveSettings}
-                onClearCredentials={handleClearSettings}
-            />
-            
-            <OpenFromDriveModal
-                isOpen={isOpenModalOpen}
-                isDriveLoading={isDriveLoading}
-                folderPath={folderPath}
-                driveFolders={driveFolders}
-                driveJsonFiles={driveJsonFiles}
-                driveSearchTerm={driveSearchTerm}
-                driveDateFrom={driveDateFrom}
-                driveDateTo={driveDateTo}
-                driveContentTerm={driveContentTerm}
-                favoriteFolders={favoriteFolders}
-                recentFiles={recentFiles}
-                formatDriveDate={formatDriveDate}
-                onClose={() => setIsOpenModalOpen(false)}
-                onSearch={handleSearchInDrive}
-                onClearSearch={clearDriveSearch}
-                onAddFavorite={handleAddFavoriteFolder}
-                onRemoveFavorite={handleRemoveFavoriteFolder}
-                onGoToFavorite={favorite => handleGoToFavorite(favorite, 'open')}
-                onBreadcrumbClick={handleOpenModalBreadcrumbClick}
-                onFolderClick={handleOpenModalFolderClick}
-                onFileOpen={handleFileOpen}
-                onSearchTermChange={setDriveSearchTerm}
-                onDateFromChange={setDriveDateFrom}
-                onDateToChange={setDriveDateTo}
-                onContentTermChange={setDriveContentTerm}
-            />
-            
-            <SaveToDriveModal
-                isOpen={isSaveModalOpen}
-                isDriveLoading={isDriveLoading}
-                isSaving={isSaving}
-                saveFormat={saveFormat}
-                fileNameInput={fileNameInput}
-                defaultDriveFileName={defaultDriveFileName}
-                folderPath={folderPath}
-                driveFolders={driveFolders}
-                favoriteFolders={favoriteFolders}
-                newFolderName={newFolderName}
-                onClose={closeSaveModal}
-                onSave={handleFinalSave}
-                onAddFavorite={handleAddFavoriteFolder}
-                onRemoveFavorite={handleRemoveFavoriteFolder}
-                onGoToFavorite={favorite => handleGoToFavorite(favorite, 'save')}
-                onBreadcrumbClick={handleSaveBreadcrumbClick}
-                onFolderClick={handleSaveFolderClick}
-                onSaveFormatChange={setSaveFormat}
-                onFileNameInputChange={setFileNameInput}
-                onNewFolderNameChange={setNewFolderName}
-                onCreateFolder={handleCreateFolder}
-                onSetDefaultFolder={handleSetDefaultFolder}
-            />
+    const AppContent: React.FC = () => {
+        const {
+            isSignedIn,
+            userProfile,
+            handleSignIn,
+            handleSignOut,
+            handleChangeUser,
+            isGisReady,
+            isGapiReady,
+            isPickerApiReady,
+            tokenClient,
+        } = useAuth();
+        const {
+            isDriveLoading,
+            isSaving,
+            isSaveModalOpen,
+            isOpenModalOpen,
+            driveFolders,
+            driveJsonFiles,
+            folderPath,
+            favoriteFolders,
+            recentFiles,
+            driveSearchTerm,
+            driveDateFrom,
+            driveDateTo,
+            driveContentTerm,
+            saveFormat,
+            fileNameInput,
+            newFolderName,
+            defaultDriveFileName,
+            formatDriveDate,
+            openSaveModal,
+            closeSaveModal,
+            openFromDrive,
+            closeOpenModal,
+            setDriveSearchTerm,
+            setDriveDateFrom,
+            setDriveDateTo,
+            setDriveContentTerm,
+            setSaveFormat,
+            setFileNameInput,
+            setNewFolderName,
+            handleSearchInDrive,
+            clearDriveSearch,
+            handleAddFavoriteFolder,
+            handleRemoveFavoriteFolder,
+            handleGoToFavorite,
+            handleOpenModalFolderClick,
+            handleOpenModalBreadcrumbClick,
+            handleSaveFolderClick,
+            handleSaveBreadcrumbClick,
+            handleCreateFolder,
+            handleSetDefaultFolder,
+            handleFileOpen,
+            handleFinalSave,
+        } = useGoogleDrive();
 
-            <HistoryModal
-                isOpen={isHistoryModalOpen}
-                history={versionHistory}
-                onClose={() => setIsHistoryModalOpen(false)}
-                onRestore={handleRestoreHistoryEntry}
-            />
+        return (
+            <>
+                <Header
+                    templateId={record.templateId}
+                    onTemplateChange={handleTemplateChange}
+                    onAddClinicalUpdateSection={handleAddClinicalUpdateSection}
+                    onPrint={handlePrint}
+                    isEditing={isEditing}
+                    onToggleEdit={() => setIsEditing(!isEditing)}
+                    isAdvancedEditing={isAdvancedEditing}
+                    onToggleAdvancedEditing={() => setIsAdvancedEditing(prev => !prev)}
+                    isAiAssistantVisible={isAiAssistantVisible}
+                    onToggleAiAssistant={() => setIsAiAssistantVisible(prev => !prev)}
+                    onToolbarCommand={handleToolbarCommand}
+                    isSignedIn={isSignedIn}
+                    isGisReady={isGisReady}
+                    isGapiReady={isGapiReady}
+                    isPickerApiReady={isPickerApiReady}
+                    tokenClient={tokenClient}
+                    userProfile={userProfile}
+                    isSaving={isSaving}
+                    onSaveToDrive={openSaveModal}
+                    onSignOut={handleSignOut}
+                    onSignIn={handleSignIn}
+                    onChangeUser={handleChangeUser}
+                    onOpenFromDrive={openFromDrive}
+                    onOpenSettings={openSettingsModal}
+                    onDownloadJson={handleDownloadJson}
+                    hasApiKey={!!apiKey}
+                    onQuickSave={handleManualSave}
+                    saveStatusLabel={saveStatusLabel}
+                    lastSaveTime={lastSaveTime}
+                    hasUnsavedChanges={hasUnsavedChanges}
+                    onOpenHistory={() => setIsHistoryModalOpen(true)}
+                    onRestoreTemplate={restoreAll}
+                />
 
-            {toast && (
-                <div className={`toast toast-${toast.type}`}>
-                    {toast.message}
-                </div>
-            )}
+                {/* --- Modals --- */}
+                <SettingsModal
+                    isOpen={isSettingsModalOpen}
+                    tempApiKey={tempApiKey}
+                    tempClientId={tempClientId}
+                    tempAiApiKey={tempAiApiKey}
+                    tempAiProjectId={tempAiProjectId}
+                    tempAiModel={tempAiModel}
+                    showApiKey={showApiKey}
+                    showAiApiKey={showAiApiKey}
+                    onClose={closeSettingsModal}
+                    onToggleShowApiKey={() => setShowApiKey(prev => !prev)}
+                    onToggleShowAiApiKey={() => setShowAiApiKey(prev => !prev)}
+                    onTempApiKeyChange={setTempApiKey}
+                    onTempClientIdChange={setTempClientId}
+                    onTempAiApiKeyChange={setTempAiApiKey}
+                    onTempAiProjectIdChange={setTempAiProjectId}
+                    onTempAiModelChange={setTempAiModel}
+                    onSave={handleSaveSettings}
+                    onClearCredentials={handleClearSettings}
+                />
 
-            <input ref={importInputRef} id="importJson" type="file" accept="application/json" style={{ display: 'none' }} onChange={handleImportFile} />
+                <OpenFromDriveModal
+                    isOpen={isOpenModalOpen}
+                    isDriveLoading={isDriveLoading}
+                    folderPath={folderPath}
+                    driveFolders={driveFolders}
+                    driveJsonFiles={driveJsonFiles}
+                    driveSearchTerm={driveSearchTerm}
+                    driveDateFrom={driveDateFrom}
+                    driveDateTo={driveDateTo}
+                    driveContentTerm={driveContentTerm}
+                    favoriteFolders={favoriteFolders}
+                    recentFiles={recentFiles}
+                    formatDriveDate={formatDriveDate}
+                    onClose={closeOpenModal}
+                    onSearch={handleSearchInDrive}
+                    onClearSearch={clearDriveSearch}
+                    onAddFavorite={handleAddFavoriteFolder}
+                    onRemoveFavorite={handleRemoveFavoriteFolder}
+                    onGoToFavorite={favorite => handleGoToFavorite(favorite, 'open')}
+                    onBreadcrumbClick={handleOpenModalBreadcrumbClick}
+                    onFolderClick={handleOpenModalFolderClick}
+                    onFileOpen={handleFileOpen}
+                    onSearchTermChange={setDriveSearchTerm}
+                    onDateFromChange={setDriveDateFrom}
+                    onDateToChange={setDriveDateTo}
+                    onContentTermChange={setDriveContentTerm}
+                />
 
-            <div className="wrap">
-                <div className="workspace">
-                    <div className="sheet-shell">
-                        <div
-                            id="sheet"
-                            className={`sheet ${isEditing ? 'edit-mode' : ''}`}
-                            style={{ '--sheet-zoom': sheetZoom } as React.CSSProperties}
-                        >
-                            <img id="logoLeft" src="https://iili.io/FEirDCl.png" className="absolute top-2 left-2 w-12 h-auto opacity-60 print:block" alt="Logo Left"/>
-                            <img id="logoRight" src="https://iili.io/FEirQjf.png" className="absolute top-2 right-2 w-12 h-auto opacity-60 print:block" alt="Logo Right"/>
-                            <div id="editPanel" className={`edit-panel ${isEditing ? 'visible' : 'hidden'}`}>
-                                <div>Edición</div>
-                                <button onClick={handleAddSection} className="btn" type="button">Agregar sección</button>
-                                <button onClick={() => handleRemoveSection(record.sections.length-1)} className="btn" type="button">Eliminar última sección</button>
-                                <hr /><div className="text-xs">Campos del paciente</div>
-                                <button onClick={handleAddPatientField} className="btn" type="button">Agregar campo</button>
-                                <button onClick={() => setRecord(r => ({...r, patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS))}))} className="btn" type="button">Restaurar campos</button>
-                                <hr /><button onClick={restoreAll} className="btn" type="button">Restaurar todo</button>
-                            </div>
-                            <div className="title" contentEditable={isEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>{record.title}</div>
-                            <PatientInfo
-                                isEditing={isEditing}
-                                patientFields={record.patientFields}
-                                onPatientFieldChange={handlePatientFieldChange}
-                                onPatientLabelChange={handlePatientLabelChange}
-                                onRemovePatientField={handleRemovePatientField}
-                            />
-                            <div id="sectionsContainer">{record.sections.map((section, index) => (
-                                <ClinicalSection
-                                    key={index}
-                                    section={section}
-                                    index={index}
-                                    isEditing={isEditing}
-                                    isAdvancedEditing={isAdvancedEditing}
-                                    onSectionContentChange={handleSectionContentChange}
-                                    onSectionTitleChange={handleSectionTitleChange}
-                                    onRemoveSection={handleRemoveSection}
-                                    onUpdateSectionMeta={handleUpdateSectionMeta}
-                                />
-                            ))}</div>
-                            <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
-                        </div>
+                <SaveToDriveModal
+                    isOpen={isSaveModalOpen}
+                    isDriveLoading={isDriveLoading}
+                    isSaving={isSaving}
+                    saveFormat={saveFormat}
+                    fileNameInput={fileNameInput}
+                    defaultDriveFileName={defaultDriveFileName}
+                    folderPath={folderPath}
+                    driveFolders={driveFolders}
+                    favoriteFolders={favoriteFolders}
+                    newFolderName={newFolderName}
+                    onClose={closeSaveModal}
+                    onSave={handleFinalSave}
+                    onAddFavorite={handleAddFavoriteFolder}
+                    onRemoveFavorite={handleRemoveFavoriteFolder}
+                    onGoToFavorite={favorite => handleGoToFavorite(favorite, 'save')}
+                    onBreadcrumbClick={handleSaveBreadcrumbClick}
+                    onFolderClick={handleSaveFolderClick}
+                    onSaveFormatChange={setSaveFormat}
+                    onFileNameInputChange={setFileNameInput}
+                    onNewFolderNameChange={setNewFolderName}
+                    onCreateFolder={handleCreateFolder}
+                    onSetDefaultFolder={handleSetDefaultFolder}
+                />
+
+                <HistoryModal
+                    isOpen={isHistoryModalOpen}
+                    history={versionHistory}
+                    onClose={() => setIsHistoryModalOpen(false)}
+                    onRestore={handleRestoreHistoryEntry}
+                />
+
+                {toast && (
+                    <div className={`toast toast-${toast.type}`}>
+                        {toast.message}
                     </div>
-                    <AIAssistant
-                        sections={aiSections}
-                        apiKey={resolvedAiApiKey}
-                        projectId={resolvedAiProjectId}
-                        model={resolvedAiModel}
-                        allowModelAutoSelection={allowAiAutoSelection}
-                        onAutoModelSelected={handleAutoSelectAiModel}
-                        onApplySuggestion={handleSectionContentChange}
-                        fullRecordContent={fullRecordContext}
-                        isOpen={isAiAssistantVisible}
-                        onClose={() => setIsAiAssistantVisible(false)}
-                        conversationKey={aiConversationKey}
-                        panelWidth={aiPanelWidth}
-                        onPanelWidthChange={setAiPanelWidth}
-                    />
+                )}
+
+                <input ref={importInputRef} id="importJson" type="file" accept="application/json" style={{ display: 'none' }} onChange={handleImportFile} />
+
+                <div className="wrap">
+                    <div className="workspace">
+                        <div className="sheet-shell">
+                            <div
+                                id="sheet"
+                                className={`sheet ${isEditing ? 'edit-mode' : ''}`}
+                                style={{ '--sheet-zoom': sheetZoom } as React.CSSProperties}
+                            >
+                                <img id="logoLeft" src="https://iili.io/FEirDCl.png" className="absolute top-2 left-2 w-12 h-auto opacity-60 print:block" alt="Logo Left"/>
+                                <img id="logoRight" src="https://iili.io/FEirQjf.png" className="absolute top-2 right-2 w-12 h-auto opacity-60 print:block" alt="Logo Right"/>
+                                <div id="editPanel" className={`edit-panel ${isEditing ? 'visible' : 'hidden'}`}>
+                                    <div>Edición</div>
+                                    <button onClick={handleAddSection} className="btn" type="button">Agregar sección</button>
+                                    <button onClick={() => handleRemoveSection(record.sections.length-1)} className="btn" type="button">Eliminar última sección</button>
+                                    <hr /><div className="text-xs">Campos del paciente</div>
+                                    <button onClick={handleAddPatientField} className="btn" type="button">Agregar campo</button>
+                                    <button onClick={() => setRecord(r => ({...r, patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS))}))} className="btn" type="button">Restaurar campos</button>
+                                    <hr /><button onClick={restoreAll} className="btn" type="button">Restaurar todo</button>
+                                </div>
+                                <div className="title" contentEditable={isEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>{record.title}</div>
+                                <PatientInfo
+                                    isEditing={isEditing}
+                                    patientFields={record.patientFields}
+                                    onPatientFieldChange={handlePatientFieldChange}
+                                    onPatientLabelChange={handlePatientLabelChange}
+                                    onRemovePatientField={handleRemovePatientField}
+                                />
+                                <div id="sectionsContainer">{record.sections.map((section, index) => (
+                                    <ClinicalSection
+                                        key={index}
+                                        section={section}
+                                        index={index}
+                                        isEditing={isEditing}
+                                        isAdvancedEditing={isAdvancedEditing}
+                                        onSectionContentChange={handleSectionContentChange}
+                                        onSectionTitleChange={handleSectionTitleChange}
+                                        onRemoveSection={handleRemoveSection}
+                                        onUpdateSectionMeta={handleUpdateSectionMeta}
+                                    />
+                                ))}</div>
+                                <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
+                            </div>
+                        </div>
+                        <AIAssistant
+                            sections={aiSections}
+                            apiKey={resolvedAiApiKey}
+                            projectId={resolvedAiProjectId}
+                            model={resolvedAiModel}
+                            allowModelAutoSelection={allowAiAutoSelection}
+                            onAutoModelSelected={handleAutoSelectAiModel}
+                            onApplySuggestion={handleSectionContentChange}
+                            fullRecordContent={fullRecordContext}
+                            isOpen={isAiAssistantVisible}
+                            onClose={() => setIsAiAssistantVisible(false)}
+                            conversationKey={aiConversationKey}
+                            panelWidth={aiPanelWidth}
+                            onPanelWidthChange={setAiPanelWidth}
+                        />
+                    </div>
                 </div>
-            </div>
-        </>
+            </>
+        );
+    };
+
+    return (
+        <AuthProvider clientId={clientId} scopes={SCOPES} showToast={showToast}>
+            <GoogleDriveProvider
+                record={record}
+                setRecord={setRecord}
+                setHasUnsavedChanges={setHasUnsavedChanges}
+                saveDraft={saveDraft}
+                markRecordAsReplaced={markRecordAsReplaced}
+                showToast={showToast}
+                apiKey={apiKey}
+                generatePdf={generatePdfAsBlob}
+            >
+                <AppContent />
+            </GoogleDriveProvider>
+        </AuthProvider>
     );
 };
 
