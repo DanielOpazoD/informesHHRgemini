@@ -8,6 +8,7 @@ import type {
     FavoriteFolderEntry,
     RecentDriveFile,
     ClinicalSectionData,
+    PatientField,
 } from './types';
 import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
@@ -41,6 +42,23 @@ declare global {
 
 const DEFAULT_TEMPLATE_ID = '2';
 const RECOMMENDED_GEMINI_MODEL = 'gemini-1.5-flash-latest';
+
+const normalizePatientFields = (fields: PatientField[]): PatientField[] => {
+    const defaultOrder = DEFAULT_PATIENT_FIELDS.map(field => field.id);
+    const defaultFields = DEFAULT_PATIENT_FIELDS.map(defaultField => {
+        const importedField = fields.find(
+            field => field.id === defaultField.id || (!field.id && field.label === defaultField.label),
+        );
+        return importedField ? { ...defaultField, ...importedField } : { ...defaultField };
+    });
+    const remainingFields = fields.filter(field => {
+        const fieldId = field.id || '';
+        const matchesDefaultLabel = DEFAULT_PATIENT_FIELDS.some(defaultField => !field.id && field.label === defaultField.label);
+        return !defaultOrder.includes(fieldId) && !matchesDefaultLabel;
+    });
+
+    return [...defaultFields, ...remainingFields];
+};
 
 interface AppShellProps {
     toast: ToastState | null;
@@ -945,10 +963,14 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
             try {
                 const importedRecord = JSON.parse(e.target?.result as string);
                 if (importedRecord.version && importedRecord.patientFields && importedRecord.sections) {
+                    const normalizedRecord: ClinicalRecord = {
+                        ...importedRecord,
+                        patientFields: normalizePatientFields(importedRecord.patientFields),
+                    };
                     markRecordAsReplaced();
-                    setRecord(importedRecord);
+                    setRecord(normalizedRecord);
                     setHasUnsavedChanges(false);
-                    saveDraft('import', importedRecord);
+                    saveDraft('import', normalizedRecord);
                     showToast('Borrador importado correctamente.');
                 } else {
                     showToast('Archivo JSON inválido.', 'error');

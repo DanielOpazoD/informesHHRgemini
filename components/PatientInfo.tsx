@@ -20,6 +20,7 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
     const isLabelEditable = (fieldId?: string) => isEditing || fieldId === 'rut';
 
     const compactFields = new Set<string>();
+    const stackedLabelFields = new Set<string>(['fecnac', 'fing', 'finf']);
     const defaultFieldLayout: Record<string, React.CSSProperties> = {
         nombre: { gridColumn: 'span 7' },
         rut: { gridColumn: 'span 3' },
@@ -45,6 +46,9 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
 
                         if (compactFields.has(fieldId)) {
                             rowClassNames.push('patient-field-row-compact');
+                        }
+                        if (stackedLabelFields.has(fieldId)) {
+                            rowClassNames.push('patient-field-row-stacked');
                         }
 
                         return (
