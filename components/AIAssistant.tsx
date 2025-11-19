@@ -5,6 +5,7 @@ import {
     suggestGeminiFallbackModel,
 } from '../utils/geminiClient';
 import { normalizeGeminiModelId } from '../utils/env';
+import { htmlToPlainText, plainTextToHtml } from '../utils/textFormatting';
 
 interface AIAssistantProps {
     sectionContent: string;
@@ -13,61 +14,95 @@ interface AIAssistantProps {
     model?: string;
     allowModelAutoSelection?: boolean;
     onAutoModelSelected?: (model: string) => void;
+    fullRecordContent?: string;
     onSuggestion: (text: string) => void;
 }
 
-type AiAction = 'improve' | 'summarize' | 'expand';
+type AiAction =
+    | 'improve'
+    | 'summarize'
+    | 'expand'
+    | 'differentials'
+    | 'diagnosticPaths'
+    | 'treatmentOptions'
+    | 'managementReview'
+    | 'companion'
+    | 'fullReview';
 
-const ACTION_CONFIG: Record<AiAction, { label: string; prompt: string }> = {
+interface ActionPromptArgs {
+    sectionText: string;
+    fullRecordText?: string;
+}
+
+interface AiActionConfig {
+    label: string;
+    requiresSectionContent?: boolean;
+    requiresFullRecord?: boolean;
+    promptBuilder: (args: ActionPromptArgs) => string;
+}
+
+const BASE_BEHAVIOR_PROMPT =
+    'Actúa como un asistente clínico colaborativo: tus sugerencias son editables, no vinculantes y deben mantener tono conversacional, precisión médica y atención a interacciones farmacológicas.';
+
+const ACTION_CONFIG: Record<AiAction, AiActionConfig> = {
     improve: {
         label: '✨ Mejorar redacción',
-        prompt:
-            'Como médico especialista, mejora este texto clínico manteniendo precisión médica y formato conciso. Devuelve solo el texto corregido.',
+        requiresSectionContent: true,
+        promptBuilder: ({ sectionText }) =>
+            `${BASE_BEHAVIOR_PROMPT} Mejora la redacción del siguiente texto clínico sin modificar datos objetivos ni el formato profesional. Devuelve el texto sugerido listo para reemplazar al original.\n\n${sectionText}`,
     },
     summarize: {
         label: '📝 Resumir',
-        prompt:
-            'Resume los hallazgos clínicos clave en viñetas cortas, manteniendo terminología médica precisa.',
+        requiresSectionContent: true,
+        promptBuilder: ({ sectionText }) =>
+            `${BASE_BEHAVIOR_PROMPT} Resume los hallazgos clínicos clave usando viñetas cortas y priorizando la información útil para pases de guardia.\n\n${sectionText}`,
     },
     expand: {
         label: '📖 Expandir',
-        prompt:
-            'Expande el texto agregando detalles clínicos claros y ordenados sin inventar datos nuevos.',
+        requiresSectionContent: true,
+        promptBuilder: ({ sectionText }) =>
+            `${BASE_BEHAVIOR_PROMPT} Amplía el texto agregando detalles clínicos claros, orden diagnóstico y justificación terapéutica, sin inventar datos nuevos.\n\n${sectionText}`,
+    },
+    differentials: {
+        label: '🧠 Diagnósticos diferenciales',
+        requiresSectionContent: true,
+        promptBuilder: ({ sectionText, fullRecordText }) =>
+            `${BASE_BEHAVIOR_PROMPT} Analiza el caso y propone diagnósticos diferenciales razonados. Para cada hipótesis indica fundamentos, datos que faltan corroborar e interacciones relevantes. Contexto global (opcional): ${fullRecordText || 'no disponible'}. Sección foco:\n\n${sectionText}`,
+    },
+    diagnosticPaths: {
+        label: '🧪 Caminos diagnósticos',
+        requiresSectionContent: true,
+        promptBuilder: ({ sectionText, fullRecordText }) =>
+            `${BASE_BEHAVIOR_PROMPT} Sugiere próximos pasos diagnósticos escalonados (laboratorio, imágenes, interconsultas) explicando su utilidad y priorizando seguridad del paciente. Contexto: ${fullRecordText || 'no disponible'}. Fragmento actual:\n\n${sectionText}`,
+    },
+    treatmentOptions: {
+        label: '💊 Tratamientos alternativos',
+        requiresSectionContent: true,
+        promptBuilder: ({ sectionText, fullRecordText }) =>
+            `${BASE_BEHAVIOR_PROMPT} Propón opciones terapéuticas alternativas o complementarias, señalando ajustes posológicos, monitoreo necesario e interacciones potenciales. Contexto adicional: ${fullRecordText || 'no disponible'}. Texto de referencia:\n\n${sectionText}`,
+    },
+    managementReview: {
+        label: '🩺 Cuestionar manejo',
+        requiresSectionContent: true,
+        promptBuilder: ({ sectionText, fullRecordText }) =>
+            `${BASE_BEHAVIOR_PROMPT} Revisa críticamente el manejo propuesto, identifica sesgos o vacíos y plantea preguntas honestas que ayuden a replantear la estrategia clínica. Contexto del caso: ${fullRecordText || 'no disponible'}. Fragmento en revisión:\n\n${sectionText}`,
+    },
+    companion: {
+        label: '🤝 Compañía guía',
+        requiresSectionContent: true,
+        promptBuilder: ({ sectionText }) =>
+            `${BASE_BEHAVIOR_PROMPT} Conversa como colega de referencia: ofrece un breve plan iterativo, sugerencias de seguimiento y recordatorios de red flags basados en el texto.\n\n${sectionText}`,
+    },
+    fullReview: {
+        label: '🔎 Leer planilla completa',
+        requiresFullRecord: true,
+        promptBuilder: ({ sectionText, fullRecordText }) =>
+            `${BASE_BEHAVIOR_PROMPT} Lee todo el registro clínico y entrega un análisis integral con: resumen de situación actual, riesgos/interacciones detectadas, diagnósticos diferenciales a vigilar, oportunidades de estudios y sugerencias de tratamiento colaborativas. Si es útil, comenta cómo la sección actual encaja en el panorama. Registro completo:\n\n${fullRecordText || 'Sin datos disponibles.'}\n\nSección activa:\n${sectionText || '(sin texto en esta sección)'}`,
     },
 };
 
 const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash-latest';
 const MAX_GEMINI_RETRIES = 2;
-
-const htmlToPlainText = (html: string): string => {
-    if (!html) return '';
-    return html
-        .replace(/<br\s*\/?>(\n)?/gi, '\n')
-        .replace(/<\/p>/gi, '\n\n')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/&nbsp;/gi, ' ')
-        .replace(/\s+\n/g, '\n')
-        .replace(/\n{3,}/g, '\n\n')
-        .replace(/\s{2,}/g, ' ')
-        .trim();
-};
-
-const escapeHtml = (text: string): string =>
-    text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-
-const plainTextToHtml = (text: string): string => {
-    const trimmed = text.trim();
-    if (!trimmed) return '';
-    return trimmed
-        .split(/\n{2,}/)
-        .map(paragraph => escapeHtml(paragraph).replace(/\n/g, '<br />'))
-        .join('<br /><br />');
-};
 
 const extractGeminiText = (response: any): string => {
     const candidate = response?.candidates?.[0];
@@ -143,6 +178,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     model,
     allowModelAutoSelection,
     onAutoModelSelected,
+    fullRecordContent,
     onSuggestion,
 }) => {
     const [isProcessing, setIsProcessing] = useState(false);
@@ -151,17 +187,24 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
 
     const plainTextContent = useMemo(() => htmlToPlainText(sectionContent), [sectionContent]);
     const resolvedModel = useMemo(() => resolveModelId(model), [model]);
+    const fullRecordPlainText = useMemo(() => fullRecordContent?.trim() || '', [fullRecordContent]);
 
     const missingApiKey = !apiKey;
     const isContentEmpty = plainTextContent.length === 0;
+    const isFullRecordEmpty = fullRecordPlainText.length === 0;
 
     const handleAction = async (action: AiAction) => {
         if (missingApiKey) {
             setError('Configure su GEMINI_API_KEY en el entorno o en Configuración > IA.');
             return;
         }
-        if (isContentEmpty) {
-            setError('Agregue contenido a la sección antes de usar la IA.');
+        const config = ACTION_CONFIG[action];
+        if (config.requiresSectionContent && isContentEmpty) {
+            setError('Agregue contenido a la sección antes de usar esta herramienta.');
+            return;
+        }
+        if (config.requiresFullRecord && isFullRecordEmpty) {
+            setError('Complete la planilla para que la IA pueda analizarla por completo.');
             return;
         }
 
@@ -181,7 +224,10 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                             role: 'user',
                             parts: [
                                 {
-                                    text: `${ACTION_CONFIG[action].prompt}\n\n${plainTextContent}`,
+                                    text: config.promptBuilder({
+                                        sectionText: plainTextContent,
+                                        fullRecordText: fullRecordPlainText,
+                                    }),
                                 },
                             ],
                         },
@@ -228,23 +274,34 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     return (
         <div className="ai-assistant-panel">
             <div className="ai-assistant-toolbar" role="group" aria-label="Herramientas de IA">
-                {(Object.keys(ACTION_CONFIG) as AiAction[]).map(action => (
-                    <button
-                        key={action}
-                        type="button"
-                        className="ai-action-btn"
-                        onClick={() => handleAction(action)}
-                        disabled={isProcessing || missingApiKey || isContentEmpty}
-                    >
-                        {isProcessing && lastAction === action ? 'Procesando…' : ACTION_CONFIG[action].label}
-                    </button>
-                ))}
+                {(Object.keys(ACTION_CONFIG) as AiAction[]).map(action => {
+                    const config = ACTION_CONFIG[action];
+                    const disabled =
+                        isProcessing ||
+                        missingApiKey ||
+                        (config.requiresSectionContent && isContentEmpty) ||
+                        (config.requiresFullRecord && isFullRecordEmpty);
+                    return (
+                        <button
+                            key={action}
+                            type="button"
+                            className="ai-action-btn"
+                            onClick={() => handleAction(action)}
+                            disabled={disabled}
+                            title={config.requiresFullRecord ? 'Analiza todo el registro clínico' : undefined}
+                        >
+                            {isProcessing && lastAction === action ? 'Procesando…' : ACTION_CONFIG[action].label}
+                        </button>
+                    );
+                })}
             </div>
             {missingApiKey && (
                 <p className="ai-assistant-helper">Configure la clave Gemini para habilitar el asistente.</p>
             )}
             {isContentEmpty && !missingApiKey && (
-                <p className="ai-assistant-helper">Escriba contenido para recibir sugerencias.</p>
+                <p className="ai-assistant-helper">
+                    Escriba contenido para usar las herramientas de sección o pruebe «Leer planilla completa» para un análisis integral.
+                </p>
             )}
             {error && (
                 <p className="ai-assistant-error" role="alert">

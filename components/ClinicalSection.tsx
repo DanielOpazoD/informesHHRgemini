@@ -13,6 +13,7 @@ interface ClinicalSectionProps {
     aiModel?: string;
     allowAiModelAutoSelection?: boolean;
     onAutoSelectAiModel?: (model: string) => void;
+    fullRecordContent?: string;
     onSectionContentChange: (index: number, content: string) => void;
     onSectionTitleChange: (index: number, title: string) => void;
     onRemoveSection: (index: number) => void;
@@ -34,6 +35,7 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     aiModel,
     allowAiModelAutoSelection,
     onAutoSelectAiModel,
+    fullRecordContent,
 }) => {
     const noteRef = useRef<HTMLDivElement>(null);
     const [isFocused, setIsFocused] = useState(false);
@@ -117,6 +119,7 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
                     model={aiModel}
                     allowModelAutoSelection={allowAiModelAutoSelection}
                     onAutoModelSelected={onAutoSelectAiModel}
+                    fullRecordContent={fullRecordContent}
                     onSuggestion={text => onSectionContentChange(index, text)}
                 />
             )}
