@@ -44,20 +44,23 @@ const DEFAULT_TEMPLATE_ID = '2';
 const RECOMMENDED_GEMINI_MODEL = 'gemini-1.5-flash-latest';
 
 const normalizePatientFields = (fields: PatientField[]): PatientField[] => {
-    const defaultOrder = DEFAULT_PATIENT_FIELDS.map(field => field.id);
-    const defaultFields = DEFAULT_PATIENT_FIELDS.map(defaultField => {
-        const importedField = fields.find(
-            field => field.id === defaultField.id || (!field.id && field.label === defaultField.label),
-        );
-        return importedField ? { ...defaultField, ...importedField } : { ...defaultField };
-    });
-    const remainingFields = fields.filter(field => {
-        const fieldId = field.id || '';
-        const matchesDefaultLabel = DEFAULT_PATIENT_FIELDS.some(defaultField => !field.id && field.label === defaultField.label);
-        return !defaultOrder.includes(fieldId) && !matchesDefaultLabel;
+    const defaultById = new Map(DEFAULT_PATIENT_FIELDS.map(field => [field.id, field]));
+    const defaultByLabel = new Map(DEFAULT_PATIENT_FIELDS.map(field => [field.label, field]));
+    const seenDefaultIds = new Set<string>();
+
+    const normalizedFields = fields.map(field => {
+        const matchingDefault = field.id ? defaultById.get(field.id) : defaultByLabel.get(field.label);
+        if (matchingDefault?.id) {
+            seenDefaultIds.add(matchingDefault.id);
+        }
+        return matchingDefault ? { ...matchingDefault, ...field } : { ...field };
     });
 
-    return [...defaultFields, ...remainingFields];
+    const missingDefaults = DEFAULT_PATIENT_FIELDS
+        .filter(defaultField => !seenDefaultIds.has(defaultField.id))
+        .map(defaultField => ({ ...defaultField }));
+
+    return [...normalizedFields, ...missingDefaults];
 };
 
 interface AppShellProps {
