@@ -22,9 +22,9 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
     const compactFields = new Set<string>();
     const stackedLabelFields = new Set<string>(['fecnac', 'fing', 'finf']);
     const defaultFieldLayout: Record<string, React.CSSProperties> = {
-        nombre: { gridColumn: 'span 7' },
+        nombre: { gridColumn: 'span 8' },
         rut: { gridColumn: 'span 3' },
-        edad: { gridColumn: 'span 2' },
+        edad: { gridColumn: 'span 1' },
         fecnac: { gridColumn: 'span 4' },
         fing: { gridColumn: 'span 4' },
         finf: { gridColumn: 'span 4' },
