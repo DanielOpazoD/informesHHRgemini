@@ -28,6 +28,8 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
         fecnac: { gridColumn: 'span 4' },
         fing: { gridColumn: 'span 4' },
         finf: { gridColumn: 'span 4' },
+        tipoatencion: { gridColumn: 'span 4' },
+        diagnostico: { gridColumn: 'span 8' },
     };
 
     return (
