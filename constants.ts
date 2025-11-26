@@ -19,6 +19,8 @@ export const DEFAULT_PATIENT_FIELDS: PatientField[] = [
     { id: 'fecnac', label: 'Fecha de nacimiento', value: '', type: 'date' },
     { id: 'fing', label: 'Fecha de ingreso', value: '', type: 'date' },
     { id: 'finf', label: 'Fecha del informe', value: '', type: 'date' },
+    { id: 'tipoatencion', label: 'Tipo de atención', value: '', type: 'text', placeholder: 'Policlínico / Hospitalizado' },
+    { id: 'diagnostico', label: 'Diagnóstico', value: '', type: 'text', placeholder: 'Motivo principal o diagnóstico' },
 ];
 
 // FIX: Removed Object.freeze to resolve readonly type mismatch. The constants are used to initialize mutable state.
