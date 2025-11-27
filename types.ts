@@ -13,7 +13,7 @@ export interface PatientField {
     id?: string;
     label: string;
     value: string;
-    type: 'text' | 'date' | 'number';
+    type: 'text' | 'date' | 'number' | 'time';
     placeholder?: string;
     readonly?: boolean;
     isCustom?: boolean;
