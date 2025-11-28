@@ -214,6 +214,13 @@ const CalendarPlusIcon = () => (
     </svg>
 );
 
+const BookmarkStackIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 4h9a2 2 0 0 1 2 2v14l-4.5-3L8 20V6a2 2 0 0 1 2-2Z" />
+        <path d="M15 4h3a2 2 0 0 1 2 2v12" />
+    </svg>
+);
+
 type ActionMenu = 'archivo' | 'drive' | 'herramientas';
 
 const Header: React.FC<HeaderProps> = ({
@@ -253,9 +260,11 @@ const Header: React.FC<HeaderProps> = ({
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isLauncherOpen, setIsLauncherOpen] = useState(false);
+    const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
     const [openActionMenu, setOpenActionMenu] = useState<ActionMenu | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const launcherRef = useRef<HTMLDivElement>(null);
+    const bookmarksRef = useRef<HTMLDivElement>(null);
     const archivoMenuRef = useRef<HTMLDivElement>(null);
     const driveMenuRef = useRef<HTMLDivElement>(null);
     const herramientasMenuRef = useRef<HTMLDivElement>(null);
@@ -282,7 +291,7 @@ const Header: React.FC<HeaderProps> = ({
     }, [isMenuOpen]);
 
     useEffect(() => {
-        if (!isLauncherOpen && !openActionMenu) {
+        if (!isLauncherOpen && !openActionMenu && !isBookmarksOpen) {
             return;
         }
 
@@ -299,6 +308,10 @@ const Header: React.FC<HeaderProps> = ({
                 setIsLauncherOpen(false);
             }
 
+            if (isBookmarksOpen && bookmarksRef.current && !bookmarksRef.current.contains(target)) {
+                setIsBookmarksOpen(false);
+            }
+
             if (openActionMenu) {
                 const currentMenu = menuRefs[openActionMenu];
                 if (currentMenu.current && !currentMenu.current.contains(target)) {
@@ -310,6 +323,7 @@ const Header: React.FC<HeaderProps> = ({
         const handleEscape = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 setIsLauncherOpen(false);
+                setIsBookmarksOpen(false);
                 setOpenActionMenu(null);
             }
         };
@@ -321,13 +335,14 @@ const Header: React.FC<HeaderProps> = ({
             document.removeEventListener('mousedown', handleClickOutside);
             document.removeEventListener('keydown', handleEscape);
         };
-    }, [archivoMenuRef, driveMenuRef, herramientasMenuRef, isLauncherOpen, openActionMenu]);
+    }, [archivoMenuRef, driveMenuRef, herramientasMenuRef, isBookmarksOpen, isLauncherOpen, openActionMenu]);
 
     useEffect(() => {
         if (!isSignedIn) {
             setIsMenuOpen(false);
             setOpenActionMenu(null);
             setIsLauncherOpen(false);
+            setIsBookmarksOpen(false);
         }
     }, [isSignedIn]);
 
@@ -345,6 +360,17 @@ const Header: React.FC<HeaderProps> = ({
             const next = !current;
             if (!current) {
                 setOpenActionMenu(null);
+                setIsBookmarksOpen(false);
+            }
+            return next;
+        });
+    };
+    const toggleBookmarks = () => {
+        setIsBookmarksOpen(current => {
+            const next = !current;
+            if (!current) {
+                setOpenActionMenu(null);
+                setIsLauncherOpen(false);
             }
             return next;
         });
@@ -352,6 +378,7 @@ const Header: React.FC<HeaderProps> = ({
     const toggleActionMenu = (menu: ActionMenu) => {
         setOpenActionMenu(current => (current === menu ? null : menu));
         setIsLauncherOpen(false);
+        setIsBookmarksOpen(false);
     };
 
     const openExternalLink = (url: string) => {
@@ -370,6 +397,11 @@ const Header: React.FC<HeaderProps> = ({
 
     const driveOptionDisabled = hasApiKey && !isPickerApiReady;
     const statusState = hasUnsavedChanges || !lastSaveTime ? 'unsaved' : 'saved';
+    const otherAppBookmarks = [
+        { label: 'Agenda de turnos', url: 'https://calendar.google.com' },
+        { label: 'Intranet hospitalaria', url: 'https://intranet.minsal.cl' },
+        { label: 'Portal de pacientes', url: 'https://saludresponde.minsal.cl' }
+    ];
 
     return (
         <div className="topbar">
@@ -408,6 +440,36 @@ const Header: React.FC<HeaderProps> = ({
                                         <GlucoseIcon />
                                         <span>Registro Glicemia</span>
                                     </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <div className={`app-bookmarks ${isBookmarksOpen ? 'open' : ''}`} ref={bookmarksRef}>
+                        <button
+                            type="button"
+                            className="app-bookmarks-btn action-btn-plain"
+                            onClick={toggleBookmarks}
+                            aria-haspopup="true"
+                            aria-expanded={isBookmarksOpen}
+                            aria-label="Abrir accesos directos a otras aplicaciones"
+                        >
+                            <BookmarkStackIcon />
+                        </button>
+                        {isBookmarksOpen && (
+                            <div className="app-bookmarks-dropdown" role="menu">
+                                <div className="app-bookmarks-list">
+                                    {otherAppBookmarks.map(bookmark => (
+                                        <a
+                                            key={bookmark.url}
+                                            className="app-bookmark-link"
+                                            href={bookmark.url}
+                                            target="_blank"
+                                            rel="noreferrer noopener"
+                                        >
+                                            <span className="app-bookmark-icon" aria-hidden="true">🔗</span>
+                                            <span className="app-bookmark-label">{bookmark.label}</span>
+                                        </a>
+                                    ))}
                                 </div>
                             </div>
                         )}
