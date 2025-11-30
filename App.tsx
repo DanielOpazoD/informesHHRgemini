@@ -787,6 +787,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
 
             if (target.closest('.topbar')) return;
             if (target.closest('#sheet')) return;
+            if (target.closest('#editPanel')) return;
 
             setIsEditing(false);
             clearActiveEditTarget();
