@@ -91,7 +91,14 @@ const ENV_GEMINI_MODEL = getEnvGeminiModel();
 const INITIAL_GEMINI_MODEL = ENV_GEMINI_MODEL || RECOMMENDED_GEMINI_MODEL;
 
 const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClientId, onOpenCartola }) => {
+    type EditTarget =
+        | { type: 'record-title' }
+        | { type: 'patient-section-title' }
+        | { type: 'patient-field-label'; index: number }
+        | { type: 'section-title'; index: number };
+
     const [isEditing, setIsEditing] = useState(false);
+    const [activeEditTarget, setActiveEditTarget] = useState<EditTarget | null>(null);
     const [isAdvancedEditing, setIsAdvancedEditing] = useState(false);
     const [isAiAssistantVisible, setIsAiAssistantVisible] = useState(false);
     const [sheetZoom, setSheetZoom] = useState(1);
@@ -194,23 +201,14 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
         };
     }, [isAdvancedEditing]);
 
-    useEffect(() => {
-        const sheet = document.getElementById('sheet');
-        if (!sheet) return;
+    const activateEditTarget = useCallback((target: EditTarget) => {
+        setActiveEditTarget(target);
+        setIsEditing(true);
+    }, []);
 
-        const handleEditableClick = (event: MouseEvent) => {
-            if (isEditing) return;
-            const target = event.target as HTMLElement | null;
-            if (!target) return;
-            const interactiveNode = target.closest('[data-section], [data-field-id]');
-            if (interactiveNode) {
-                setIsEditing(true);
-            }
-        };
-
-        sheet.addEventListener('click', handleEditableClick);
-        return () => sheet.removeEventListener('click', handleEditableClick);
-    }, [isEditing]);
+    const clearActiveEditTarget = useCallback(() => {
+        setActiveEditTarget(null);
+    }, []);
 
     useEffect(() => {
         const handleFocusIn = (event: FocusEvent) => {
@@ -790,11 +788,32 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
             if (target.closest('#sheet')) return;
 
             setIsEditing(false);
+            clearActiveEditTarget();
         };
 
         document.addEventListener('mousedown', handleOutsideClick);
         return () => document.removeEventListener('mousedown', handleOutsideClick);
-    }, [isEditing]);
+    }, [isEditing, clearActiveEditTarget]);
+
+    useEffect(() => {
+        if (!isEditing) {
+            clearActiveEditTarget();
+        }
+    }, [isEditing, clearActiveEditTarget]);
+
+    const handleActivatePatientEdit = useCallback(
+        (target: { type: 'patient-section-title' | 'patient-field-label'; index?: number }) => {
+            activateEditTarget(target as EditTarget);
+        },
+        [activateEditTarget]
+    );
+
+    const handleActivateSectionEdit = useCallback(
+        (target: { type: 'section-title'; index: number }) => {
+            activateEditTarget(target);
+        },
+        [activateEditTarget]
+    );
 
     const handlePatientFieldChange = (index: number, value: string) => {
         const newFields = [...record.patientFields];
@@ -1208,9 +1227,19 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                             {logoUrls.right && (
                                 <img id="logoRight" src={logoUrls.right} className="absolute top-2 right-2 w-12 h-auto opacity-60 print:block" alt="Logo Right"/>
                             )}
-                            <div className="title" contentEditable={isEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>{record.title}</div>
+                            <div
+                                className="title"
+                                contentEditable={record.templateId === '5' || (isEditing && activeEditTarget?.type === 'record-title')}
+                                suppressContentEditableWarning
+                                onDoubleClick={() => activateEditTarget({ type: 'record-title' })}
+                                onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}
+                            >
+                                {record.title}
+                            </div>
                             <PatientInfo
                                 isEditing={isEditing}
+                                activeEditTarget={(activeEditTarget?.type === 'patient-section-title' || activeEditTarget?.type === 'patient-field-label') ? activeEditTarget : null}
+                                onActivateEdit={handleActivatePatientEdit}
                                 patientFields={record.patientFields}
                                 onPatientFieldChange={handlePatientFieldChange}
                                 onPatientLabelChange={handlePatientLabelChange}
@@ -1223,6 +1252,8 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                                     index={index}
                                     isEditing={isEditing}
                                     isAdvancedEditing={isAdvancedEditing}
+                                    activeEditTarget={activeEditTarget?.type === 'section-title' && activeEditTarget.index === index ? activeEditTarget : null}
+                                    onActivateEdit={handleActivateSectionEdit}
                                     onSectionContentChange={handleSectionContentChange}
                                     onSectionTitleChange={handleSectionTitleChange}
                                     onRemoveSection={handleRemoveSection}
