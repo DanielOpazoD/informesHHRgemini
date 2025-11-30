@@ -4,6 +4,7 @@ import type { PatientField } from '../types';
 
 interface PatientInfoProps {
     isEditing: boolean;
+    isGlobalStructureEditing: boolean;
     activeEditTarget: { type: 'patient-section-title' | 'patient-field-label'; index?: number } | null;
     onActivateEdit: (target: { type: 'patient-section-title' | 'patient-field-label'; index?: number }) => void;
     patientFields: PatientField[];
@@ -14,6 +15,7 @@ interface PatientInfoProps {
 
 const PatientInfo: React.FC<PatientInfoProps> = ({
     isEditing,
+    isGlobalStructureEditing,
     activeEditTarget,
     onActivateEdit,
     patientFields,
@@ -66,6 +68,8 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
                             rowClassNames.push('patient-field-row-stacked');
                         }
 
+                        const showDeleteButton = isEditing && (isGlobalStructureEditing || isActiveLabel);
+
                         return (
                             <div
                                 key={field.id || originalIndex}
@@ -93,7 +97,7 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
                                         readOnly={field.readonly}
                                         style={field.readonly ? { background: '#f9f9f9', cursor: 'default' } : {}}
                                     />
-                                    {isEditing && isActiveLabel && (
+                                    {showDeleteButton && (
                                         <button
                                             type="button"
                                             className="row-del"
@@ -111,6 +115,7 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
                 {patientFields.filter(f => f.isCustom).map((field) => {
                     const originalIndex = patientFields.findIndex(pf => pf === field);
                     const isActiveLabel = activeEditTarget?.type === 'patient-field-label' && activeEditTarget.index === originalIndex;
+                    const showDeleteButton = isEditing && (isGlobalStructureEditing || isActiveLabel);
                     return (
                         <div className="row patient-field-row mt-2" key={`custom-${originalIndex}`}>
                             <div
@@ -123,7 +128,7 @@ const PatientInfo: React.FC<PatientInfoProps> = ({
                                 {field.label}
                             </div>
                             <input className="inp" type={field.type} value={field.value} onChange={e => onPatientFieldChange(originalIndex, e.target.value)} />
-                            {isEditing && isActiveLabel && (
+                            {showDeleteButton && (
                                 <button type="button" className="row-del" aria-label={`Eliminar ${field.label}`} onClick={() => onRemovePatientField(originalIndex)}>×</button>
                             )}
                         </div>

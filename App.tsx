@@ -1252,6 +1252,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                             </div>
                             <PatientInfo
                                 isEditing={isEditing}
+                                isGlobalStructureEditing={isGlobalStructureEditing}
                                 activeEditTarget={(activeEditTarget?.type === 'patient-section-title' || activeEditTarget?.type === 'patient-field-label') ? activeEditTarget : null}
                                 onActivateEdit={handleActivatePatientEdit}
                                 patientFields={record.patientFields}
