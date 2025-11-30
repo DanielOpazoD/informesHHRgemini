@@ -1105,7 +1105,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                 onTemplateChange={handleTemplateChange}
                 onAddClinicalUpdateSection={handleAddClinicalUpdateSection}
                 onPrint={handlePrint}
-                isEditing={isEditing}
+                isEditing={isGlobalStructureEditing}
                 onToggleEdit={toggleGlobalStructureEditing}
                 isAdvancedEditing={isAdvancedEditing}
                 onToggleAdvancedEditing={() => setIsAdvancedEditing(prev => !prev)}
@@ -1277,14 +1277,10 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                             <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
                         </div>
                     </div>
-                    <div id="editPanel" className={`edit-panel ${isEditing ? 'visible' : 'hidden'}`}>
+                    <div id="editPanel" className={`edit-panel ${isGlobalStructureEditing ? 'visible' : 'hidden'}`}>
                         <div>Edición</div>
-                        <button onClick={handleAddSection} className="btn" type="button">Agregar sección</button>
-                        <button onClick={() => handleRemoveSection(record.sections.length-1)} className="btn" type="button">Eliminar última sección</button>
-                        <hr /><div className="text-xs">Campos del paciente</div>
                         <button onClick={handleAddPatientField} className="btn" type="button">Agregar campo</button>
-                        <button onClick={() => setRecord(r => ({...r, patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS))}))} className="btn" type="button">Restaurar campos</button>
-                        <hr /><button onClick={restoreAll} className="btn" type="button">Restaurar todo</button>
+                        <button onClick={handleAddSection} className="btn" type="button">Agregar nueva sección</button>
                     </div>
                     <AIAssistant
                         sections={aiSections}

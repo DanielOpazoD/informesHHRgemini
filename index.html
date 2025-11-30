@@ -1470,6 +1470,7 @@
       border-radius: 4px;
       padding: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: flex;
       flex-direction: column;
       gap: 6px;
       min-width: 200px;
@@ -1478,9 +1479,9 @@
       max-height: calc(100vh - 24px);
       overflow-y: auto;
     }
-    
-    .edit-panel.hidden { display: none; }
-    .edit-panel.visible { display: flex; }
+
+    .edit-panel.hidden { visibility: hidden; opacity: 0; pointer-events: none; }
+    .edit-panel.visible { visibility: visible; opacity: 1; }
 
 
     .edit-panel > div:first-child {
