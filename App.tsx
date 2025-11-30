@@ -195,6 +195,24 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     }, [isAdvancedEditing]);
 
     useEffect(() => {
+        const sheet = document.getElementById('sheet');
+        if (!sheet) return;
+
+        const handleEditableClick = (event: MouseEvent) => {
+            if (isEditing) return;
+            const target = event.target as HTMLElement | null;
+            if (!target) return;
+            const interactiveNode = target.closest('[data-section], [data-field-id]');
+            if (interactiveNode) {
+                setIsEditing(true);
+            }
+        };
+
+        sheet.addEventListener('click', handleEditableClick);
+        return () => sheet.removeEventListener('click', handleEditableClick);
+    }, [isEditing]);
+
+    useEffect(() => {
         const handleFocusIn = (event: FocusEvent) => {
             const target = event.target as HTMLElement | null;
             if (!target) return;
@@ -1190,15 +1208,6 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                             {logoUrls.right && (
                                 <img id="logoRight" src={logoUrls.right} className="absolute top-2 right-2 w-12 h-auto opacity-60 print:block" alt="Logo Right"/>
                             )}
-                            <div id="editPanel" className={`edit-panel ${isEditing ? 'visible' : 'hidden'}`}>
-                                <div>Edición</div>
-                                <button onClick={handleAddSection} className="btn" type="button">Agregar sección</button>
-                                <button onClick={() => handleRemoveSection(record.sections.length-1)} className="btn" type="button">Eliminar última sección</button>
-                                <hr /><div className="text-xs">Campos del paciente</div>
-                                <button onClick={handleAddPatientField} className="btn" type="button">Agregar campo</button>
-                                <button onClick={() => setRecord(r => ({...r, patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS))}))} className="btn" type="button">Restaurar campos</button>
-                                <hr /><button onClick={restoreAll} className="btn" type="button">Restaurar todo</button>
-                            </div>
                             <div className="title" contentEditable={isEditing || record.templateId === '5'} suppressContentEditableWarning onBlur={e => setRecord({...record, title: e.currentTarget.innerText})}>{record.title}</div>
                             <PatientInfo
                                 isEditing={isEditing}
@@ -1222,6 +1231,15 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                             ))}</div>
                             <Footer medico={record.medico} especialidad={record.especialidad} onMedicoChange={value => setRecord({...record, medico: value})} onEspecialidadChange={value => setRecord({...record, especialidad: value})} />
                         </div>
+                    </div>
+                    <div id="editPanel" className={`edit-panel ${isEditing ? 'visible' : 'hidden'}`}>
+                        <div>Edición</div>
+                        <button onClick={handleAddSection} className="btn" type="button">Agregar sección</button>
+                        <button onClick={() => handleRemoveSection(record.sections.length-1)} className="btn" type="button">Eliminar última sección</button>
+                        <hr /><div className="text-xs">Campos del paciente</div>
+                        <button onClick={handleAddPatientField} className="btn" type="button">Agregar campo</button>
+                        <button onClick={() => setRecord(r => ({...r, patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS))}))} className="btn" type="button">Restaurar campos</button>
+                        <hr /><button onClick={restoreAll} className="btn" type="button">Restaurar todo</button>
                     </div>
                     <AIAssistant
                         sections={aiSections}

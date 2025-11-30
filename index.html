@@ -1462,10 +1462,9 @@
     }
 
     .edit-panel {
-      position: fixed;
-      right: 12px;
-      top: 54px;
-      z-index: 9999;
+      position: sticky;
+      top: 16px;
+      z-index: 5;
       background: #fff;
       border: 1px solid #d1d5db;
       border-radius: 4px;
@@ -1473,7 +1472,11 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       flex-direction: column;
       gap: 6px;
-      min-width: 180px;
+      min-width: 200px;
+      flex: 0 0 auto;
+      align-self: flex-start;
+      max-height: calc(100vh - 24px);
+      overflow-y: auto;
     }
     
     .edit-panel.hidden { display: none; }
