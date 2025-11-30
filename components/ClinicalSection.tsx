@@ -6,6 +6,7 @@ interface ClinicalSectionProps {
     index: number;
     isEditing: boolean;
     isAdvancedEditing: boolean;
+    isGlobalStructureEditing: boolean;
     activeEditTarget: { type: 'section-title'; index: number } | null;
     onActivateEdit: (target: { type: 'section-title'; index: number }) => void;
     onSectionContentChange: (index: number, content: string) => void;
@@ -19,6 +20,7 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
     index,
     isEditing,
     isAdvancedEditing,
+    isGlobalStructureEditing,
     activeEditTarget,
     onActivateEdit,
     onSectionContentChange,
@@ -77,7 +79,7 @@ const ClinicalSection: React.FC<ClinicalSectionProps> = ({
             className={`sec ${isAdvancedEditing && isFocused ? 'advanced-note-active' : ''} ${isClinicalUpdate ? 'clinical-update-section' : ''}`.trim()}
             data-section
         >
-            {isEditing && isActiveSectionTitle && (
+            {isEditing && (isGlobalStructureEditing || isActiveSectionTitle) && (
                 <button className="sec-del" onClick={() => onRemoveSection(index)}>×</button>
             )}
             {isClinicalUpdate ? (

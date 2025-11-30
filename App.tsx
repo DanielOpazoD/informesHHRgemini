@@ -99,6 +99,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
 
     const [isEditing, setIsEditing] = useState(false);
     const [activeEditTarget, setActiveEditTarget] = useState<EditTarget | null>(null);
+    const [isGlobalStructureEditing, setIsGlobalStructureEditing] = useState(false);
     const [isAdvancedEditing, setIsAdvancedEditing] = useState(false);
     const [isAiAssistantVisible, setIsAiAssistantVisible] = useState(false);
     const [sheetZoom, setSheetZoom] = useState(1);
@@ -798,8 +799,20 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     useEffect(() => {
         if (!isEditing) {
             clearActiveEditTarget();
+            setIsGlobalStructureEditing(false);
         }
     }, [isEditing, clearActiveEditTarget]);
+
+    const toggleGlobalStructureEditing = useCallback(() => {
+        setIsGlobalStructureEditing(prev => {
+            const next = !prev;
+            setIsEditing(next);
+            if (!next) {
+                clearActiveEditTarget();
+            }
+            return next;
+        });
+    }, [clearActiveEditTarget]);
 
     const handleActivatePatientEdit = useCallback(
         (target: { type: 'patient-section-title' | 'patient-field-label'; index?: number }) => {
@@ -1075,7 +1088,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                 handlePrint();
             } else if (key === 'e') {
                 event.preventDefault();
-                setIsEditing(prev => !prev);
+                toggleGlobalStructureEditing();
             } else if (key === 'n') {
                 event.preventDefault();
                 restoreAll();
@@ -1083,7 +1096,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
         };
         window.addEventListener('keydown', handleShortcut);
         return () => window.removeEventListener('keydown', handleShortcut);
-    }, [handleManualSave, handlePrint, restoreAll]);
+    }, [handleManualSave, handlePrint, restoreAll, toggleGlobalStructureEditing]);
 
     return (
         <>
@@ -1093,7 +1106,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                 onAddClinicalUpdateSection={handleAddClinicalUpdateSection}
                 onPrint={handlePrint}
                 isEditing={isEditing}
-                onToggleEdit={() => setIsEditing(!isEditing)}
+                onToggleEdit={toggleGlobalStructureEditing}
                 isAdvancedEditing={isAdvancedEditing}
                 onToggleAdvancedEditing={() => setIsAdvancedEditing(prev => !prev)}
                 isAiAssistantVisible={isAiAssistantVisible}
@@ -1252,6 +1265,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                                     index={index}
                                     isEditing={isEditing}
                                     isAdvancedEditing={isAdvancedEditing}
+                                    isGlobalStructureEditing={isGlobalStructureEditing}
                                     activeEditTarget={activeEditTarget?.type === 'section-title' && activeEditTarget.index === index ? activeEditTarget : null}
                                     onActivateEdit={handleActivateSectionEdit}
                                     onSectionContentChange={handleSectionContentChange}
