@@ -62,3 +62,13 @@ Si todo está OK, verás el mensaje `Hola, funciono correctamente`. Si la clave 
 ## Plan de mejoras incrementales de calidad
 
 Para guiar refactors seguros y graduales (modularidad, estabilidad, escalabilidad y pruebas), revisa el plan técnico en [`docs/quality-improvement-plan.md`](docs/quality-improvement-plan.md).
+
+## Control de tamaño de bundle
+
+Después de compilar (`npm run build`), puedes validar que el chunk JS más grande no supere el umbral esperado:
+
+```bash
+npm run check:bundle
+```
+
+Opcionalmente, ajusta el límite con `MAX_MAIN_CHUNK_KB` (por defecto: `730`).

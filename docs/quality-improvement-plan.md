@@ -65,3 +65,9 @@ Evolucionar el sistema de forma segura y gradual hacia una arquitectura más mod
 - ✅ **Fase 2 completada**: casos de uso de settings e IA extraídos a hooks/utilidades.
 - ✅ **Fase 3 completada**: manejo de errores unificado para flujos de Drive + cobertura unitaria para estrategia de errores.
 - 🚧 **Fase 4 iniciada**: primera partición de bundle con carga diferida de `CartolaMedicamentosView`.
+
+## Siguientes mejoras priorizadas (Fase 4)
+1. **Partición controlada de dependencias** con `manualChunks` para separar React, PDF y utilidades pesadas.
+2. **Budget de bundle automático** en CI para evitar regresiones (falla si el chunk principal supera el umbral acordado).
+3. **Optimización incremental de rutas**: aplicar lazy-loading adicional a módulos de baja frecuencia.
+4. **Monitoreo de métricas** por release: chunk principal, tiempo de build y tiempo de carga inicial percibido.
