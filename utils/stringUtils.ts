@@ -13,6 +13,7 @@ function baseNameFromTemplate(templateId: string): string {
         case '4': return 'Epicrisis traslado';
         case '5': return 'Registro Clinico';
         case '6': return 'Informe medico';
+        case '7': return 'Informe medico MEDIF LATAM';
         default: return 'Registro Clinico';
     }
 }

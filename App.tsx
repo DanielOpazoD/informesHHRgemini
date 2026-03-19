@@ -10,7 +10,12 @@ import type {
     ClinicalSectionData,
     PatientField,
 } from './types';
-import { TEMPLATES, DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from './constants';
+import {
+    TEMPLATES,
+    DEFAULT_PATIENT_FIELDS,
+    getDefaultPatientFieldsByTemplate,
+    getDefaultSectionsByTemplate,
+} from './constants';
 import { calcEdadY, formatDateDMY } from './utils/dateUtils';
 import { suggestedFilename } from './utils/stringUtils';
 import { validateCriticalFields, formatTimeSince } from './utils/validationUtils';
@@ -78,8 +83,8 @@ const createTemplateBaseline = (templateId: string): ClinicalRecord => {
         version: 'v14',
         templateId: selectedTemplateId,
         title: template?.title || 'Registro Clínico',
-        patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS)),
-        sections: JSON.parse(JSON.stringify(DEFAULT_SECTIONS)),
+        patientFields: getDefaultPatientFieldsByTemplate(selectedTemplateId),
+        sections: getDefaultSectionsByTemplate(selectedTemplateId),
         medico: '',
         especialidad: ''
     };
@@ -1044,6 +1049,8 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                 ...r,
                 templateId: id,
                 title: nextTitle,
+                patientFields: getDefaultPatientFieldsByTemplate(id),
+                sections: getDefaultSectionsByTemplate(id),
             };
         });
     };

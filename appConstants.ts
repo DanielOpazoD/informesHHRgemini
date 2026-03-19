@@ -1,4 +1,5 @@
 export const AUTO_SAVE_INTERVAL = 30000;
+export const AUTO_SAVE_IDLE_DELAY = 3000;
 export const MAX_HISTORY_ENTRIES = 5;
 export const MAX_RECENT_FILES = 5;
 export const SEARCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutos

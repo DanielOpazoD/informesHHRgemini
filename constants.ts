@@ -9,6 +9,7 @@ export const TEMPLATES: Record<string, Template> = Object.freeze({
   '4': { id: '4', name: 'Epicrisis médica de traslado', title: 'Epicrisis médica de traslado' },
   '5': { id: '5', name: 'Otro (personalizado)', title: '' },
   '6': { id: '6', name: buildInstitutionTitle('Informe médico'), title: buildInstitutionTitle('Informe médico') },
+  '7': { id: '7', name: 'INFORME MÉDICO MEDIF/LATAM', title: 'INFORME MÉDICO MEDIF/LATAM' },
 });
 
 // FIX: Removed Object.freeze to resolve readonly type mismatch. The constants are used to initialize mutable state.
@@ -31,3 +32,39 @@ export const DEFAULT_SECTIONS: ClinicalSectionData[] = [
     { title: 'Plan', content: '' },
 ];
 
+export const getDefaultPatientFieldsByTemplate = (templateId: string): PatientField[] => {
+    const fields = JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS)) as PatientField[];
+    if (templateId === '3' || templateId === '4') {
+        return fields.map(field =>
+            field.id === 'finf'
+                ? { ...field, label: 'Fecha de alta' }
+                : field
+        );
+    }
+    return fields;
+};
+
+export const getDefaultSectionsByTemplate = (templateId: string): ClinicalSectionData[] => {
+    if (templateId === '7') {
+        return [
+            {
+                title: '',
+                content: 'Diagnosticos de traslado\n(...)\nPaciente se encuentra en condiciones clínicas compatibles de volar en avión comercial con personal de salud, sin requerimientos adicionales',
+            },
+        ];
+    }
+
+    const sections = JSON.parse(JSON.stringify(DEFAULT_SECTIONS)) as ClinicalSectionData[];
+    if (templateId === '3' || templateId === '4') {
+        return sections.map(section => {
+            if (section.title === 'Diagnósticos') {
+                return { ...section, title: 'Diagnosticos de egreso' };
+            }
+            if (section.title === 'Plan') {
+                return { ...section, title: 'Indicaciones al alta' };
+            }
+            return section;
+        });
+    }
+    return sections;
+};

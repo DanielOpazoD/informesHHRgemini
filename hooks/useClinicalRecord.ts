@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DEFAULT_PATIENT_FIELDS, DEFAULT_SECTIONS } from '../constants';
+import { getDefaultPatientFieldsByTemplate, getDefaultSectionsByTemplate } from '../constants';
 import type { ClinicalRecord, VersionHistoryEntry } from '../types';
-import { AUTO_SAVE_INTERVAL, LOCAL_STORAGE_KEYS, MAX_HISTORY_ENTRIES } from '../appConstants';
+import { AUTO_SAVE_IDLE_DELAY, AUTO_SAVE_INTERVAL, LOCAL_STORAGE_KEYS, MAX_HISTORY_ENTRIES } from '../appConstants';
 import { useConfirmDialog } from './useConfirmDialog';
 
 type ToastType = 'success' | 'warning' | 'error';
@@ -16,8 +16,8 @@ export const useClinicalRecord = ({ onToast }: UseClinicalRecordOptions) => {
         version: 'v14',
         templateId: '2',
         title: '',
-        patientFields: JSON.parse(JSON.stringify(DEFAULT_PATIENT_FIELDS)),
-        sections: JSON.parse(JSON.stringify(DEFAULT_SECTIONS)),
+        patientFields: getDefaultPatientFieldsByTemplate('2'),
+        sections: getDefaultSectionsByTemplate('2'),
         medico: '',
         especialidad: '',
     });
@@ -101,6 +101,14 @@ export const useClinicalRecord = ({ onToast }: UseClinicalRecordOptions) => {
         }
         setHasUnsavedChanges(true);
     }, [record]);
+
+    useEffect(() => {
+        if (!hasUnsavedChanges) return;
+        const timeout = window.setTimeout(() => {
+            saveDraft('auto');
+        }, AUTO_SAVE_IDLE_DELAY);
+        return () => window.clearTimeout(timeout);
+    }, [hasUnsavedChanges, record, saveDraft]);
 
     useEffect(() => {
         if (!hasUnsavedChanges) return;
