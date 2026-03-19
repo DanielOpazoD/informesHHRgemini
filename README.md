@@ -58,3 +58,7 @@ GEMINI_API_KEY="tu-clave" GEMINI_PROJECT_ID="1056053283940" GEMINI_MODEL="gemini
 ```
 
 Si todo está OK, verás el mensaje `Hola, funciono correctamente`. Si la clave solo tiene acceso a ciertos modelos, el script (al igual que la aplicación) te mostrará qué modelos están disponibles y usará automáticamente el primero compatible antes de fallar. Si hay errores de cuota o de permisos, también verás la respuesta completa de la API para ayudarte a diagnosticarlos. Puedes omitir `GEMINI_PROJECT_ID` si tu clave es de Google AI Studio.
+
+## Plan de mejoras incrementales de calidad
+
+Para guiar refactors seguros y graduales (modularidad, estabilidad, escalabilidad y pruebas), revisa el plan técnico en [`docs/quality-improvement-plan.md`](docs/quality-improvement-plan.md).
