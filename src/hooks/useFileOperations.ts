@@ -4,6 +4,10 @@ import { suggestedFilename } from '../utils/stringUtils';
 import { validateCriticalFields } from '../utils/validationUtils';
 import { useConfirmDialog } from './useConfirmDialog';
 
+/**
+ * Options for configuring file I/O operations.
+ * All callbacks must be stable references (wrapped in useCallback or from context).
+ */
 interface UseFileOperationsOptions {
     record: ClinicalRecord;
     setRecord: React.Dispatch<React.SetStateAction<ClinicalRecord>>;

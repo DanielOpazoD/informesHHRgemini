@@ -14,6 +14,10 @@ type EditTarget =
  * Representa el estado global de la ficha clínica o informe médico actualmente activo.
  * Encapsula la persistencia local, el historial de versiones y la lógica pura del formulario.
  */
+/**
+ * The shape of the Record context value.
+ * Combines clinical record state, form handlers, and persistence operations.
+ */
 interface RecordContextValue {
     /** La ficha clínica actual siendo visualizada o editada */
     record: ClinicalRecord;

@@ -492,35 +492,43 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                 onTemplateChange={handleTemplateChange}
                 onAddClinicalUpdateSection={handleAddClinicalUpdateSection}
                 onPrint={handlePrint}
-                isEditing={isGlobalStructureEditing}
-                onToggleEdit={toggleGlobalStructureEditing}
-                isAdvancedEditing={isAdvancedEditing}
-                onToggleAdvancedEditing={() => setIsAdvancedEditing(prev => !prev)}
-                isAiAssistantVisible={isAiAssistantVisible}
-                onToggleAiAssistant={() => setIsAiAssistantVisible(prev => !prev)}
-                onToolbarCommand={handleToolbarCommand}
-                isSignedIn={isSignedIn}
-                isGisReady={isGisReady}
-                isGapiReady={isGapiReady}
-                isPickerApiReady={isPickerApiReady}
-                tokenClient={tokenClient}
-                userProfile={userProfile}
-                isSaving={isSaving}
-                onSaveToDrive={openSaveModal}
-                onSignOut={handleSignOut}
-                onSignIn={handleSignIn}
-                onChangeUser={handleChangeUser}
-                onOpenFromDrive={handleOpenFromDrive}
                 onOpenSettings={openSettingsModal}
-                onDownloadJson={handleDownloadJson}
-                hasApiKey={!!apiKey}
-                onQuickSave={handleManualSave}
-                saveStatusLabel={saveStatusLabel}
-                lastSaveTime={lastSaveTime}
-                hasUnsavedChanges={hasUnsavedChanges}
-                onOpenHistory={() => setIsHistoryModalOpen(true)}
                 onRestoreTemplate={restoreAll}
                 onOpenCartolaApp={onOpenCartola}
+                auth={{
+                    isSignedIn,
+                    isGisReady,
+                    isGapiReady,
+                    isPickerApiReady,
+                    tokenClient,
+                    userProfile,
+                    onSignIn: handleSignIn,
+                    onSignOut: handleSignOut,
+                    onChangeUser: handleChangeUser,
+                }}
+                drive={{
+                    isSaving,
+                    hasApiKey: !!apiKey,
+                    onSaveToDrive: openSaveModal,
+                    onOpenFromDrive: handleOpenFromDrive,
+                    onDownloadJson: handleDownloadJson,
+                }}
+                editing={{
+                    isEditing: isGlobalStructureEditing,
+                    onToggleEdit: toggleGlobalStructureEditing,
+                    isAdvancedEditing,
+                    onToggleAdvancedEditing: () => setIsAdvancedEditing(prev => !prev),
+                    isAiAssistantVisible,
+                    onToggleAiAssistant: () => setIsAiAssistantVisible(prev => !prev),
+                    onToolbarCommand: handleToolbarCommand,
+                }}
+                save={{
+                    saveStatusLabel,
+                    lastSaveTime,
+                    hasUnsavedChanges,
+                    onQuickSave: handleManualSave,
+                    onOpenHistory: () => setIsHistoryModalOpen(true),
+                }}
             />
             
             {/* --- Modals --- */}

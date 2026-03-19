@@ -7,11 +7,10 @@ import type {
     GoogleDriveFileResource,
     SaveFormat,
     SaveOptions,
+    ToastFn,
 } from '../types';
 import { MAX_RECENT_FILES, SEARCH_CACHE_TTL, DRIVE_CONTENT_FETCH_CONCURRENCY, LOCAL_STORAGE_KEYS } from '../appConstants';
 import { buildDriveContextErrorMessage } from '../utils/driveErrorUtils';
-
-type ToastFn = (message: string, type?: 'success' | 'warning' | 'error') => void;
 
 interface DriveCacheEntry {
     folders: DriveFolder[];

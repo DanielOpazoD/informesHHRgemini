@@ -23,11 +23,30 @@ import {
     CalendarPlusIcon,
 } from './icons';
 
-interface HeaderProps {
-    templateId: string;
-    onTemplateChange: (id: string) => void;
-    onAddClinicalUpdateSection: () => void;
-    onPrint: () => void;
+/** Props related to Google authentication state */
+export interface HeaderAuthProps {
+    isSignedIn: boolean;
+    isGisReady: boolean;
+    isGapiReady: boolean;
+    isPickerApiReady: boolean;
+    tokenClient: GoogleTokenClient | null;
+    userProfile: GoogleUserProfile | null;
+    onSignIn: () => void;
+    onSignOut: () => void;
+    onChangeUser: () => void;
+}
+
+/** Props related to Google Drive operations */
+export interface HeaderDriveProps {
+    isSaving: boolean;
+    hasApiKey: boolean;
+    onSaveToDrive: () => void;
+    onOpenFromDrive: () => void;
+    onDownloadJson: () => void;
+}
+
+/** Props related to editing state */
+export interface HeaderEditingProps {
     isEditing: boolean;
     onToggleEdit: () => void;
     isAdvancedEditing: boolean;
@@ -35,28 +54,29 @@ interface HeaderProps {
     isAiAssistantVisible: boolean;
     onToggleAiAssistant: () => void;
     onToolbarCommand: (command: string) => void;
-    isSignedIn: boolean;
-    isGisReady: boolean;
-    isGapiReady: boolean;
-    isPickerApiReady: boolean;
-    tokenClient: GoogleTokenClient | null;
-    userProfile: GoogleUserProfile | null;
-    isSaving: boolean;
-    onSaveToDrive: () => void;
-    onSignOut: () => void;
-    onSignIn: () => void;
-    onChangeUser: () => void;
-    onOpenFromDrive: () => void;
-    onOpenSettings: () => void;
-    onDownloadJson: () => void;
-    hasApiKey: boolean;
-    onQuickSave: () => void;
+}
+
+/** Props related to save status */
+export interface HeaderSaveProps {
     saveStatusLabel: string;
     lastSaveTime: string;
     hasUnsavedChanges: boolean;
+    onQuickSave: () => void;
     onOpenHistory: () => void;
+}
+
+interface HeaderProps {
+    templateId: string;
+    onTemplateChange: (id: string) => void;
+    onAddClinicalUpdateSection: () => void;
+    onPrint: () => void;
+    onOpenSettings: () => void;
     onRestoreTemplate: () => void;
     onOpenCartolaApp: () => void;
+    auth: HeaderAuthProps;
+    drive: HeaderDriveProps;
+    editing: HeaderEditingProps;
+    save: HeaderSaveProps;
 }
 
 type ActionMenu = 'archivo' | 'drive' | 'herramientas';
@@ -66,36 +86,31 @@ const Header: React.FC<HeaderProps> = ({
     onTemplateChange,
     onAddClinicalUpdateSection,
     onPrint,
-    isEditing,
-    onToggleEdit,
-    isAdvancedEditing,
-    onToggleAdvancedEditing,
-    isAiAssistantVisible,
-    onToggleAiAssistant,
-    onToolbarCommand,
-    isSignedIn,
-    isGisReady,
-    isGapiReady,
-    isPickerApiReady,
-    tokenClient,
-    userProfile,
-    isSaving,
-    onSaveToDrive,
-    onSignOut,
-    onSignIn,
-    onChangeUser,
-    onOpenFromDrive,
     onOpenSettings,
-    onDownloadJson,
-    hasApiKey,
-    onQuickSave,
-    saveStatusLabel,
-    lastSaveTime,
-    hasUnsavedChanges,
-    onOpenHistory,
     onRestoreTemplate,
-    onOpenCartolaApp
+    onOpenCartolaApp,
+    auth,
+    drive,
+    editing,
+    save,
 }) => {
+    const {
+        isEditing, onToggleEdit,
+        isAdvancedEditing, onToggleAdvancedEditing,
+        isAiAssistantVisible, onToggleAiAssistant,
+        onToolbarCommand,
+    } = editing;
+    const {
+        isSignedIn, isPickerApiReady,
+    } = auth;
+    const {
+        isSaving, hasApiKey,
+        onSaveToDrive, onOpenFromDrive, onDownloadJson,
+    } = drive;
+    const {
+        saveStatusLabel, lastSaveTime, hasUnsavedChanges,
+        onQuickSave, onOpenHistory,
+    } = save;
     const [isLauncherOpen, setIsLauncherOpen] = useState(false);
     const [openActionMenu, setOpenActionMenu] = useState<ActionMenu | null>(null);
     const launcherRef = useRef<HTMLDivElement>(null);
@@ -387,13 +402,13 @@ const Header: React.FC<HeaderProps> = ({
             <div className="topbar-account">
                 <UserAccountMenu
                     isSignedIn={isSignedIn}
-                    isGisReady={isGisReady}
-                    isGapiReady={isGapiReady}
-                    tokenClient={tokenClient}
-                    userProfile={userProfile}
-                    onSignIn={onSignIn}
-                    onSignOut={onSignOut}
-                    onChangeUser={onChangeUser}
+                    isGisReady={auth.isGisReady}
+                    isGapiReady={auth.isGapiReady}
+                    tokenClient={auth.tokenClient}
+                    userProfile={auth.userProfile}
+                    onSignIn={auth.onSignIn}
+                    onSignOut={auth.onSignOut}
+                    onChangeUser={auth.onChangeUser}
                 />
             </div>
         </div>

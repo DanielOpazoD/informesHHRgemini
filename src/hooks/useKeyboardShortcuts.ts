@@ -1,5 +1,9 @@
 import { useEffect, useCallback } from 'react';
 
+/**
+ * Callbacks for each keyboard shortcut.
+ * All handlers should be memoized to avoid unnecessary re-registrations.
+ */
 interface UseKeyboardShortcutsOptions {
     onSave: () => void;
     onPrint: () => void;
