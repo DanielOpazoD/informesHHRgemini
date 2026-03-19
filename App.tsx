@@ -25,7 +25,7 @@ import { useConfirmDialog } from './hooks/useConfirmDialog';
 import { useAppSettings } from './hooks/useAppSettings';
 import { getEnvGeminiApiKey, getEnvGeminiProjectId, getEnvGeminiModel } from './utils/env';
 import { persistSettings } from './utils/settingsStorage';
-import { htmlToPlainText } from './utils/textUtils';
+import { buildAiConversationKey, buildFullRecordContext, mapSectionsForAi } from './utils/aiContext';
 import { appDisplayName, buildInstitutionTitle, logoUrls } from './institutionConfig';
 import { DEFAULT_GOOGLE_CLIENT_ID } from './appConstants';
 import Header from './components/Header';
@@ -322,76 +322,14 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
         return !aiModel || aiModel === RECOMMENDED_GEMINI_MODEL;
     }, [aiModel]);
     const resolvedAiModel = useMemo(() => aiModel || INITIAL_GEMINI_MODEL, [aiModel]);
-    const fullRecordContext = useMemo(() => {
-        const patientLines = record.patientFields
-            .map(field => {
-                const value = field.value?.trim();
-                if (!value) return '';
-                return `${field.label}: ${value}`;
-            })
-            .filter(Boolean)
-            .join('\n');
+    const fullRecordContext = useMemo(() => buildFullRecordContext(record), [record]);
 
-        const sectionBlocks = record.sections
-            .map((section, index) => {
-                const title = section.title?.trim() || `Sección ${index + 1}`;
-                const meta = section.kind === 'clinical-update'
-                    ? [section.updateDate ? `Fecha ${section.updateDate}` : '', section.updateTime ? `Hora ${section.updateTime}` : '']
-                          .filter(Boolean)
-                          .join(' · ')
-                    : '';
-                const header = [title, meta].filter(Boolean).join(' — ');
-                const content = htmlToPlainText(section.content || '').trim();
-                return `${header || title}:\n${content || 'Sin contenido registrado.'}`;
-            })
-            .join('\n\n');
 
-        const footerLines = [
-            record.medico?.trim() ? `Médico responsable: ${record.medico.trim()}` : '',
-            record.especialidad?.trim() ? `Especialidad: ${record.especialidad.trim()}` : '',
-        ]
-            .filter(Boolean)
-            .join('\n');
+    const aiSections = useMemo(() => mapSectionsForAi(record.sections), [record.sections]);
 
-        return [
-            record.title?.trim() ? `Título del registro: ${record.title.trim()}` : '',
-            patientLines ? `Datos del paciente:\n${patientLines}` : '',
-            sectionBlocks ? `Secciones clínicas:\n${sectionBlocks}` : '',
-            footerLines,
-        ]
-            .filter(Boolean)
-            .join('\n\n');
-    }, [record]);
 
-    const aiSections = useMemo(
-        () =>
-            record.sections.map((section, index) => ({
-                id: `section-${index}`,
-                index,
-                title: section.title,
-                content: section.content || '',
-            })),
-        [record.sections],
-    );
+    const aiConversationKey = useMemo(() => buildAiConversationKey(record), [record]);
 
-    const aiConversationKey = useMemo(() => {
-        const toMatch = (field: { id?: string; label?: string }) => ({
-            byId: (id: string) => field.id === id,
-            byLabel: (needle: string) => (field.label ? field.label.toLowerCase().includes(needle) : false),
-        });
-        const nameField = record.patientFields.find(field => toMatch(field).byId('nombre') || toMatch(field).byLabel('nombre'));
-        const rutField = record.patientFields.find(
-            field =>
-                toMatch(field).byId('rut') ||
-                toMatch(field).byLabel('rut') ||
-                toMatch(field).byLabel('identificador') ||
-                toMatch(field).byLabel('ficha'),
-        );
-        const safeTitle = record.title?.trim();
-        const safeName = nameField?.value?.trim();
-        const safeId = rutField?.value?.trim();
-        return [record.templateId, safeTitle, safeName, safeId].filter(Boolean).join('|') || record.templateId;
-    }, [record.patientFields, record.templateId, record.title]);
     const handleAutoSelectAiModel = useCallback(
         (modelId: string) => {
             setAiModel(modelId);
