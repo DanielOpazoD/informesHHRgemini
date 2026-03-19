@@ -1,6 +1,6 @@
 
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import type {
     ClinicalRecord,
@@ -22,9 +22,13 @@ import { validateCriticalFields, formatTimeSince } from './utils/validationUtils
 import { useToast, type ToastState } from './hooks/useToast';
 import { useClinicalRecord } from './hooks/useClinicalRecord';
 import { useConfirmDialog } from './hooks/useConfirmDialog';
-import { getEnvGeminiApiKey, getEnvGeminiProjectId, getEnvGeminiModel, normalizeGeminiModelId } from './utils/env';
-import { htmlToPlainText } from './utils/textUtils';
+import { useAppSettings } from './hooks/useAppSettings';
+import { getEnvGeminiApiKey, getEnvGeminiProjectId, getEnvGeminiModel } from './utils/env';
+import { persistSettings } from './utils/settingsStorage';
+import { buildAiConversationKey, buildFullRecordContext, mapSectionsForAi } from './utils/aiContext';
+import { buildContextualErrorMessage } from './utils/errorUtils';
 import { appDisplayName, buildInstitutionTitle, logoUrls } from './institutionConfig';
+import { DEFAULT_GOOGLE_CLIENT_ID } from './appConstants';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -34,7 +38,6 @@ import SettingsModal from './components/modals/SettingsModal';
 import OpenFromDriveModal from './components/modals/OpenFromDriveModal';
 import SaveToDriveModal from './components/modals/SaveToDriveModal';
 import HistoryModal from './components/modals/HistoryModal';
-import CartolaMedicamentosView from './components/CartolaMedicamentosView';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DriveProvider, useDrive } from './contexts/DriveContext';
 
@@ -44,6 +47,8 @@ declare global {
         google: any;
     }
 }
+
+const CartolaMedicamentosView = lazy(() => import('./components/CartolaMedicamentosView'));
 
 const DEFAULT_TEMPLATE_ID = '2';
 const RECOMMENDED_GEMINI_MODEL = 'gemini-1.5-flash-latest';
@@ -176,24 +181,9 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     } = useClinicalRecord({ onToast: showToast });
     const [nowTick, setNowTick] = useState(Date.now());
     const importInputRef = useRef<HTMLInputElement>(null);
-    const [apiKey, setApiKey] = useState('');
-    const [aiApiKey, setAiApiKey] = useState('');
-    const [aiProjectId, setAiProjectId] = useState('');
-    const [aiModel, setAiModel] = useState(INITIAL_GEMINI_MODEL);
-
     // Modals State
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
-    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-
-    // Settings Modal Temp State
-    const [tempApiKey, setTempApiKey] = useState('');
-    const [tempClientId, setTempClientId] = useState('');
-    const [tempAiApiKey, setTempAiApiKey] = useState('');
-    const [tempAiProjectId, setTempAiProjectId] = useState('');
-    const [tempAiModel, setTempAiModel] = useState(INITIAL_GEMINI_MODEL);
-    const [showApiKey, setShowApiKey] = useState(false);
-    const [showAiApiKey, setShowAiApiKey] = useState(false);
 
     useEffect(() => {
         document.body.dataset.theme = 'light';
@@ -255,19 +245,48 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
         return () => window.clearInterval(timer);
     }, []);
     
-    // Load settings from localStorage on initial render
-    useEffect(() => {
-        const savedApiKey = localStorage.getItem('googleApiKey');
-        const savedClientId = localStorage.getItem('googleClientId');
-        const savedAiKey = localStorage.getItem('geminiApiKey');
-        const savedAiProject = localStorage.getItem('geminiProjectId');
-        const savedAiModel = localStorage.getItem('geminiModel');
-        if (savedApiKey) setApiKey(savedApiKey);
-        if (savedClientId) setClientId(savedClientId);
-        if (savedAiKey) setAiApiKey(savedAiKey);
-        if (savedAiProject) setAiProjectId(savedAiProject);
-        if (savedAiModel) setAiModel(savedAiModel);
-    }, [setClientId]);
+    const {
+        apiKey,
+        aiApiKey,
+        aiProjectId,
+        aiModel,
+        setAiModel,
+        isSettingsModalOpen,
+        tempApiKey,
+        tempClientId,
+        tempAiApiKey,
+        tempAiProjectId,
+        tempAiModel,
+        setTempApiKey,
+        setTempClientId,
+        setTempAiApiKey,
+        setTempAiProjectId,
+        setTempAiModel,
+        showApiKey,
+        showAiApiKey,
+        toggleShowApiKey,
+        toggleShowAiApiKey,
+        openSettingsModal,
+        closeSettingsModal,
+        saveSettings,
+        clearSettings,
+    } = useAppSettings({
+        clientId,
+        setClientId,
+        envGeminiApiKey: ENV_GEMINI_API_KEY,
+        envGeminiProjectId: ENV_GEMINI_PROJECT_ID,
+        initialGeminiModel: INITIAL_GEMINI_MODEL,
+        confirmClearSettings: () =>
+            confirm({
+                title: 'Eliminar credenciales',
+                message: '¿Está seguro de que desea eliminar las credenciales guardadas? Esta acción no se puede deshacer.',
+                confirmLabel: 'Eliminar',
+                cancelLabel: 'Cancelar',
+                tone: 'danger',
+            }),
+        onToast: showToast,
+    });
+
 
     const handleManualSave = useCallback(() => {
         if (!hasUnsavedChanges) {
@@ -305,174 +324,24 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
         return !aiModel || aiModel === RECOMMENDED_GEMINI_MODEL;
     }, [aiModel]);
     const resolvedAiModel = useMemo(() => aiModel || INITIAL_GEMINI_MODEL, [aiModel]);
-    const fullRecordContext = useMemo(() => {
-        const patientLines = record.patientFields
-            .map(field => {
-                const value = field.value?.trim();
-                if (!value) return '';
-                return `${field.label}: ${value}`;
-            })
-            .filter(Boolean)
-            .join('\n');
+    const fullRecordContext = useMemo(() => buildFullRecordContext(record), [record]);
 
-        const sectionBlocks = record.sections
-            .map((section, index) => {
-                const title = section.title?.trim() || `Sección ${index + 1}`;
-                const meta = section.kind === 'clinical-update'
-                    ? [section.updateDate ? `Fecha ${section.updateDate}` : '', section.updateTime ? `Hora ${section.updateTime}` : '']
-                          .filter(Boolean)
-                          .join(' · ')
-                    : '';
-                const header = [title, meta].filter(Boolean).join(' — ');
-                const content = htmlToPlainText(section.content || '').trim();
-                return `${header || title}:\n${content || 'Sin contenido registrado.'}`;
-            })
-            .join('\n\n');
 
-        const footerLines = [
-            record.medico?.trim() ? `Médico responsable: ${record.medico.trim()}` : '',
-            record.especialidad?.trim() ? `Especialidad: ${record.especialidad.trim()}` : '',
-        ]
-            .filter(Boolean)
-            .join('\n');
+    const aiSections = useMemo(() => mapSectionsForAi(record.sections), [record.sections]);
 
-        return [
-            record.title?.trim() ? `Título del registro: ${record.title.trim()}` : '',
-            patientLines ? `Datos del paciente:\n${patientLines}` : '',
-            sectionBlocks ? `Secciones clínicas:\n${sectionBlocks}` : '',
-            footerLines,
-        ]
-            .filter(Boolean)
-            .join('\n\n');
-    }, [record]);
 
-    const aiSections = useMemo(
-        () =>
-            record.sections.map((section, index) => ({
-                id: `section-${index}`,
-                index,
-                title: section.title,
-                content: section.content || '',
-            })),
-        [record.sections],
-    );
+    const aiConversationKey = useMemo(() => buildAiConversationKey(record), [record]);
 
-    const aiConversationKey = useMemo(() => {
-        const toMatch = (field: { id?: string; label?: string }) => ({
-            byId: (id: string) => field.id === id,
-            byLabel: (needle: string) => (field.label ? field.label.toLowerCase().includes(needle) : false),
-        });
-        const nameField = record.patientFields.find(field => toMatch(field).byId('nombre') || toMatch(field).byLabel('nombre'));
-        const rutField = record.patientFields.find(
-            field =>
-                toMatch(field).byId('rut') ||
-                toMatch(field).byLabel('rut') ||
-                toMatch(field).byLabel('identificador') ||
-                toMatch(field).byLabel('ficha'),
-        );
-        const safeTitle = record.title?.trim();
-        const safeName = nameField?.value?.trim();
-        const safeId = rutField?.value?.trim();
-        return [record.templateId, safeTitle, safeName, safeId].filter(Boolean).join('|') || record.templateId;
-    }, [record.patientFields, record.templateId, record.title]);
     const handleAutoSelectAiModel = useCallback(
         (modelId: string) => {
             setAiModel(modelId);
-            if (typeof window !== 'undefined') {
-                window.localStorage.setItem('geminiModel', modelId);
-            }
+            persistSettings({ geminiModel: modelId });
             showToast(`Modelo de IA actualizado automáticamente a ${modelId}.`);
         },
         [showToast],
     );
 
-    // --- Settings Modal Handlers ---
-    const openSettingsModal = () => {
-        setTempApiKey(apiKey);
-        setTempClientId(clientId);
-        setTempAiApiKey(aiApiKey || ENV_GEMINI_API_KEY);
-        setTempAiProjectId(aiProjectId || ENV_GEMINI_PROJECT_ID);
-        setTempAiModel(aiModel || INITIAL_GEMINI_MODEL);
-        setIsSettingsModalOpen(true);
-    };
 
-    const closeSettingsModal = () => {
-        setIsSettingsModalOpen(false);
-        setShowApiKey(false);
-        setShowAiApiKey(false);
-    };
-
-    const handleSaveSettings = () => {
-        if (tempApiKey.trim()) {
-            localStorage.setItem('googleApiKey', tempApiKey.trim());
-            setApiKey(tempApiKey.trim());
-        } else {
-            localStorage.removeItem('googleApiKey');
-            setApiKey('');
-        }
-
-        if (tempClientId.trim()) {
-            localStorage.setItem('googleClientId', tempClientId.trim());
-            setClientId(tempClientId.trim());
-        } else {
-            localStorage.removeItem('googleClientId');
-            setClientId('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
-        }
-
-        if (tempAiApiKey.trim()) {
-            localStorage.setItem('geminiApiKey', tempAiApiKey.trim());
-            setAiApiKey(tempAiApiKey.trim());
-        } else {
-            localStorage.removeItem('geminiApiKey');
-            setAiApiKey('');
-        }
-
-        if (tempAiProjectId.trim()) {
-            localStorage.setItem('geminiProjectId', tempAiProjectId.trim());
-            setAiProjectId(tempAiProjectId.trim());
-        } else {
-            localStorage.removeItem('geminiProjectId');
-            setAiProjectId('');
-        }
-
-        if (tempAiModel.trim()) {
-            const sanitizedModel = normalizeGeminiModelId(tempAiModel);
-            localStorage.setItem('geminiModel', sanitizedModel);
-            setAiModel(sanitizedModel);
-        } else {
-            localStorage.removeItem('geminiModel');
-            setAiModel(INITIAL_GEMINI_MODEL);
-        }
-
-        showToast('Configuración guardada. Para que todos los cambios surtan efecto, por favor, recargue la página.');
-        closeSettingsModal();
-    };
-
-    const handleClearSettings = () => {
-        void (async () => {
-            const confirmed = await confirm({
-                title: 'Eliminar credenciales',
-                message: '¿Está seguro de que desea eliminar las credenciales guardadas? Esta acción no se puede deshacer.',
-                confirmLabel: 'Eliminar',
-                cancelLabel: 'Cancelar',
-                tone: 'danger',
-            });
-            if (!confirmed) return;
-            localStorage.removeItem('googleApiKey');
-            localStorage.removeItem('googleClientId');
-            localStorage.removeItem('geminiApiKey');
-            localStorage.removeItem('geminiProjectId');
-            localStorage.removeItem('geminiModel');
-            setApiKey('');
-            setClientId('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
-            setAiApiKey('');
-            setAiProjectId('');
-            setAiModel(INITIAL_GEMINI_MODEL);
-            setTempAiModel(INITIAL_GEMINI_MODEL);
-            showToast('Credenciales eliminadas. Recargue la página para aplicar los cambios.', 'warning');
-            closeSettingsModal();
-        })();
-    };
 
     // --- Save Modal Handlers ---
     const openSaveModal = () => {
@@ -520,13 +389,17 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     };
 
     const handleFileOpen = async (file: DriveFolder) => {
-        const importedRecord = await openJsonFileFromDrive(file);
-        if (!importedRecord) return;
-        markRecordAsReplaced();
-        setRecord(importedRecord);
-        setHasUnsavedChanges(false);
-        saveDraft('import');
-        setIsOpenModalOpen(false);
+        try {
+            const importedRecord = await openJsonFileFromDrive(file);
+            if (!importedRecord) return;
+            markRecordAsReplaced();
+            setRecord(importedRecord);
+            setHasUnsavedChanges(false);
+            saveDraft('import');
+            setIsOpenModalOpen(false);
+        } catch (error) {
+            showToast(buildContextualErrorMessage(`No se pudo abrir "${file.name}"`, error), 'error');
+        }
     };
 
     // --- PDF & File Operations ---
@@ -786,7 +659,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     const handlePickerCallback = async (data: any) => {
         if (data.action === window.google.picker.Action.PICKED) {
             const doc = data.docs[0];
-            handleFileOpen({ id: doc.id, name: doc.name || 'Archivo sin nombre' });
+            void handleFileOpen({ id: doc.id, name: doc.name || 'Archivo sin nombre' });
         }
     };
     
@@ -827,7 +700,8 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                 .build();
             picker.setVisible(true);
         } catch (error) {
-            console.error("Picker failed to initialize, falling back to simple picker.", error);
+            console.error('Picker failed to initialize, falling back to simple picker.', error);
+            showToast(buildContextualErrorMessage('No se pudo iniciar el selector visual de Drive', error), 'warning');
             setIsOpenModalOpen(true);
             fetchFolderContents('root');
         }
@@ -839,17 +713,23 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
             showToast(`No se puede guardar porque:\n- ${errors.join('\n- ')}`, 'error');
             return;
         }
+
         const defaultBaseName = defaultDriveFileName || 'Registro Clínico';
         const sanitizedInput = fileNameInput.trim().replace(/\.(json|pdf)$/gi, '');
         const baseFileName = sanitizedInput || defaultBaseName;
-        const success = await saveToDrive({
-            record,
-            baseFileName,
-            format: saveFormat,
-            generatePdf: generatePdfAsBlob,
-        });
-        if (success) {
-            closeSaveModal();
+
+        try {
+            const success = await saveToDrive({
+                record,
+                baseFileName,
+                format: saveFormat,
+                generatePdf: generatePdfAsBlob,
+            });
+            if (success) {
+                closeSaveModal();
+            }
+        } catch (error) {
+            showToast(buildContextualErrorMessage('No se pudo guardar el archivo en Drive', error), 'error');
         }
     };
     
@@ -1247,15 +1127,15 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                 showApiKey={showApiKey}
                 showAiApiKey={showAiApiKey}
                 onClose={closeSettingsModal}
-                onToggleShowApiKey={() => setShowApiKey(prev => !prev)}
-                onToggleShowAiApiKey={() => setShowAiApiKey(prev => !prev)}
+                onToggleShowApiKey={toggleShowApiKey}
+                onToggleShowAiApiKey={toggleShowAiApiKey}
                 onTempApiKeyChange={setTempApiKey}
                 onTempClientIdChange={setTempClientId}
                 onTempAiApiKeyChange={setTempAiApiKey}
                 onTempAiProjectIdChange={setTempAiProjectId}
                 onTempAiModelChange={setTempAiModel}
-                onSave={handleSaveSettings}
-                onClearCredentials={handleClearSettings}
+                onSave={saveSettings}
+                onClearCredentials={() => { void clearSettings(); }}
             />
             
             <OpenFromDriveModal
@@ -1407,12 +1287,16 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
 type ActiveApp = 'clinical' | 'cartola';
 
 const App: React.FC = () => {
-    const [clientId, setClientId] = useState('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
+    const [clientId, setClientId] = useState(DEFAULT_GOOGLE_CLIENT_ID);
     const [activeApp, setActiveApp] = useState<ActiveApp>('clinical');
     const { toast, showToast } = useToast();
 
     if (activeApp === 'cartola') {
-        return <CartolaMedicamentosView onBack={() => setActiveApp('clinical')} />;
+        return (
+            <Suspense fallback={<div className="p-4 text-sm text-gray-600">Cargando cartola de medicamentos…</div>}>
+                <CartolaMedicamentosView onBack={() => setActiveApp('clinical')} />
+            </Suspense>
+        );
     }
 
     return (

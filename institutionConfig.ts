@@ -6,20 +6,36 @@ const DEFAULT_LOGO_URLS = {
 
 const sanitizeValue = (value?: string) => {
     if (!value) return '';
-    const trimmed = value.trim();
-    return trimmed;
+    return value.trim();
 };
 
-const rawInstitutionName = import.meta.env.VITE_INSTITUTION_NAME;
-const rawLeftLogo = import.meta.env.VITE_LOGO_LEFT_URL;
-const rawRightLogo = import.meta.env.VITE_LOGO_RIGHT_URL;
-
-export const institutionName = sanitizeValue(rawInstitutionName) || DEFAULT_INSTITUTION_NAME;
-
-export const logoUrls = {
-    left: sanitizeValue(rawLeftLogo) || DEFAULT_LOGO_URLS.left,
-    right: sanitizeValue(rawRightLogo) || DEFAULT_LOGO_URLS.right,
+const readMetaEnv = (): Record<string, string> => {
+    if (typeof import.meta === 'undefined') return {};
+    const withEnv = import.meta as ImportMeta & { env?: Record<string, string> };
+    return withEnv.env ?? {};
 };
+
+const resolveInstitutionConfig = () => {
+    const env = readMetaEnv();
+
+    const institutionName = sanitizeValue(env.VITE_INSTITUTION_NAME) || DEFAULT_INSTITUTION_NAME;
+    const leftLogo = sanitizeValue(env.VITE_LOGO_LEFT_URL) || DEFAULT_LOGO_URLS.left;
+    const rightLogo = sanitizeValue(env.VITE_LOGO_RIGHT_URL) || DEFAULT_LOGO_URLS.right;
+
+    return {
+        institutionName,
+        logoUrls: {
+            left: leftLogo,
+            right: rightLogo,
+        },
+    };
+};
+
+const institutionConfig = resolveInstitutionConfig();
+
+export const institutionName = institutionConfig.institutionName;
+
+export const logoUrls = institutionConfig.logoUrls;
 
 export const buildInstitutionTitle = (baseTitle: string, separator = ' - ') => {
     if (!institutionName) return baseTitle;

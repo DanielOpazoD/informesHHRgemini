@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "npm run test:build && npm run test:run",
     "test:build": "tsc --project tsconfig.test.json",
-    "test:run": "node --test --loader ./test-esm-loader.mjs .test-dist"
+    "test:run": "node --test --loader ./test-esm-loader.mjs .test-dist",
+    "check:bundle": "node ./scripts/checkBundleSize.mjs"
   },
   "dependencies": {
     "react": "19.2.0",

@@ -6,6 +6,7 @@ import type {
     RecentDriveFile,
 } from '../types';
 import { MAX_RECENT_FILES, SEARCH_CACHE_TTL, DRIVE_CONTENT_FETCH_CONCURRENCY, LOCAL_STORAGE_KEYS } from '../appConstants';
+import { buildDriveContextErrorMessage } from '../utils/driveErrorUtils';
 
 type ToastFn = (message: string, type?: 'success' | 'warning' | 'error') => void;
 
@@ -140,7 +141,7 @@ export const DriveProvider: React.FC<DriveProviderProps> = ({ children, showToas
             setSelectedFolderId(folderId);
         } catch (error) {
             console.error('Error fetching folders:', error);
-            showToast('No se pudieron cargar las carpetas de Drive.', 'error');
+            showToast(buildDriveContextErrorMessage('No se pudieron cargar las carpetas de Drive', error, 'Error al listar carpetas.'), 'error');
         } finally {
             setIsDriveLoading(false);
         }
@@ -187,7 +188,7 @@ export const DriveProvider: React.FC<DriveProviderProps> = ({ children, showToas
             setSelectedFolderId(folderId);
         } catch (error) {
             console.error('Error fetching folder contents:', error);
-            showToast('No se pudieron cargar los contenidos de la carpeta de Drive.', 'error');
+            showToast(buildDriveContextErrorMessage('No se pudieron cargar los contenidos de la carpeta de Drive', error, 'Error al listar contenidos.'), 'error');
         } finally {
             setIsDriveLoading(false);
         }
@@ -319,7 +320,7 @@ export const DriveProvider: React.FC<DriveProviderProps> = ({ children, showToas
             showToast(`Se encontraron ${files.length} archivo(s).`);
         } catch (error) {
             console.error('Error al buscar en Drive:', error);
-            showToast('No se pudo completar la búsqueda en Drive.', 'error');
+            showToast(buildDriveContextErrorMessage('No se pudo completar la búsqueda en Drive', error, 'Error durante la búsqueda.'), 'error');
         } finally {
             setIsDriveLoading(false);
         }
@@ -379,7 +380,7 @@ export const DriveProvider: React.FC<DriveProviderProps> = ({ children, showToas
             showToast('Carpeta creada correctamente.');
         } catch (error) {
             console.error('Error creating folder:', error);
-            showToast('No se pudo crear la carpeta.', 'error');
+            showToast(buildDriveContextErrorMessage('No se pudo crear la carpeta', error, 'Error al crear carpeta.'), 'error');
         } finally {
             setIsDriveLoading(false);
         }
@@ -408,7 +409,7 @@ export const DriveProvider: React.FC<DriveProviderProps> = ({ children, showToas
             return null;
         } catch (error) {
             console.error('Error al abrir el archivo desde Drive:', error);
-            showToast('Hubo un error al leer el archivo desde Google Drive.', 'error');
+            showToast(buildDriveContextErrorMessage('Hubo un error al leer el archivo desde Google Drive', error, 'No se pudo leer el archivo.'), 'error');
             return null;
         } finally {
             setIsDriveLoading(false);
@@ -456,7 +457,7 @@ export const DriveProvider: React.FC<DriveProviderProps> = ({ children, showToas
             return true;
         } catch (error: any) {
             console.error('Error saving to Drive:', error);
-            showToast(`Error al guardar en Google Drive: ${error.message || String(error)}`, 'error');
+            showToast(buildDriveContextErrorMessage('Error al guardar en Google Drive', error, 'No se pudo guardar el archivo.'), 'error');
             return false;
         } finally {
             setIsSaving(false);

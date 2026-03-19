@@ -22,5 +22,15 @@ export default defineConfig(({ mode }) => {
                 '@': path.resolve(__dirname, '.'),
             },
         },
+        build: {
+            rollupOptions: {
+                output: {
+                    manualChunks: {
+                        react: ['react', 'react-dom'],
+                        pdf: ['jspdf'],
+                    },
+                },
+            },
+        },
     };
 });
