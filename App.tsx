@@ -26,6 +26,7 @@ import { useAppSettings } from './hooks/useAppSettings';
 import { getEnvGeminiApiKey, getEnvGeminiProjectId, getEnvGeminiModel } from './utils/env';
 import { persistSettings } from './utils/settingsStorage';
 import { buildAiConversationKey, buildFullRecordContext, mapSectionsForAi } from './utils/aiContext';
+import { buildContextualErrorMessage } from './utils/errorUtils';
 import { appDisplayName, buildInstitutionTitle, logoUrls } from './institutionConfig';
 import { DEFAULT_GOOGLE_CLIENT_ID } from './appConstants';
 import Header from './components/Header';
@@ -387,13 +388,17 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     };
 
     const handleFileOpen = async (file: DriveFolder) => {
-        const importedRecord = await openJsonFileFromDrive(file);
-        if (!importedRecord) return;
-        markRecordAsReplaced();
-        setRecord(importedRecord);
-        setHasUnsavedChanges(false);
-        saveDraft('import');
-        setIsOpenModalOpen(false);
+        try {
+            const importedRecord = await openJsonFileFromDrive(file);
+            if (!importedRecord) return;
+            markRecordAsReplaced();
+            setRecord(importedRecord);
+            setHasUnsavedChanges(false);
+            saveDraft('import');
+            setIsOpenModalOpen(false);
+        } catch (error) {
+            showToast(buildContextualErrorMessage(`No se pudo abrir "${file.name}"`, error), 'error');
+        }
     };
 
     // --- PDF & File Operations ---
@@ -653,7 +658,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     const handlePickerCallback = async (data: any) => {
         if (data.action === window.google.picker.Action.PICKED) {
             const doc = data.docs[0];
-            handleFileOpen({ id: doc.id, name: doc.name || 'Archivo sin nombre' });
+            void handleFileOpen({ id: doc.id, name: doc.name || 'Archivo sin nombre' });
         }
     };
     
@@ -694,7 +699,8 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                 .build();
             picker.setVisible(true);
         } catch (error) {
-            console.error("Picker failed to initialize, falling back to simple picker.", error);
+            console.error('Picker failed to initialize, falling back to simple picker.', error);
+            showToast(buildContextualErrorMessage('No se pudo iniciar el selector visual de Drive', error), 'warning');
             setIsOpenModalOpen(true);
             fetchFolderContents('root');
         }
@@ -706,17 +712,23 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
             showToast(`No se puede guardar porque:\n- ${errors.join('\n- ')}`, 'error');
             return;
         }
+
         const defaultBaseName = defaultDriveFileName || 'Registro Clínico';
         const sanitizedInput = fileNameInput.trim().replace(/\.(json|pdf)$/gi, '');
         const baseFileName = sanitizedInput || defaultBaseName;
-        const success = await saveToDrive({
-            record,
-            baseFileName,
-            format: saveFormat,
-            generatePdf: generatePdfAsBlob,
-        });
-        if (success) {
-            closeSaveModal();
+
+        try {
+            const success = await saveToDrive({
+                record,
+                baseFileName,
+                format: saveFormat,
+                generatePdf: generatePdfAsBlob,
+            });
+            if (success) {
+                closeSaveModal();
+            }
+        } catch (error) {
+            showToast(buildContextualErrorMessage('No se pudo guardar el archivo en Drive', error), 'error');
         }
     };
     
