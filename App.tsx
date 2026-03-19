@@ -23,8 +23,10 @@ import { useToast, type ToastState } from './hooks/useToast';
 import { useClinicalRecord } from './hooks/useClinicalRecord';
 import { useConfirmDialog } from './hooks/useConfirmDialog';
 import { getEnvGeminiApiKey, getEnvGeminiProjectId, getEnvGeminiModel, normalizeGeminiModelId } from './utils/env';
+import { clearPersistedSettings, loadPersistedSettings, persistSettings, resolveClientId } from './utils/settingsStorage';
 import { htmlToPlainText } from './utils/textUtils';
 import { appDisplayName, buildInstitutionTitle, logoUrls } from './institutionConfig';
+import { DEFAULT_GOOGLE_CLIENT_ID } from './appConstants';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ClinicalSection from './components/ClinicalSection';
@@ -257,16 +259,12 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     
     // Load settings from localStorage on initial render
     useEffect(() => {
-        const savedApiKey = localStorage.getItem('googleApiKey');
-        const savedClientId = localStorage.getItem('googleClientId');
-        const savedAiKey = localStorage.getItem('geminiApiKey');
-        const savedAiProject = localStorage.getItem('geminiProjectId');
-        const savedAiModel = localStorage.getItem('geminiModel');
-        if (savedApiKey) setApiKey(savedApiKey);
-        if (savedClientId) setClientId(savedClientId);
-        if (savedAiKey) setAiApiKey(savedAiKey);
-        if (savedAiProject) setAiProjectId(savedAiProject);
-        if (savedAiModel) setAiModel(savedAiModel);
+        const settings = loadPersistedSettings();
+        if (settings.googleApiKey) setApiKey(settings.googleApiKey);
+        if (settings.googleClientId) setClientId(resolveClientId(settings.googleClientId));
+        if (settings.geminiApiKey) setAiApiKey(settings.geminiApiKey);
+        if (settings.geminiProjectId) setAiProjectId(settings.geminiProjectId);
+        if (settings.geminiModel) setAiModel(settings.geminiModel);
     }, [setClientId]);
 
     const handleManualSave = useCallback(() => {
@@ -378,9 +376,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     const handleAutoSelectAiModel = useCallback(
         (modelId: string) => {
             setAiModel(modelId);
-            if (typeof window !== 'undefined') {
-                window.localStorage.setItem('geminiModel', modelId);
-            }
+            persistSettings({ geminiModel: modelId });
             showToast(`Modelo de IA actualizado automáticamente a ${modelId}.`);
         },
         [showToast],
@@ -403,46 +399,20 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     };
 
     const handleSaveSettings = () => {
-        if (tempApiKey.trim()) {
-            localStorage.setItem('googleApiKey', tempApiKey.trim());
-            setApiKey(tempApiKey.trim());
-        } else {
-            localStorage.removeItem('googleApiKey');
-            setApiKey('');
-        }
+        const sanitizedModel = tempAiModel.trim() ? normalizeGeminiModelId(tempAiModel) : '';
+        persistSettings({
+            googleApiKey: tempApiKey,
+            googleClientId: tempClientId,
+            geminiApiKey: tempAiApiKey,
+            geminiProjectId: tempAiProjectId,
+            geminiModel: sanitizedModel,
+        });
 
-        if (tempClientId.trim()) {
-            localStorage.setItem('googleClientId', tempClientId.trim());
-            setClientId(tempClientId.trim());
-        } else {
-            localStorage.removeItem('googleClientId');
-            setClientId('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
-        }
-
-        if (tempAiApiKey.trim()) {
-            localStorage.setItem('geminiApiKey', tempAiApiKey.trim());
-            setAiApiKey(tempAiApiKey.trim());
-        } else {
-            localStorage.removeItem('geminiApiKey');
-            setAiApiKey('');
-        }
-
-        if (tempAiProjectId.trim()) {
-            localStorage.setItem('geminiProjectId', tempAiProjectId.trim());
-            setAiProjectId(tempAiProjectId.trim());
-        } else {
-            localStorage.removeItem('geminiProjectId');
-            setAiProjectId('');
-        }
-
-        if (tempAiModel.trim()) {
-            const sanitizedModel = normalizeGeminiModelId(tempAiModel);
-            localStorage.setItem('geminiModel', sanitizedModel);
-            setAiModel(sanitizedModel);
-        } else {
-            localStorage.removeItem('geminiModel');
-            setAiModel(INITIAL_GEMINI_MODEL);
-        }
+        setApiKey(tempApiKey.trim());
+        setClientId(resolveClientId(tempClientId));
+        setAiApiKey(tempAiApiKey.trim());
+        setAiProjectId(tempAiProjectId.trim());
+        setAiModel(sanitizedModel || INITIAL_GEMINI_MODEL);
 
         showToast('Configuración guardada. Para que todos los cambios surtan efecto, por favor, recargue la página.');
         closeSettingsModal();
@@ -458,13 +428,9 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
                 tone: 'danger',
             });
             if (!confirmed) return;
-            localStorage.removeItem('googleApiKey');
-            localStorage.removeItem('googleClientId');
-            localStorage.removeItem('geminiApiKey');
-            localStorage.removeItem('geminiProjectId');
-            localStorage.removeItem('geminiModel');
+            clearPersistedSettings();
             setApiKey('');
-            setClientId('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
+            setClientId(DEFAULT_GOOGLE_CLIENT_ID);
             setAiApiKey('');
             setAiProjectId('');
             setAiModel(INITIAL_GEMINI_MODEL);
@@ -1407,7 +1373,7 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
 type ActiveApp = 'clinical' | 'cartola';
 
 const App: React.FC = () => {
-    const [clientId, setClientId] = useState('962184902543-f8jujg3re8sa6522en75soum5n4dajcj.apps.googleusercontent.com');
+    const [clientId, setClientId] = useState(DEFAULT_GOOGLE_CLIENT_ID);
     const [activeApp, setActiveApp] = useState<ActiveApp>('clinical');
     const { toast, showToast } = useToast();
 
