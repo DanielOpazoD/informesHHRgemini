@@ -8,9 +8,9 @@
     "allowImportingTsExtensions": false
   },
   "include": [
-    "utils/**/*.ts",
-    "types.ts",
-    "tests/**/*.ts"
+    "src/utils/**/*.ts",
+    "src/types.ts",
+    "src/tests/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }
