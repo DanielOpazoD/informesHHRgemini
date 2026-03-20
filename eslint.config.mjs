@@ -40,6 +40,7 @@ export default [
                 // DOM types
                 HTMLElement: 'readonly',
                 HTMLInputElement: 'readonly',
+                HTMLSelectElement: 'readonly',
                 HTMLButtonElement: 'readonly',
                 HTMLDivElement: 'readonly',
                 HTMLImageElement: 'readonly',

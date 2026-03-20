@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import CartolaMedicamentosApp from '../../Cartolamedicamentos-main/App';
+import CartolaMedicamentosApp from './cartola/CartolaApp';
 
 interface CartolaMedicamentosViewProps {
     onBack: () => void;
