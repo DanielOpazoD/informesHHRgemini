@@ -22,6 +22,7 @@ import { generatePdfAsBlob } from './utils/pdfGenerator';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import AppShellContent from './components/app/AppShellContent';
 import {
+    adaptRecordToTemplate,
     buildClinicalUpdateSection,
     createTemplateBaseline,
     DEFAULT_TEMPLATE_ID,
@@ -174,18 +175,15 @@ const AppShell: React.FC<AppShellProps> = ({ toast, showToast, clientId, setClie
     const handleTemplateChange = useCallback((id: string) => {
         const template = TEMPLATES[id];
         if (!template) return;
-        const baseline = createTemplateBaseline(id);
 
         setRecord(current => {
             const currentTemplate = TEMPLATES[current.templateId];
             const trimmedTitle = current.title?.trim() || '';
             const wasUsingDefaultTitle = trimmedTitle === (currentTemplate?.title || '');
+            const adaptedRecord = adaptRecordToTemplate(current, id);
             return {
-                ...current,
-                templateId: id,
-                title: wasUsingDefaultTitle ? template.title : current.title,
-                patientFields: baseline.patientFields,
-                sections: baseline.sections,
+                ...adaptedRecord,
+                title: wasUsingDefaultTitle ? template.title : adaptedRecord.title,
             };
         });
     }, [setRecord]);
